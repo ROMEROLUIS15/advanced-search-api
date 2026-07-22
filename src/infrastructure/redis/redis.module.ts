@@ -17,6 +17,6 @@ import { RedisCacheAdapter } from './redis-cache.adapter';
     RedisClientLifecycle,
     { provide: CACHE_PORT, useClass: RedisCacheAdapter },
   ],
-  exports: [CACHE_PORT],
+  exports: [CACHE_PORT, REDIS_CLIENT],
 })
 export class RedisModule {}

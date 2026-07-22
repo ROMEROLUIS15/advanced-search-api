@@ -3,12 +3,10 @@ import { AppConfigModule } from '@config/config.module';
 import { SearchModule } from './search.module';
 import { AutocompleteModule } from './autocomplete.module';
 import { SuggestionModule } from './suggestion.module';
+import { HealthModule } from './health.module';
 
-/**
- * Root module. Composes the global config module and the feature modules; the
- * health module is added in group 12.
- */
+/** Root module. Composes the global config module and the feature modules. */
 @Module({
-  imports: [AppConfigModule, SearchModule, AutocompleteModule, SuggestionModule],
+  imports: [AppConfigModule, SearchModule, AutocompleteModule, SuggestionModule, HealthModule],
 })
 export class AppModule {}

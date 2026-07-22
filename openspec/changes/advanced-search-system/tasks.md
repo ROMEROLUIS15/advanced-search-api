@@ -78,8 +78,8 @@
 
 ## 12. Health & readiness (D11)  [spec: service-health]
 
-- [ ] 12.1 Implement Terminus indicators (or health probe ports) for Elasticsearch (critical → 503) and Redis (non-critical → reported, still 200).
-- [ ] 12.2 Add `HealthController` `GET /health` returning the typed status body.
+- [x] 12.1 Implement Terminus indicators (or health probe ports) for Elasticsearch (critical → 503) and Redis (non-critical → reported, still 200).
+- [x] 12.2 Add `HealthController` `GET /health` returning the typed status body.
 
 ## 13. Cross-cutting: errors, logging, response shape (D10)
 
