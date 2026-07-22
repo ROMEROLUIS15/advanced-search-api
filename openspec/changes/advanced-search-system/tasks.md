@@ -60,9 +60,9 @@
 
 ## 9. Redis caching (D8)  [spec: product-search, autocomplete]
 
-- [ ] 9.1 Implement `RedisCacheAdapter` (`CachePort`) with an ioredis client honoring `rediss://`/TLS; namespaced keys including an index-version token.
-- [ ] 9.2 Wrap `SearchProductsUseCase` with cache-aside (normalized-params key, `CACHE_TTL_SEARCH`); make it fail-open on any Redis error.
-- [ ] 9.3 Unit-test cache hit/miss and fail-open behavior with a mocked `CachePort`.
+- [x] 9.1 Implement `RedisCacheAdapter` (`CachePort`) with an ioredis client honoring `rediss://`/TLS; namespaced keys including an index-version token.
+- [x] 9.2 Wrap `SearchProductsUseCase` with cache-aside (normalized-params key, `CACHE_TTL_SEARCH`); make it fail-open on any Redis error.
+- [x] 9.3 Unit-test cache hit/miss and fail-open behavior with a mocked `CachePort`.
 
 ## 10. Autocomplete (D6)  [spec: autocomplete]
 
