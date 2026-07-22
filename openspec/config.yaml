@@ -1,0 +1,38 @@
+schema: spec-driven
+
+context: |
+  Project: Advanced product search API — a backend technical challenge. No frontend.
+  The submission is judged on: functional + well-documented > completeness, clean code,
+  performance, scalability, hexagonal architecture, and proper edge-case handling.
+
+  Tech stack: NestJS + TypeScript. Hexagonal / clean architecture with strict layers:
+  domain -> application (use-cases + ports) -> infrastructure (adapters) -> presentation (HTTP).
+  Dependency inversion via Symbol tokens + @Inject (never inject a TS interface directly).
+  Input validation with class-validator DTOs behind a global ValidationPipe
+  (whitelist, forbidNonWhitelisted, transform). Centralized error handling + typed responses.
+
+  Search engine: Elasticsearch. Relevance via BM25 + function_score (boost by popularity /
+  recency). Faceting via aggregations (terms for category/subcategory/location, range for price).
+  "Did you mean" / related queries via term & phrase suggesters. Autocomplete via
+  search_as_you_type / completion suggester.
+  Cache: Redis for autocomplete prefixes and hot query results.
+
+  Domain: Product { id, name, description, category, subcategories[], location, price,
+  popularity, createdAt }. A seed script bulk-indexes a realistic dataset into Elasticsearch.
+
+  Delivery: Docker (multi-stage Dockerfile + docker-compose: API + Elasticsearch + Redis),
+  deployable online (target: managed Elasticsearch + Redis + container host). README with
+  install/run/test instructions + a Postman collection with pre-configured endpoints.
+
+  Conventions: conventional commits; tests for core logic (unit for use-cases with mocked ports,
+  integration for the Elasticsearch adapter).
+
+# Per-artifact rules (optional)
+# Add custom rules for specific artifacts.
+# Example:
+#   rules:
+#     proposal:
+#       - Keep proposals under 500 words
+#       - Always include a "Non-goals" section
+#     tasks:
+#       - Break tasks into chunks of max 2 hours
