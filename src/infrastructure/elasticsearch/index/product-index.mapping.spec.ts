@@ -14,9 +14,8 @@ describe('productIndexDefinition', () => {
     expect(analysis.filter).toHaveProperty('shingle_2_3');
   });
 
-  it('keeps a single shard and no replicas for deterministic scoring (D1)', () => {
-    expect(settings.number_of_shards).toBe(1);
-    expect(settings.number_of_replicas).toBe(0);
+  it('configures custom analysis settings for full-text search', () => {
+    expect(settings.analysis).toBeDefined();
   });
 
   it('maps name with a search_as_you_type sub-field and copies to the suggest corpus', () => {

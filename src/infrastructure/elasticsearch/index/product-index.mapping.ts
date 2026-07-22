@@ -17,8 +17,6 @@ export function productIndexDefinition(): {
 
 function indexSettings(): estypes.IndicesIndexSettings {
   return {
-    number_of_shards: 1,
-    number_of_replicas: 0,
     analysis: {
       analyzer: {
         text_std: { type: 'custom', tokenizer: 'standard', filter: ['lowercase', 'asciifolding'] },
