@@ -186,17 +186,18 @@ The service is environment-driven and runs identically locally and in the cloud 
      **API key**. (Serverless manages shards automatically — the index mapping intentionally sets no
      `number_of_shards`/`number_of_replicas`.)
    - **Redis**: an *Upstash* database → capture its `rediss://` URL.
-2. **Configure the host (Render)** — set env vars on the service (never in the repo):
+2. **Create the service from the blueprint** — in Render, *New → Blueprint Instance* pointed at this repo.
+   [`render.yaml`](render.yaml) declares a Docker web service with `healthCheckPath: /health` and
+   `autoDeploy` on `main`. Render prompts for the four secrets (they are never stored in the repo):
    ```
-   NODE_ENV=production
-   ELASTICSEARCH_NODE=https://<your-project>.es.<region>.cloud.es.io:443
+   ELASTICSEARCH_NODE=https://<your-project>.es.<region>.gcp.elastic.cloud:443
    ELASTICSEARCH_API_KEY=<base64-api-key>
-   ELASTICSEARCH_INDEX=products
    REDIS_URL=rediss://default:<password>@<host>.upstash.io:6379
-   CORS_ORIGINS=<comma-separated allowed origins>
+   CORS_ORIGINS=<comma-separated allowed origins, or empty>
    ```
-3. **Deploy** the Docker image (Render builds from the `Dockerfile`). On boot the app validates config and is
-   ready once `GET /health` returns `200`.
+3. **Deploy** — Render builds the `Dockerfile` and routes traffic once `GET /health` returns `200`; the app
+   validates its environment at boot and fails fast if anything is missing. Note the free instance type spins
+   down when idle, so the first request after a pause takes a while.
 4. **Seed once** against the managed cluster via a one-off job/shell: `npm run seed:prod`
    (`node dist/seed/seed.command.js`). Idempotent by document id.
 5. **Verify**: `GET /health` is green and `GET /search?q=drill` returns hits online.

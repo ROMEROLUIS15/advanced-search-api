@@ -1,0 +1,44 @@
+# Render Blueprint (https://render.com/docs/blueprint-spec).
+#
+# Deploys the API from the repo's multi-stage Dockerfile. The service is
+# stateless: Elasticsearch and Redis are managed externally (Elastic Cloud
+# Serverless + Upstash), so only environment values change between local and
+# cloud — the same code path runs in both (design D12).
+#
+# Secrets are declared with `sync: false`: Render prompts for them when the
+# blueprint is applied and stores them on the service, never in this repo.
+services:
+  - type: web
+    name: advanced-search-api
+    runtime: docker
+    dockerfilePath: ./Dockerfile
+    plan: free
+    # Closest free region to the Elastic Cloud project (us-central1).
+    region: ohio
+    branch: main
+    autoDeploy: true
+    # Render waits for this to return 200 before routing traffic; it reports 503
+    # while Elasticsearch (the critical dependency) is unreachable.
+    healthCheckPath: /health
+    envVars:
+      - key: NODE_ENV
+        value: production
+      # Pinned so the port matches the Dockerfile's EXPOSE/HEALTHCHECK.
+      - key: PORT
+        value: 3000
+      - key: ELASTICSEARCH_INDEX
+        value: products
+      # ── Prompted on apply ──────────────────────────────────────
+      # https://<project>.es.<region>.gcp.elastic.cloud:443
+      - key: ELASTICSEARCH_NODE
+        sync: false
+      # base64 API key from the Elastic Cloud project
+      - key: ELASTICSEARCH_API_KEY
+        sync: false
+      # rediss://default:<password>@<host>.upstash.io:6379
+      - key: REDIS_URL
+        sync: false
+      # Comma-separated browser origins. Leave empty for a curl/Postman-only
+      # demo: with no list, production falls back to same-origin.
+      - key: CORS_ORIGINS
+        sync: false
