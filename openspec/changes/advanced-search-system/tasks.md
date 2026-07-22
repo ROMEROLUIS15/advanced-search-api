@@ -21,9 +21,9 @@
 
 ## 3. Domain & application contracts (D9, D10)
 
-- [ ] 3.1 Model the `Product` domain entity + `Money` value object with invariants (non-empty name, `price >= 0`, `popularity >= 0`); pure, framework-free.
-- [ ] 3.2 Define application input/result models: `SearchCriteria`, `SearchOutcome`, `ProductSummary`, `Facets`, `FacetBucket`, `PriceRangeBucket`, `QuerySuggestion`, `AutocompleteItem`.
-- [ ] 3.3 Declare ports as interfaces + `Symbol` tokens: `ProductSearchPort`, `AutocompletePort`, `QuerySuggestionPort`, `ProductIndexPort`, `CachePort`, health probe port(s).
+- [x] 3.1 Model the `Product` domain entity + `Money` value object with invariants (non-empty name, `price >= 0`, `popularity >= 0`); pure, framework-free.
+- [x] 3.2 Define application input/result models: `SearchCriteria`, `SearchOutcome`, `ProductSummary`, `Facets`, `FacetBucket`, `PriceRangeBucket`, `QuerySuggestion`, `AutocompleteItem`.
+- [x] 3.3 Declare ports as interfaces + `Symbol` tokens: `ProductSearchPort`, `AutocompletePort`, `QuerySuggestionPort`, `ProductIndexPort`, `CachePort`, health probe port(s).
 
 ## 4. Elasticsearch foundation — client, index, mapping (D1, D2)  [spec: product-indexing]
 

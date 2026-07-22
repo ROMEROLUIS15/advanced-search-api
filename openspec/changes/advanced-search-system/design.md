@@ -209,7 +209,7 @@ export interface AutocompletePort {
 
 export const QUERY_SUGGESTION_PORT = Symbol('QUERY_SUGGESTION_PORT');
 export interface QuerySuggestionPort {
-  suggest(text: string): Promise<QuerySuggestion[]>;
+  suggest(text: string): Promise<SearchSuggestions>; // { didYouMean, related }
 }
 
 export const PRODUCT_INDEX_PORT = Symbol('PRODUCT_INDEX_PORT');
@@ -231,7 +231,7 @@ export const HEALTH_PORT = Symbol('HEALTH_PORT'); // one per dependency, or Term
 export interface HealthProbePort { name: string; ping(): Promise<DependencyHealth>; }
 ```
 Domain-facing input/result models (`SearchCriteria`, `SearchOutcome`, `Facets`, `FacetBucket`,
-`PriceRangeBucket`, `QuerySuggestion`, `ProductSummary`) live in `application`/`domain`, not in
+`PriceRangeBucket`, `QuerySuggestion`, `SearchSuggestions`, `AutocompleteItem`, `BulkResult`, `ProductSummary`) live in `application`/`domain`, not in
 infrastructure, so ports never leak Elasticsearch types.
 
 ### D10 — Use-cases, domain, presentation
