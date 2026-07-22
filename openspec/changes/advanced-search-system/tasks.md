@@ -15,9 +15,9 @@
 
 ## 2. Configuration (D12)
 
-- [ ] 2.1 Add `ConfigModule` with a validated (Zod, via a custom `validate` fn) env schema covering Elasticsearch, Redis, cache TTLs, pagination limits, and relevance weights; fail-fast on missing/invalid vars at boot.
-- [ ] 2.2 Provide a typed config accessor (namespaced config objects) so adapters read config, not `process.env` directly.
-- [ ] 2.3 Commit `.env.example` documenting every variable with local and cloud (TLS/API-key) example values.
+- [x] 2.1 Add `ConfigModule` with a validated (Zod, via a custom `validate` fn) env schema covering Elasticsearch, Redis, cache TTLs, pagination limits, and relevance weights; fail-fast on missing/invalid vars at boot.
+- [x] 2.2 Provide a typed config accessor (namespaced config objects) so adapters read config, not `process.env` directly.
+- [x] 2.3 Commit `.env.example` documenting every variable with local and cloud (TLS/API-key) example values.
 
 ## 3. Domain & application contracts (D9, D10)
 
