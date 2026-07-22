@@ -89,10 +89,10 @@
 
 ## 14. Testing
 
-- [ ] 14.1 Unit tests for use-cases with mocked ports (search cache-aside, autocomplete, suggestions, health).
-- [ ] 14.2 Unit tests for `SearchQueryBuilder` (relevance, filters, sort tiebreaker, facet exclusion).
-- [ ] 14.3 Integration test for the Elasticsearch adapter against a real ES (docker-compose or testcontainers): index → search → facets → suggest.
-- [ ] 14.4 e2e tests for `/search`, `/autocomplete`, `/suggest`, `/health` covering happy paths and key edge cases (validation 400, window 422, engine-down 503, cache fail-open).
+- [x] 14.1 Unit tests for use-cases with mocked ports (search cache-aside, autocomplete, suggestions, health).
+- [x] 14.2 Unit tests for `SearchQueryBuilder` (relevance, filters, sort tiebreaker, facet exclusion).
+- [x] 14.3 Integration test for the Elasticsearch adapter against a real ES (docker-compose or testcontainers): index → search → facets → suggest.
+- [x] 14.4 e2e tests for `/search`, `/autocomplete`, `/suggest`, `/health` covering happy paths and key edge cases (validation 400, window 422, engine-down 503, cache fail-open).
 
 ## 15. Containerization (D12)
 
