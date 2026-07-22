@@ -1,0 +1,129 @@
+{
+  "info": {
+    "name": "Advanced Product Search API",
+    "description": "Relevance-ranked product search with filtering, faceting, autocomplete and query suggestions. Set the `baseUrl` collection variable to your local (http://localhost:3000) or deployed URL.",
+    "schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json"
+  },
+  "variable": [{ "key": "baseUrl", "value": "http://localhost:3000", "type": "string" }],
+  "item": [
+    {
+      "name": "Search — basic (q=drill)",
+      "request": {
+        "method": "GET",
+        "description": "Relevance-ranked full-text search.",
+        "url": {
+          "raw": "{{baseUrl}}/search?q=drill",
+          "host": ["{{baseUrl}}"],
+          "path": ["search"],
+          "query": [{ "key": "q", "value": "drill" }]
+        }
+      }
+    },
+    {
+      "name": "Search — filters + facets",
+      "request": {
+        "method": "GET",
+        "description": "Combined filters (category + price range) with sorting and pagination; response includes facet counts.",
+        "url": {
+          "raw": "{{baseUrl}}/search?q=drill&category=Tools&minPrice=50&maxPrice=500&sort=relevance&order=desc&page=1&pageSize=10",
+          "host": ["{{baseUrl}}"],
+          "path": ["search"],
+          "query": [
+            { "key": "q", "value": "drill" },
+            { "key": "category", "value": "Tools" },
+            { "key": "minPrice", "value": "50" },
+            { "key": "maxPrice", "value": "500" },
+            { "key": "sort", "value": "relevance" },
+            { "key": "order", "value": "desc" },
+            { "key": "page", "value": "1" },
+            { "key": "pageSize", "value": "10" }
+          ]
+        }
+      }
+    },
+    {
+      "name": "Search — browse mode (no q, by popularity)",
+      "request": {
+        "method": "GET",
+        "description": "Browse mode: with no query, results are ordered by the default sort (popularity).",
+        "url": {
+          "raw": "{{baseUrl}}/search?sort=popularity&order=desc&pageSize=5",
+          "host": ["{{baseUrl}}"],
+          "path": ["search"],
+          "query": [
+            { "key": "sort", "value": "popularity" },
+            { "key": "order", "value": "desc" },
+            { "key": "pageSize", "value": "5" }
+          ]
+        }
+      }
+    },
+    {
+      "name": "Search — exclude-own-dimension facet (category=Tools)",
+      "request": {
+        "method": "GET",
+        "description": "Hits are narrowed to Tools, but facets.categories still lists other categories so the dimension can be widened.",
+        "url": {
+          "raw": "{{baseUrl}}/search?category=Tools",
+          "host": ["{{baseUrl}}"],
+          "path": ["search"],
+          "query": [{ "key": "category", "value": "Tools" }]
+        }
+      }
+    },
+    {
+      "name": "Search — typo (low-recall suggestions)",
+      "request": {
+        "method": "GET",
+        "description": "A misspelled query with few hits populates the suggestions block.",
+        "url": {
+          "raw": "{{baseUrl}}/search?q=driil",
+          "host": ["{{baseUrl}}"],
+          "path": ["search"],
+          "query": [{ "key": "q", "value": "driil" }]
+        }
+      }
+    },
+    {
+      "name": "Autocomplete (q=cord)",
+      "request": {
+        "method": "GET",
+        "description": "Type-ahead completions honoring `limit`.",
+        "url": {
+          "raw": "{{baseUrl}}/autocomplete?q=cord&limit=5",
+          "host": ["{{baseUrl}}"],
+          "path": ["autocomplete"],
+          "query": [
+            { "key": "q", "value": "cord" },
+            { "key": "limit", "value": "5" }
+          ]
+        }
+      }
+    },
+    {
+      "name": "Suggest — did you mean (q=driil)",
+      "request": {
+        "method": "GET",
+        "description": "\"Did you mean\" + related query suggestions.",
+        "url": {
+          "raw": "{{baseUrl}}/suggest?q=driil",
+          "host": ["{{baseUrl}}"],
+          "path": ["suggest"],
+          "query": [{ "key": "q", "value": "driil" }]
+        }
+      }
+    },
+    {
+      "name": "Health",
+      "request": {
+        "method": "GET",
+        "description": "Readiness: 200 when Elasticsearch is up (Redis non-critical), 503 otherwise.",
+        "url": {
+          "raw": "{{baseUrl}}/health",
+          "host": ["{{baseUrl}}"],
+          "path": ["health"]
+        }
+      }
+    }
+  ]
+}

@@ -104,5 +104,5 @@
 
 - [ ] 16.1 Provision managed Elasticsearch (Elastic Cloud/Bonsai) + managed Redis (Upstash); configure env vars on the container host (Render/Railway) with TLS + API keys.
 - [ ] 16.2 Deploy the image; run the one-off seed job against the managed cluster; confirm `/health` green and `/search` returning hits online.
-- [ ] 16.3 Write the `README` (architecture overview, local + Docker run, testing, env reference, deploy steps, live URL) and record decisions traceable to `design.md`.
-- [ ] 16.4 Build the Postman collection with preconfigured requests for all endpoints (env-parameterized base URL) and example queries.
+- [x] 16.3 Write the `README` (architecture overview, local + Docker run, testing, env reference, deploy steps, live URL) and record decisions traceable to `design.md`.
+- [x] 16.4 Build the Postman collection with preconfigured requests for all endpoints (env-parameterized base URL) and example queries.
