@@ -20,8 +20,8 @@
     "test": "jest",
     "test:watch": "jest --watch",
     "test:cov": "jest --coverage",
-    "test:e2e": "jest --config ./test/jest-e2e.json --forceExit",
-    "test:integration": "jest --config ./test/jest-integration.json --forceExit"
+    "test:e2e": "jest --config ./test/jest-e2e.json --runInBand",
+    "test:integration": "jest --config ./test/jest-integration.json --runInBand"
   },
   "dependencies": {
     "@elastic/elasticsearch": "^8.17.0",
