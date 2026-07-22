@@ -34,9 +34,9 @@
 
 ## 5. Seed dataset & command (D2)  [spec: product-indexing]
 
-- [ ] 5.1 Author a realistic, varied product dataset (multiple categories/subcategories/locations, price spread, popularity + createdAt distribution) as a versioned JSON fixture.
-- [ ] 5.2 Implement the `seed` CLI (Nest standalone application context) that calls `ensureIndex()` then `bulkIndex()` + `refresh()`, idempotent on re-run, reporting invalid documents.
-- [ ] 5.3 Verify `npm run seed` populates a local Elasticsearch and documents are searchable.
+- [x] 5.1 Author a realistic, varied product dataset (multiple categories/subcategories/locations, price spread, popularity + createdAt distribution) as a versioned JSON fixture.
+- [x] 5.2 Implement the `seed` CLI (Nest standalone application context) that calls `ensureIndex()` then `bulkIndex()` + `refresh()`, idempotent on re-run, reporting invalid documents.
+- [x] 5.3 Verify `npm run seed` populates a local Elasticsearch and documents are searchable.
 
 ## 6. Core search vertical slice (D3, D5, D11)  [spec: product-search]
 
