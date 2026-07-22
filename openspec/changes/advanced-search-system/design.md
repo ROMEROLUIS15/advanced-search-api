@@ -280,9 +280,12 @@ GET /health
 Invalid params ⇒ `400` with field-level `details`. `from+size > 10000` ⇒ `422`.
 
 ### D12 — Configuration (fail-fast at boot)
-`ConfigModule` with a validated schema (Joi). Env surface (local vs. cloud differ only in values):
+`ConfigModule` with a validated schema (**Zod**, wired as a custom `validate` function). Zod is chosen over
+Joi so `z.infer` yields the strongly-typed config from a single source (no hand-maintained interface). Env
+surface (local vs. cloud differ only in values):
 ```
 NODE_ENV, PORT
+CORS_ORIGINS                  # comma-separated allowed origins (empty in prod ⇒ same-origin only)
 ELASTICSEARCH_NODE            # https URL or Elastic Cloud endpoint
 ELASTICSEARCH_API_KEY         # base64 API key (cloud); or ELASTICSEARCH_USERNAME/PASSWORD (local)
 ELASTICSEARCH_INDEX=products  # alias name
@@ -295,6 +298,17 @@ RELEVANCE_POPULARITY_FACTOR=1  RELEVANCE_RECENCY_SCALE=90d  RELEVANCE_RECENCY_DE
 ```
 The Elasticsearch client factory selects auth (API key vs. basic) and TLS from env, so the same adapter runs
 on a local docker container and on Elastic Cloud. Boot fails with a clear message if required vars are missing.
+
+### D13 — HTTP hardening: security headers, CORS, and response DTOs
+The HTTP edge is hardened without introducing authentication (still a non-goal):
+- **Helmet** sets standard security headers. `contentSecurityPolicy` is **disabled** — this is a JSON API with
+  no browser-rendered HTML, so a CSP would only add noise.
+- **CORS** is **environment-aware**: the allowed-origin list comes from `CORS_ORIGINS` (comma-separated). When
+  unset in non-production it reflects the request origin for easy local testing; in production an empty list
+  means same-origin only. Never a hard-coded `*` in production.
+- **Response DTOs**: controllers return explicit response DTOs mapped from domain/application models via a
+  dedicated mapper — a domain entity is **never** serialized directly, so internal fields cannot leak. Input
+  DTOs (D10) guard what comes in; response DTOs guard what goes out.
 
 ## Risks / Trade-offs
 
@@ -340,6 +354,14 @@ Greenfield, so "migration" = initial provisioning + seed; rollback = alias flip 
   single ES request (one round-trip, negligible cost on the seed dataset), but `suggestions.didYouMean` is
   populated only when hits fall below a configurable threshold (`SEARCH_SUGGEST_MAX_HITS`, default e.g. 5).
   The dedicated `GET /suggest` endpoint always returns suggestions.
+- **Engineering conventions (agreed before implementation).** Config validation uses **Zod** (`z.infer` =
+  single source of truth for the config type). The HTTP edge is hardened with **Helmet + env-aware CORS** and
+  **response DTOs** (D13). Code quality: `@typescript-eslint/no-explicit-any` is an **error** (escaped only
+  inline with a written justification + a backing type); **no file exceeds ~250 lines** — which is why ES query
+  construction is split into focused `query` / `filter` / `facet-aggregations` / `sort` builders rather than one
+  monolith. Tests follow **AAA**; unit `*.spec.ts` are co-located beside the code they cover and e2e specs live
+  in `test/`. Independent async work uses `Promise.all` / `Promise.allSettled` (e.g. parallel health probes),
+  but the core `/search` stays a single ES round-trip and is intentionally not parallelized.
 
 ## Open Questions
 

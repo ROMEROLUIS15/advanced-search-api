@@ -9,13 +9,13 @@
 ## 1. Project scaffold & tooling
 
 - [ ] 1.1 Initialize NestJS + TypeScript project; configure `tsconfig` with strict mode and path aliases per hexagonal layer (`@domain`, `@application`, `@infrastructure`, `@presentation`).
-- [ ] 1.2 Set up ESLint + Prettier, Jest (unit) and Supertest (e2e) config, and npm scripts (`start`, `start:dev`, `build`, `test`, `test:e2e`, `lint`, `seed`).
+- [ ] 1.2 Set up ESLint + Prettier (with `@typescript-eslint/no-explicit-any` as **error** and a max-file-length guard ≈250 lines), Jest (unit, co-located `*.spec.ts`) and Supertest (e2e under `test/`) config, and npm scripts (`start`, `start:dev`, `build`, `test`, `test:e2e`, `lint`, `seed`).
 - [ ] 1.3 Create the layered folder structure and a root `SearchModule`/`AppModule` wiring skeleton with no logic yet.
-- [ ] 1.4 Add dependencies: `@nestjs/*`, `@elastic/elasticsearch`, `ioredis`, `class-validator`, `class-transformer`, `joi`/`@nestjs/config`, `@nestjs/terminus`.
+- [ ] 1.4 Add dependencies: `@nestjs/*`, `@elastic/elasticsearch`, `ioredis`, `class-validator`, `class-transformer`, `zod` + `@nestjs/config`, `helmet`, `@nestjs/terminus`.
 
 ## 2. Configuration (D12)
 
-- [ ] 2.1 Add `ConfigModule` with a validated (Joi) env schema covering Elasticsearch, Redis, cache TTLs, pagination limits, and relevance weights; fail-fast on missing/invalid vars at boot.
+- [ ] 2.1 Add `ConfigModule` with a validated (Zod, via a custom `validate` fn) env schema covering Elasticsearch, Redis, cache TTLs, pagination limits, and relevance weights; fail-fast on missing/invalid vars at boot.
 - [ ] 2.2 Provide a typed config accessor (namespaced config objects) so adapters read config, not `process.env` directly.
 - [ ] 2.3 Commit `.env.example` documenting every variable with local and cloud (TLS/API-key) example values.
 
@@ -44,7 +44,7 @@
 - [ ] 6.2 Add filter context for category / subcategory (any-of) / location / price range, and the sort strategies (relevance/popularity/created_at) with a stable tiebreaker.
 - [ ] 6.3 Implement `ElasticsearchProductSearchAdapter.search()` mapping ES hits → `SearchOutcome` (items + total), guarding `from+size` against the max result window.
 - [ ] 6.4 Implement `SearchProductsUseCase` (no cache yet) depending only on `ProductSearchPort`.
-- [ ] 6.5 Build `SearchQueryDto` (class-validator) + `SearchController` `GET /search`; wire the global `ValidationPipe({ whitelist, forbidNonWhitelisted, transform })`; map to the `{ data, meta }` envelope.
+- [ ] 6.5 Build `SearchQueryDto` (class-validator input) + `SearchController` `GET /search`; wire the global `ValidationPipe({ whitelist, forbidNonWhitelisted, transform })`; map domain results to an explicit **response DTO** (`{ data, meta }` envelope) via a dedicated mapper — never serialize the entity directly.
 - [ ] 6.6 **Milestone:** end-to-end `GET /search?q=...` returns relevance-ranked hits with pagination metadata against the seeded index (unit tests for the query builder + a happy-path e2e).
 
 ## 7. Faceting (D4)  [spec: search-faceting]
@@ -85,6 +85,7 @@
 
 - [ ] 13.1 Define a domain error hierarchy and a global `AllExceptionsFilter` mapping domain→400/404/422, ES/Redis upstream failures→502/503, validation→400, into `{ statusCode, error, message, details?, timestamp, path }`.
 - [ ] 13.2 Add request logging + a global response/serialization convention; ensure no unhandled 500s leak stack traces.
+- [ ] 13.3 Harden the HTTP edge (D13): **Helmet** (CSP disabled for a JSON API) and **environment-aware CORS** driven by `CORS_ORIGINS`; no hard-coded `*` in production.
 
 ## 14. Testing
 
