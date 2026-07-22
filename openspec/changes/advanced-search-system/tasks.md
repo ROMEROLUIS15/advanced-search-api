@@ -96,9 +96,9 @@
 
 ## 15. Containerization (D12)
 
-- [ ] 15.1 Multi-stage `Dockerfile` (build → slim runtime, non-root user, healthcheck) producing a small production image.
-- [ ] 15.2 `docker-compose.yml` wiring API + Elasticsearch + Redis with healthchecks, volumes, and env wiring; a one-shot seed service/profile.
-- [ ] 15.3 Verify `docker compose up` yields a healthy stack and a working `GET /search` locally.
+- [x] 15.1 Multi-stage `Dockerfile` (build → slim runtime, non-root user, healthcheck) producing a small production image.
+- [x] 15.2 `docker-compose.yml` wiring API + Elasticsearch + Redis with healthchecks, volumes, and env wiring; a one-shot seed service/profile.
+- [x] 15.3 Verify `docker compose up` yields a healthy stack and a working `GET /search` locally.
 
 ## 16. Online deploy & documentation (D12, Migration Plan)
 

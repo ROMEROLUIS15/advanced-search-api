@@ -29,6 +29,39 @@ services:
     volumes:
       - redis-data:/data
 
+  api:
+    build: .
+    container_name: search-api
+    depends_on:
+      elasticsearch:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+    environment:
+      - NODE_ENV=production
+      - PORT=3000
+      - ELASTICSEARCH_NODE=http://elasticsearch:9200
+      - ELASTICSEARCH_INDEX=products
+      - REDIS_URL=redis://redis:6379
+    ports:
+      - '3000:3000'
+
+  # One-shot seed job: `docker compose --profile seed run --rm seed`
+  seed:
+    build: .
+    container_name: search-seed
+    profiles: ['seed']
+    restart: 'no'
+    depends_on:
+      elasticsearch:
+        condition: service_healthy
+    environment:
+      - NODE_ENV=production
+      - ELASTICSEARCH_NODE=http://elasticsearch:9200
+      - ELASTICSEARCH_INDEX=products
+      - REDIS_URL=redis://redis:6379
+    command: ['node', 'dist/seed/seed.command.js']
+
 volumes:
   es-data:
   redis-data:
