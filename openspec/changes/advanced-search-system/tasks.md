@@ -72,9 +72,9 @@
 
 ## 11. Query suggestions — "did you mean" & related (D7)  [spec: query-suggestions]
 
-- [ ] 11.1 Implement `ElasticsearchQuerySuggestionAdapter` using term + phrase suggesters over `suggest_text`/`.trigram`, with a `collate` query so suggestions return results.
-- [ ] 11.2 Implement `SuggestQueriesUseCase` + `SuggestionController` `GET /suggest`.
-- [ ] 11.3 Populate the `suggestions` block of `/search` only on low recall (zero/few hits) within the single ES round-trip.
+- [x] 11.1 Implement `ElasticsearchQuerySuggestionAdapter` using term + phrase suggesters over `suggest_text`/`.trigram`, with a `collate` query so suggestions return results.
+- [x] 11.2 Implement `SuggestQueriesUseCase` + `SuggestionController` `GET /suggest`.
+- [x] 11.3 Populate the `suggestions` block of `/search` only on low recall (zero/few hits) within the single ES round-trip.
 
 ## 12. Health & readiness (D11)  [spec: service-health]
 

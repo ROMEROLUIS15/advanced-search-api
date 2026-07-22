@@ -5,6 +5,7 @@ import { buildTextQuery } from './text-query.builder';
 import { buildFilterClauses } from './filter.builder';
 import { buildFacetAggregations } from './facet-aggregations.builder';
 import { buildSort } from './sort.builder';
+import { buildSuggest } from '../../suggestion/suggest.builder';
 
 export interface SearchRequestParams {
   criteria: SearchCriteria;
@@ -29,6 +30,7 @@ export function buildSearchRequest(params: SearchRequestParams): estypes.SearchR
     query: buildTextQuery(criteria.query, relevance),
     ...(filters.length > 0 ? { post_filter: { bool: { filter: filters } } } : {}),
     aggregations: buildFacetAggregations(criteria.filters),
+    ...(criteria.query ? { suggest: buildSuggest(criteria.query) } : {}),
     sort: buildSort(criteria.sort, criteria.order),
   };
 }

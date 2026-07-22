@@ -93,6 +93,33 @@ describe('ElasticsearchProductSearchAdapter', () => {
     expect(outcome.facets.priceRanges).toEqual([{ to: 50, count: 2 }]);
   });
 
+  it('surfaces suggestions on low recall for a text query (design D7)', async () => {
+    // Arrange: total 1 <= suggestMaxHits (default 5), with a query present.
+    const search = jest.fn().mockResolvedValue({
+      hits: { total: { value: 1 }, hits: [] },
+      suggest: {
+        did_you_mean: [{ options: [{ text: 'drill' }] }],
+        related: [{ options: [{ text: 'drill' }] }],
+      },
+    });
+
+    const outcome = await adapterWith(search).search(criteria({ query: 'driil' }));
+
+    expect(outcome.suggestions).toEqual({ didYouMean: 'drill', related: ['drill'] });
+  });
+
+  it('omits suggestions when recall is above the threshold', async () => {
+    // Arrange: total 6 > suggestMaxHits (5).
+    const search = jest.fn().mockResolvedValue({
+      hits: { total: { value: 6 }, hits: [] },
+      suggest: { did_you_mean: [{ options: [{ text: 'drill' }] }] },
+    });
+
+    const outcome = await adapterWith(search).search(criteria({ query: 'drill' }));
+
+    expect(outcome.suggestions).toEqual({ didYouMean: null, related: [] });
+  });
+
   it('throws ResultWindowExceededError beyond max_result_window without calling ES', async () => {
     // Arrange: from = 500 * 20 = 10000; from + size = 10020 > 10000
     const search = jest.fn();
