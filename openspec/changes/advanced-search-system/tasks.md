@@ -27,10 +27,10 @@
 
 ## 4. Elasticsearch foundation — client, index, mapping (D1, D2)  [spec: product-indexing]
 
-- [ ] 4.1 Build an Elasticsearch client factory that selects auth (API key vs. basic) and TLS from env, so the same adapter runs locally and against Elastic Cloud.
-- [ ] 4.2 Implement `ProductIndexAdapter.ensureIndex()` (idempotent): create versioned index `products_v1` with the D2 mapping + analyzers and the `products` alias if absent.
-- [ ] 4.3 Implement `bulkIndex()`, `refresh()`, and `count()`; upsert by document `id`; surface per-document failures.
-- [ ] 4.4 Unit-test the mapping/analyzer definition and `ensureIndex` idempotency (mocked client).
+- [x] 4.1 Build an Elasticsearch client factory that selects auth (API key vs. basic) and TLS from env, so the same adapter runs locally and against Elastic Cloud.
+- [x] 4.2 Implement `ProductIndexAdapter.ensureIndex()` (idempotent): create versioned index `products_v1` with the D2 mapping + analyzers and the `products` alias if absent.
+- [x] 4.3 Implement `bulkIndex()`, `refresh()`, and `count()`; upsert by document `id`; surface per-document failures.
+- [x] 4.4 Unit-test the mapping/analyzer definition and `ensureIndex` idempotency (mocked client).
 
 ## 5. Seed dataset & command (D2)  [spec: product-indexing]
 
