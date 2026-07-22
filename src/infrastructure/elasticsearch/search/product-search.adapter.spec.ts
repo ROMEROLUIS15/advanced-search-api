@@ -72,6 +72,27 @@ describe('ElasticsearchProductSearchAdapter', () => {
     expect(outcome.suggestions).toEqual({ didYouMean: null, related: [] });
   });
 
+  it('maps facet aggregations into the outcome facets', async () => {
+    // Arrange
+    const search = jest.fn().mockResolvedValue({
+      hits: { total: { value: 0 }, hits: [] },
+      aggregations: {
+        categories: { values: { buckets: [{ key: 'Tools', doc_count: 2 }] } },
+        subcategories: { values: { buckets: [] } },
+        locations: { values: { buckets: [{ key: 'Berlin', doc_count: 1 }] } },
+        priceRanges: { values: { buckets: [{ to: 50, doc_count: 2 }] } },
+      },
+    });
+
+    // Act
+    const outcome = await adapterWith(search).search(criteria());
+
+    // Assert
+    expect(outcome.facets.categories).toEqual([{ key: 'Tools', count: 2 }]);
+    expect(outcome.facets.locations).toEqual([{ key: 'Berlin', count: 1 }]);
+    expect(outcome.facets.priceRanges).toEqual([{ to: 50, count: 2 }]);
+  });
+
   it('throws ResultWindowExceededError beyond max_result_window without calling ES', async () => {
     // Arrange: from = 500 * 20 = 10000; from + size = 10020 > 10000
     const search = jest.fn();

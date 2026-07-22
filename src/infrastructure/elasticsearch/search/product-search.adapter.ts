@@ -9,6 +9,7 @@ import { ELASTICSEARCH_CLIENT } from '../client/elasticsearch.client.factory';
 import type { ProductDocument } from '../index/product-document';
 import { buildSearchRequest } from './query/search-query.builder';
 import { toProductSummary } from './search-hit.mapper';
+import { toFacets } from './facet-response.mapper';
 
 /**
  * Elasticsearch search adapter. Builds one request (hits via the query +
@@ -38,7 +39,7 @@ export class ElasticsearchProductSearchAdapter implements ProductSearchPort {
     return {
       items: response.hits.hits.map(toProductSummary),
       total: totalHits(response.hits.total),
-      facets: { categories: [], subcategories: [], locations: [], priceRanges: [] },
+      facets: toFacets(response.aggregations),
       suggestions: { didYouMean: null, related: [] },
     };
   }

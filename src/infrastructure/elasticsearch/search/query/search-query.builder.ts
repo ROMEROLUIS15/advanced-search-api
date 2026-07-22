@@ -3,6 +3,7 @@ import type { RelevanceConfig } from '@config/app-config';
 import type { SearchCriteria } from '@application/models/search-criteria';
 import { buildTextQuery } from './text-query.builder';
 import { buildFilterClauses } from './filter.builder';
+import { buildFacetAggregations } from './facet-aggregations.builder';
 import { buildSort } from './sort.builder';
 
 export interface SearchRequestParams {
@@ -27,6 +28,7 @@ export function buildSearchRequest(params: SearchRequestParams): estypes.SearchR
     track_total_hits: true,
     query: buildTextQuery(criteria.query, relevance),
     ...(filters.length > 0 ? { post_filter: { bool: { filter: filters } } } : {}),
+    aggregations: buildFacetAggregations(criteria.filters),
     sort: buildSort(criteria.sort, criteria.order),
   };
 }

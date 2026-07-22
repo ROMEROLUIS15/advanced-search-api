@@ -49,9 +49,9 @@
 
 ## 7. Faceting (D4)  [spec: search-faceting]
 
-- [ ] 7.1 Extend `SearchQueryBuilder` to move facet filters into `post_filter` and add per-facet `filter` sub-aggregations that exclude their own dimension (terms for category/subcategory/location, range for price).
-- [ ] 7.2 Map aggregation results into the `facets` block of the response.
-- [ ] 7.3 Table-driven unit tests for the "exclude own dimension" recipe across every filter combination (the highest-risk logic).
+- [x] 7.1 Extend `SearchQueryBuilder` to move facet filters into `post_filter` and add per-facet `filter` sub-aggregations that exclude their own dimension (terms for category/subcategory/location, range for price).
+- [x] 7.2 Map aggregation results into the `facets` block of the response.
+- [x] 7.3 Table-driven unit tests for the "exclude own dimension" recipe across every filter combination (the highest-risk logic).
 
 ## 8. Sorting, pagination & edge cases (D5)  [spec: product-search]
 

@@ -1,27 +1,35 @@
 import type { estypes } from '@elastic/elasticsearch';
 import type { SearchFilters } from '@application/models/search-criteria';
 
+/** A facet dimension whose own filter is excluded when computing its own counts (design D4). */
+export type FacetDimension = 'category' | 'subcategories' | 'location' | 'price';
+
 /**
  * Builds filter-context clauses for category / subcategory (any-of) / location /
- * price range. Reused for both the hits `post_filter` and the facet
- * sub-aggregations (design D4). Filters do not affect relevance scoring.
+ * price range. Reused for the hits `post_filter` (no exclusion) and for each facet
+ * sub-aggregation (excluding its own dimension so it can be widened — design D4).
+ * Filters run in filter context and do not affect relevance scoring.
  */
-export function buildFilterClauses(filters: SearchFilters): estypes.QueryDslQueryContainer[] {
+export function buildFilterClauses(
+  filters: SearchFilters,
+  exclude?: FacetDimension,
+): estypes.QueryDslQueryContainer[] {
   const clauses: estypes.QueryDslQueryContainer[] = [];
 
-  if (filters.category) {
+  if (exclude !== 'category' && filters.category) {
     clauses.push({ term: { category: { value: filters.category } } });
   }
-  if (filters.subcategories && filters.subcategories.length > 0) {
+  if (exclude !== 'subcategories' && filters.subcategories && filters.subcategories.length > 0) {
     clauses.push({ terms: { subcategories: filters.subcategories } });
   }
-  if (filters.location) {
+  if (exclude !== 'location' && filters.location) {
     clauses.push({ term: { location: { value: filters.location } } });
   }
-
-  const priceRange = buildPriceRange(filters.minPrice, filters.maxPrice);
-  if (priceRange) {
-    clauses.push(priceRange);
+  if (exclude !== 'price') {
+    const priceRange = buildPriceRange(filters.minPrice, filters.maxPrice);
+    if (priceRange) {
+      clauses.push(priceRange);
+    }
   }
 
   return clauses;

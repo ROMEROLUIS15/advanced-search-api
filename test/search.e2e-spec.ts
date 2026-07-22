@@ -45,6 +45,30 @@ describe('GET /search (e2e)', () => {
 
     expect(res.body.meta.sort).toBe('popularity');
     expect(res.body.data.length).toBeGreaterThan(0);
+
+    // Facets are computed over the query universe (design D4).
+    expect(res.body.facets.priceRanges).toHaveLength(4);
+    expect(res.body.facets.categories.length).toBeGreaterThan(0);
+    const tools = res.body.facets.categories.find(
+      (bucket: { key: string }) => bucket.key === 'Tools',
+    );
+    expect(tools.count).toBeGreaterThanOrEqual(1);
+  });
+
+  it('narrows hits by category while keeping the category facet full (exclude own dimension, D4)', async () => {
+    const res = await request(app.getHttpServer())
+      .get('/search')
+      .query({ category: 'Tools' })
+      .expect(200);
+
+    // Every hit is in Tools...
+    expect(
+      res.body.data.every((product: { category: string }) => product.category === 'Tools'),
+    ).toBe(true);
+    // ...but the categories facet still shows other categories, so it can be widened.
+    const keys = res.body.facets.categories.map((bucket: { key: string }) => bucket.key);
+    expect(keys).toContain('Tools');
+    expect(keys.length).toBeGreaterThan(1);
   });
 
   it('rejects unknown query parameters with 400', async () => {
