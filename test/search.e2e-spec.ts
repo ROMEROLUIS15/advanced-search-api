@@ -2,6 +2,7 @@ import { type INestApplication, ValidationPipe } from '@nestjs/common';
 import { Test } from '@nestjs/testing';
 import request from 'supertest';
 import { AppModule } from '../src/app.module';
+import { AllExceptionsFilter } from '../src/presentation/common/all-exceptions.filter';
 
 /**
  * Happy-path e2e for the vertical slice (task 6.6). Runs against the local
@@ -16,6 +17,7 @@ describe('GET /search (e2e)', () => {
     app.useGlobalPipes(
       new ValidationPipe({ whitelist: true, forbidNonWhitelisted: true, transform: true }),
     );
+    app.useGlobalFilters(new AllExceptionsFilter());
     await app.init();
   });
 
@@ -73,5 +75,31 @@ describe('GET /search (e2e)', () => {
 
   it('rejects unknown query parameters with 400', async () => {
     await request(app.getHttpServer()).get('/search').query({ bogus: 'x' }).expect(400);
+  });
+
+  it('rejects a pageSize above the configured maximum with 400', async () => {
+    await request(app.getHttpServer()).get('/search').query({ pageSize: 500 }).expect(400);
+  });
+
+  it('rejects a result window beyond max_result_window with 422', async () => {
+    const res = await request(app.getHttpServer())
+      .get('/search')
+      .query({ page: 100000, pageSize: 100 })
+      .expect(422);
+    expect(res.body).toMatchObject({ statusCode: 422, error: 'Unprocessable Entity' });
+  });
+
+  it('paginates without duplicating or skipping documents across pages', async () => {
+    const pageSize = 10;
+    const ids: string[] = [];
+    for (const page of [1, 2, 3]) {
+      const res = await request(app.getHttpServer())
+        .get('/search')
+        .query({ sort: 'popularity', order: 'desc', page, pageSize })
+        .expect(200);
+      ids.push(...res.body.data.map((product: { id: string }) => product.id));
+    }
+    expect(ids).toHaveLength(24);
+    expect(new Set(ids).size).toBe(24);
   });
 });

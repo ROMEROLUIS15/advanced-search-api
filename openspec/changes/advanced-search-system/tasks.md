@@ -55,8 +55,8 @@
 
 ## 8. Sorting, pagination & edge cases (D5)  [spec: product-search]
 
-- [ ] 8.1 Enforce configurable default/max `pageSize` (400 on exceed) and reject `from+size` beyond the window (422); compute `totalPages`.
-- [ ] 8.2 Verify stable ordering across pages for equal sort values (e2e over seeded data).
+- [x] 8.1 Enforce configurable default/max `pageSize` (400 on exceed) and reject `from+size` beyond the window (422); compute `totalPages`.
+- [x] 8.2 Verify stable ordering across pages for equal sort values (e2e over seeded data).
 
 ## 9. Redis caching (D8)  [spec: product-search, autocomplete]
 

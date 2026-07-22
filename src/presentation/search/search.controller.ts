@@ -1,4 +1,4 @@
-import { Controller, Get, Inject, Query } from '@nestjs/common';
+import { BadRequestException, Controller, Get, Inject, Query } from '@nestjs/common';
 import { APP_CONFIG, type AppConfiguration, type SearchConfig } from '@config/app-config';
 import { SearchProductsUseCase } from '@application/use-cases/search-products.use-case';
 import { SearchQueryDto } from './dto/search-query.dto';
@@ -19,8 +19,15 @@ export class SearchController {
 
   @Get()
   async search(@Query() query: SearchQueryDto): Promise<SearchResponseDto> {
+    this.assertPageSizeWithinLimit(query.pageSize);
     const criteria = toSearchCriteria(query, this.searchConfig);
     const outcome = await this.searchProducts.execute(criteria);
     return toSearchResponseDto(outcome, criteria);
+  }
+
+  private assertPageSizeWithinLimit(pageSize: number | undefined): void {
+    if (pageSize !== undefined && pageSize > this.searchConfig.maxPageSize) {
+      throw new BadRequestException(`pageSize must not exceed ${this.searchConfig.maxPageSize}`);
+    }
   }
 }
