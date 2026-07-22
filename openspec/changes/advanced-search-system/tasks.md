@@ -8,10 +8,10 @@
 
 ## 1. Project scaffold & tooling
 
-- [ ] 1.1 Initialize NestJS + TypeScript project; configure `tsconfig` with strict mode and path aliases per hexagonal layer (`@domain`, `@application`, `@infrastructure`, `@presentation`).
-- [ ] 1.2 Set up ESLint + Prettier (with `@typescript-eslint/no-explicit-any` as **error** and a max-file-length guard ≈250 lines), Jest (unit, co-located `*.spec.ts`) and Supertest (e2e under `test/`) config, and npm scripts (`start`, `start:dev`, `build`, `test`, `test:e2e`, `lint`, `seed`).
-- [ ] 1.3 Create the layered folder structure and a root `SearchModule`/`AppModule` wiring skeleton with no logic yet.
-- [ ] 1.4 Add dependencies: `@nestjs/*`, `@elastic/elasticsearch`, `ioredis`, `class-validator`, `class-transformer`, `zod` + `@nestjs/config`, `helmet`, `@nestjs/terminus`.
+- [x] 1.1 Initialize NestJS + TypeScript project; configure `tsconfig` with strict mode and path aliases per hexagonal layer (`@domain`, `@application`, `@infrastructure`, `@presentation`).
+- [x] 1.2 Set up ESLint + Prettier (with `@typescript-eslint/no-explicit-any` as **error** and a max-file-length guard ≈250 lines), Jest (unit, co-located `*.spec.ts`) and Supertest (e2e under `test/`) config, and npm scripts (`start`, `start:dev`, `build`, `test`, `test:e2e`, `lint`, `seed`).
+- [x] 1.3 Create the layered folder structure and a root `SearchModule`/`AppModule` wiring skeleton with no logic yet.
+- [x] 1.4 Add dependencies: `@nestjs/*`, `@elastic/elasticsearch`, `ioredis`, `class-validator`, `class-transformer`, `zod` + `@nestjs/config`, `helmet`, `@nestjs/terminus`.
 
 ## 2. Configuration (D12)
 
