@@ -66,9 +66,9 @@
 
 ## 10. Autocomplete (D6)  [spec: autocomplete]
 
-- [ ] 10.1 Implement `ElasticsearchAutocompleteAdapter` querying `name.suggest` (`search_as_you_type`, `bool_prefix`), returning distinct completions honoring `limit`.
-- [ ] 10.2 Implement `AutocompleteUseCase` with cache-aside (`ac:*`, `CACHE_TTL_AUTOCOMPLETE`, fail-open).
-- [ ] 10.3 Add `AutocompleteQueryDto` (non-empty `q`, bounded `limit`) + `AutocompleteController` `GET /autocomplete`.
+- [x] 10.1 Implement `ElasticsearchAutocompleteAdapter` querying `name.suggest` (`search_as_you_type`, `bool_prefix`), returning distinct completions honoring `limit`.
+- [x] 10.2 Implement `AutocompleteUseCase` with cache-aside (`ac:*`, `CACHE_TTL_AUTOCOMPLETE`, fail-open).
+- [x] 10.3 Add `AutocompleteQueryDto` (non-empty `q`, bounded `limit`) + `AutocompleteController` `GET /autocomplete`.
 
 ## 11. Query suggestions — "did you mean" & related (D7)  [spec: query-suggestions]
 

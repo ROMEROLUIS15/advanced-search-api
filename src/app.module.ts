@@ -1,13 +1,13 @@
 import { Module } from '@nestjs/common';
 import { AppConfigModule } from '@config/config.module';
-import { ElasticsearchModule } from '@infrastructure/elasticsearch/elasticsearch.module';
 import { SearchModule } from './search.module';
+import { AutocompleteModule } from './autocomplete.module';
 
 /**
- * Root module. Composes the global config module, shared infrastructure, and the
- * feature modules; later groups add the health/indexing wiring (groups 5, 12).
+ * Root module. Composes the global config module and the feature modules; later
+ * groups add the suggestions and health wiring (groups 11, 12).
  */
 @Module({
-  imports: [AppConfigModule, ElasticsearchModule, SearchModule],
+  imports: [AppConfigModule, SearchModule, AutocompleteModule],
 })
 export class AppModule {}
