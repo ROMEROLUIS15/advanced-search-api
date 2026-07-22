@@ -1,12 +1,15 @@
 import { Module } from '@nestjs/common';
+import { ElasticsearchModule } from '@infrastructure/elasticsearch/elasticsearch.module';
+import { SearchProductsUseCase } from '@application/use-cases/search-products.use-case';
+import { SearchController } from '@presentation/search/search.controller';
 
 /**
- * Wiring seam for the product-search feature.
- *
- * As the layers are implemented, this module binds application use-cases and
- * infrastructure adapters through their `Symbol` port tokens
- * (`{ provide: TOKEN, useClass: Adapter }`) and registers the presentation
- * controllers. Left intentionally empty in the scaffold (group 1).
+ * Product-search feature module: composes the search use-case (bound to the ES
+ * adapter via ElasticsearchModule) and exposes the HTTP controller.
  */
-@Module({})
+@Module({
+  imports: [ElasticsearchModule],
+  providers: [SearchProductsUseCase],
+  controllers: [SearchController],
+})
 export class SearchModule {}

@@ -40,12 +40,12 @@
 
 ## 6. Core search vertical slice (D3, D5, D11)  [spec: product-search]
 
-- [ ] 6.1 Implement `SearchQueryBuilder`: `multi_match` (field boosts, `fuzziness: AUTO`, `minimum_should_match`) wrapped in `function_score` (popularity `field_value_factor` + recency `gauss`); `match_all` in browse mode.
-- [ ] 6.2 Add filter context for category / subcategory (any-of) / location / price range, and the sort strategies (relevance/popularity/created_at) with a stable tiebreaker.
-- [ ] 6.3 Implement `ElasticsearchProductSearchAdapter.search()` mapping ES hits → `SearchOutcome` (items + total), guarding `from+size` against the max result window.
-- [ ] 6.4 Implement `SearchProductsUseCase` (no cache yet) depending only on `ProductSearchPort`.
-- [ ] 6.5 Build `SearchQueryDto` (class-validator input) + `SearchController` `GET /search`; wire the global `ValidationPipe({ whitelist, forbidNonWhitelisted, transform })`; map domain results to an explicit **response DTO** (`{ data, meta }` envelope) via a dedicated mapper — never serialize the entity directly.
-- [ ] 6.6 **Milestone:** end-to-end `GET /search?q=...` returns relevance-ranked hits with pagination metadata against the seeded index (unit tests for the query builder + a happy-path e2e).
+- [x] 6.1 Implement `SearchQueryBuilder`: `multi_match` (field boosts, `fuzziness: AUTO`, `minimum_should_match`) wrapped in `function_score` (popularity `field_value_factor` + recency `gauss`); `match_all` in browse mode.
+- [x] 6.2 Add filter context for category / subcategory (any-of) / location / price range, and the sort strategies (relevance/popularity/created_at) with a stable tiebreaker.
+- [x] 6.3 Implement `ElasticsearchProductSearchAdapter.search()` mapping ES hits → `SearchOutcome` (items + total), guarding `from+size` against the max result window.
+- [x] 6.4 Implement `SearchProductsUseCase` (no cache yet) depending only on `ProductSearchPort`.
+- [x] 6.5 Build `SearchQueryDto` (class-validator input) + `SearchController` `GET /search`; wire the global `ValidationPipe({ whitelist, forbidNonWhitelisted, transform })`; map domain results to an explicit **response DTO** (`{ data, meta }` envelope) via a dedicated mapper — never serialize the entity directly.
+- [x] 6.6 **Milestone:** end-to-end `GET /search?q=...` returns relevance-ranked hits with pagination metadata against the seeded index (unit tests for the query builder + a happy-path e2e).
 
 ## 7. Faceting (D4)  [spec: search-faceting]
 
