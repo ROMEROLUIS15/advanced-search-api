@@ -83,9 +83,9 @@
 
 ## 13. Cross-cutting: errors, logging, response shape (D10)
 
-- [ ] 13.1 Define a domain error hierarchy and a global `AllExceptionsFilter` mapping domain→400/404/422, ES/Redis upstream failures→502/503, validation→400, into `{ statusCode, error, message, details?, timestamp, path }`.
-- [ ] 13.2 Add request logging + a global response/serialization convention; ensure no unhandled 500s leak stack traces.
-- [ ] 13.3 Harden the HTTP edge (D13): **Helmet** (CSP disabled for a JSON API) and **environment-aware CORS** driven by `CORS_ORIGINS`; no hard-coded `*` in production.
+- [x] 13.1 Define a domain error hierarchy and a global `AllExceptionsFilter` mapping domain→400/404/422, ES/Redis upstream failures→502/503, validation→400, into `{ statusCode, error, message, details?, timestamp, path }`.
+- [x] 13.2 Add request logging + a global response/serialization convention; ensure no unhandled 500s leak stack traces.
+- [x] 13.3 Harden the HTTP edge (D13): **Helmet** (CSP disabled for a JSON API) and **environment-aware CORS** driven by `CORS_ORIGINS`; no hard-coded `*` in production.
 
 ## 14. Testing
 

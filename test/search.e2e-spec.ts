@@ -1,8 +1,9 @@
-import { type INestApplication, ValidationPipe } from '@nestjs/common';
+import type { INestApplication } from '@nestjs/common';
 import { Test } from '@nestjs/testing';
 import request from 'supertest';
 import { AppModule } from '../src/app.module';
-import { AllExceptionsFilter } from '../src/presentation/common/all-exceptions.filter';
+import { configureApp } from '../src/app.setup';
+import { APP_CONFIG, type AppConfiguration } from '../src/config/app-config';
 
 /**
  * Happy-path e2e for the vertical slice (task 6.6). Runs against the local
@@ -14,10 +15,7 @@ describe('GET /search (e2e)', () => {
   beforeAll(async () => {
     const moduleRef = await Test.createTestingModule({ imports: [AppModule] }).compile();
     app = moduleRef.createNestApplication();
-    app.useGlobalPipes(
-      new ValidationPipe({ whitelist: true, forbidNonWhitelisted: true, transform: true }),
-    );
-    app.useGlobalFilters(new AllExceptionsFilter());
+    configureApp(app, app.get<AppConfiguration>(APP_CONFIG));
     await app.init();
   });
 
@@ -75,6 +73,11 @@ describe('GET /search (e2e)', () => {
 
   it('rejects unknown query parameters with 400', async () => {
     await request(app.getHttpServer()).get('/search').query({ bogus: 'x' }).expect(400);
+  });
+
+  it('applies security headers via Helmet', async () => {
+    const res = await request(app.getHttpServer()).get('/search').query({ q: 'drill' }).expect(200);
+    expect(res.headers['x-content-type-options']).toBe('nosniff');
   });
 
   it('rejects a pageSize above the configured maximum with 400', async () => {

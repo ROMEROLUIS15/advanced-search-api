@@ -1,27 +1,18 @@
 import 'reflect-metadata';
-import { ValidationPipe } from '@nestjs/common';
 import { NestFactory } from '@nestjs/core';
 import { AppModule } from './app.module';
 import { APP_CONFIG, type AppConfiguration } from '@config/app-config';
-import { AllExceptionsFilter } from '@presentation/common/all-exceptions.filter';
+import { configureApp } from './app.setup';
 
 /**
- * Application entry point.
- *
- * Environment is validated at boot: building the module graph instantiates the
- * config provider, which fails fast (throws) on invalid/missing variables.
- *
- * Still to be layered in: Helmet + environment-aware CORS (group 13, design D13).
+ * Application entry point. Environment is validated at boot (the config provider
+ * fails fast on invalid/missing variables); global HTTP concerns are applied by
+ * {@link configureApp}.
  */
 async function bootstrap(): Promise<void> {
   const app = await NestFactory.create(AppModule);
-  app.useGlobalPipes(
-    new ValidationPipe({ whitelist: true, forbidNonWhitelisted: true, transform: true }),
-  );
-  app.useGlobalFilters(new AllExceptionsFilter());
-  app.enableShutdownHooks();
-
   const config = app.get<AppConfiguration>(APP_CONFIG);
+  configureApp(app, config);
   await app.listen(config.app.port);
 }
 

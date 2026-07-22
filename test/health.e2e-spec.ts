@@ -1,9 +1,10 @@
-import { type INestApplication, ValidationPipe } from '@nestjs/common';
+import type { INestApplication } from '@nestjs/common';
 import { Test } from '@nestjs/testing';
 import { Redis } from 'ioredis';
 import request from 'supertest';
 import { AppModule } from '../src/app.module';
-import { AllExceptionsFilter } from '../src/presentation/common/all-exceptions.filter';
+import { configureApp } from '../src/app.setup';
+import { APP_CONFIG, type AppConfiguration } from '../src/config/app-config';
 import { REDIS_CLIENT } from '../src/infrastructure/redis/redis.client.factory';
 
 /** Waits until the Redis client is connected so the readiness check is deterministic. */
@@ -27,10 +28,7 @@ describe('GET /health (e2e)', () => {
   beforeAll(async () => {
     const moduleRef = await Test.createTestingModule({ imports: [AppModule] }).compile();
     app = moduleRef.createNestApplication();
-    app.useGlobalPipes(
-      new ValidationPipe({ whitelist: true, forbidNonWhitelisted: true, transform: true }),
-    );
-    app.useGlobalFilters(new AllExceptionsFilter());
+    configureApp(app, app.get<AppConfiguration>(APP_CONFIG));
     await app.init();
     await waitForRedisReady(app.get<Redis>(REDIS_CLIENT));
   });

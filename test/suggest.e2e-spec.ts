@@ -1,8 +1,9 @@
-import { type INestApplication, ValidationPipe } from '@nestjs/common';
+import type { INestApplication } from '@nestjs/common';
 import { Test } from '@nestjs/testing';
 import request from 'supertest';
 import { AppModule } from '../src/app.module';
-import { AllExceptionsFilter } from '../src/presentation/common/all-exceptions.filter';
+import { configureApp } from '../src/app.setup';
+import { APP_CONFIG, type AppConfiguration } from '../src/config/app-config';
 
 /** e2e for `GET /suggest` against the seeded local Elasticsearch. */
 describe('GET /suggest (e2e)', () => {
@@ -11,10 +12,7 @@ describe('GET /suggest (e2e)', () => {
   beforeAll(async () => {
     const moduleRef = await Test.createTestingModule({ imports: [AppModule] }).compile();
     app = moduleRef.createNestApplication();
-    app.useGlobalPipes(
-      new ValidationPipe({ whitelist: true, forbidNonWhitelisted: true, transform: true }),
-    );
-    app.useGlobalFilters(new AllExceptionsFilter());
+    configureApp(app, app.get<AppConfiguration>(APP_CONFIG));
     await app.init();
   });
 
