@@ -7,6 +7,22 @@ import { REDIS_CLIENT } from '../redis/redis.client.factory';
 const KEY_NAMESPACE = 'ratelimit:v1';
 
 /**
+ * Increment and set the window expiry in one atomic step. Doing it as separate
+ * INCR / PTTL / PEXPIRE round-trips leaves a race: the expiry is only attached
+ * after the first INCR, so an interleaved request can find the key with no TTL
+ * or already gone and mis-count. A single script closes that window — the count
+ * and its TTL always move together.
+ */
+const HIT_SCRIPT = `
+  local hits = redis.call('INCR', KEYS[1])
+  if hits == 1 then
+    redis.call('PEXPIRE', KEYS[1], ARGV[1])
+    return {hits, tonumber(ARGV[1])}
+  end
+  return {hits, redis.call('PTTL', KEYS[1])}
+`;
+
+/**
  * Redis-backed {@link RateLimitStorePort} (design D14): one shared counter, so a
  * limit is one limit across every instance.
  *
@@ -21,31 +37,12 @@ export class RedisRateLimitStore implements RateLimitStorePort {
   async hit(key: string, windowMs: number): Promise<RateLimitHit> {
     const namespaced = `${KEY_NAMESPACE}:${key}`;
 
-    // One round-trip: increment, then ask how much of the window is left.
-    const replies = await this.client.multi().incr(namespaced).pttl(namespaced).exec();
-    const totalHits = readNumber(replies, 0);
-    let timeToExpireMs = readNumber(replies, 1);
+    const result = (await this.client.eval(HIT_SCRIPT, 1, namespaced, windowMs)) as [
+      number,
+      number,
+    ];
+    const [totalHits, timeToExpireMs] = result;
 
-    // PTTL reports -1 with no expiry set and -2 if the key vanished between the
-    // two commands; either way this hit opens the window.
-    if (timeToExpireMs < 0) {
-      await this.client.pexpire(namespaced, windowMs);
-      timeToExpireMs = windowMs;
-    }
-
-    return { totalHits, timeToExpireMs };
+    return { totalHits: Number(totalHits), timeToExpireMs: Number(timeToExpireMs) };
   }
-}
-
-/** Reads one reply out of an ioredis pipeline result, failing loudly on a command error. */
-function readNumber(replies: [Error | null, unknown][] | null, index: number): number {
-  const reply = replies?.[index];
-  if (!reply) {
-    throw new Error('Redis pipeline returned no reply for the rate limit counter');
-  }
-  const [error, value] = reply;
-  if (error) {
-    throw error;
-  }
-  return Number(value);
 }

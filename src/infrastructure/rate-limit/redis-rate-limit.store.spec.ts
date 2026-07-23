@@ -1,97 +1,58 @@
 import { Redis } from 'ioredis';
 import { RedisRateLimitStore } from './redis-rate-limit.store';
 
-interface PipelineStub {
-  incr: jest.Mock;
-  pttl: jest.Mock;
-  exec: jest.Mock;
-}
-
-function buildClient(replies: [Error | null, unknown][] | null): {
-  client: Redis;
-  pipeline: PipelineStub;
-  pexpire: jest.Mock;
-} {
-  const pipeline: PipelineStub = {
-    incr: jest.fn(),
-    pttl: jest.fn(),
-    exec: jest.fn().mockResolvedValue(replies),
-  };
-  pipeline.incr.mockReturnValue(pipeline);
-  pipeline.pttl.mockReturnValue(pipeline);
-  const pexpire = jest.fn().mockResolvedValue(1);
-  const client = { multi: () => pipeline, pexpire } as unknown as Redis;
-  return { client, pipeline, pexpire };
+function buildClient(eval_: jest.Mock): Redis {
+  return { eval: eval_ } as unknown as Redis;
 }
 
 describe('RedisRateLimitStore', () => {
-  it('increments and reports the remaining window in one round-trip', async () => {
+  it('runs one atomic script and returns the count with the remaining window', async () => {
     // Arrange
-    const { client, pipeline } = buildClient([
-      [null, 3],
-      [null, 42_000],
-    ]);
-    const store = new RedisRateLimitStore(client);
+    const evalMock = jest.fn().mockResolvedValue([3, 42_000]);
+    const store = new RedisRateLimitStore(buildClient(evalMock));
 
     // Act
     const hit = await store.hit('client-a', 60_000);
 
     // Assert
     expect(hit).toEqual({ totalHits: 3, timeToExpireMs: 42_000 });
-    expect(pipeline.incr).toHaveBeenCalledWith('ratelimit:v1:client-a');
-    expect(pipeline.exec).toHaveBeenCalledTimes(1);
+    expect(evalMock).toHaveBeenCalledTimes(1);
   });
 
-  it('opens the window when the key has no expiry yet', async () => {
+  it('namespaces and versions the key and passes the window to the script', async () => {
     // Arrange
-    const { client, pexpire } = buildClient([
-      [null, 1],
-      [null, -1],
-    ]);
-    const store = new RedisRateLimitStore(client);
+    const evalMock = jest.fn().mockResolvedValue([1, 60_000]);
+    const store = new RedisRateLimitStore(buildClient(evalMock));
+
+    // Act
+    await store.hit('client-a', 60_000);
+
+    // Assert — eval(script, numKeys, key, windowMs)
+    const [, numKeys, key, windowMs] = evalMock.mock.calls[0];
+    expect(numKeys).toBe(1);
+    expect(key).toBe('ratelimit:v1:client-a');
+    expect(windowMs).toBe(60_000);
+  });
+
+  it('coerces the script reply to numbers', async () => {
+    // Arrange — Redis may hand back numeric strings
+    const evalMock = jest.fn().mockResolvedValue(['5', '30000']);
+    const store = new RedisRateLimitStore(buildClient(evalMock));
 
     // Act
     const hit = await store.hit('client-a', 60_000);
 
     // Assert
-    expect(pexpire).toHaveBeenCalledWith('ratelimit:v1:client-a', 60_000);
-    expect(hit.timeToExpireMs).toBe(60_000);
-  });
-
-  it('re-opens the window if the key expired between the two commands', async () => {
-    // Arrange
-    const { client, pexpire } = buildClient([
-      [null, 1],
-      [null, -2],
-    ]);
-    const store = new RedisRateLimitStore(client);
-
-    // Act
-    const hit = await store.hit('client-a', 30_000);
-
-    // Assert
-    expect(pexpire).toHaveBeenCalledWith('ratelimit:v1:client-a', 30_000);
+    expect(hit.totalHits).toBe(5);
     expect(hit.timeToExpireMs).toBe(30_000);
   });
 
-  it('propagates a command error so the caller can fail over', async () => {
+  it('propagates a Redis error so the caller can fail over', async () => {
     // Arrange
-    const { client } = buildClient([
-      [new Error('READONLY'), null],
-      [null, 1_000],
-    ]);
-    const store = new RedisRateLimitStore(client);
+    const evalMock = jest.fn().mockRejectedValue(new Error('READONLY'));
+    const store = new RedisRateLimitStore(buildClient(evalMock));
 
     // Act & Assert
     await expect(store.hit('client-a', 60_000)).rejects.toThrow('READONLY');
-  });
-
-  it('propagates a dropped pipeline rather than inventing a count', async () => {
-    // Arrange
-    const { client } = buildClient(null);
-    const store = new RedisRateLimitStore(client);
-
-    // Act & Assert
-    await expect(store.hit('client-a', 60_000)).rejects.toThrow(/no reply/);
   });
 });

@@ -38,11 +38,11 @@
 
 ## 5. Tests
 
-- [ ] 5.1 e2e: exhaust a limit and assert 429, the typed body, and `Retry-After`; pin low limits via `overrideProvider(APP_CONFIG)` as `resilience.e2e-spec.ts` does, so the rest of the suite is unaffected.
-- [ ] 5.2 e2e: assert `GET /health` is never throttled, and that exhausting `/search` leaves `/autocomplete` serving.
-- [ ] 5.3 e2e: assert `RateLimit-*` headers are present and that `RateLimit-Remaining` decreases.
-- [ ] 5.4 Confirm the existing e2e and integration suites still pass unmodified — no suite may start tripping the limiter.
-- [ ] 5.5 Run `npm run lint:ci`, `npm test`, `npm run build`, `npm run test:e2e`, `npm run test:integration` all green.
+- [x] 5.1 e2e: exhaust a limit and assert 429, the typed body, and `Retry-After`; pin low limits via `overrideProvider(APP_CONFIG)` as `resilience.e2e-spec.ts` does, so the rest of the suite is unaffected.
+- [x] 5.2 e2e: assert `GET /health` is never throttled, and that exhausting `/search` leaves `/autocomplete` serving.
+- [x] 5.3 e2e: assert `RateLimit-*` headers are present and that `RateLimit-Remaining` decreases.
+- [x] 5.4 Confirm the existing e2e and integration suites still pass unmodified — no suite may start tripping the limiter.
+- [x] 5.5 Run `npm run lint:ci`, `npm test`, `npm run build`, `npm run test:e2e`, `npm run test:integration` all green.
 
 ## 6. Load test & docs
 
