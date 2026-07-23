@@ -7,7 +7,7 @@ strict **hexagonal architecture**.
 It exposes relevance-ranked full-text search with typo tolerance, faceted navigation, type-ahead
 autocomplete, and "did you mean" suggestions — all read-only over a single seeded Elasticsearch index.
 
-**Live:** <https://advanced-search-api-chet.onrender.com> — try
+**Live:** <https://advanced-search-api-chet.onrender.com> — the base URL returns a service index; try
 [`/health`](https://advanced-search-api-chet.onrender.com/health),
 [`/search?q=drill`](https://advanced-search-api-chet.onrender.com/search?q=drill),
 [`/autocomplete?q=cord`](https://advanced-search-api-chet.onrender.com/autocomplete?q=cord) or
@@ -77,6 +77,11 @@ NestJS 11 · TypeScript (strict) · Elasticsearch 8 (`@elastic/elasticsearch`) �
 ## API
 
 Base URL: `https://advanced-search-api-chet.onrender.com` (deployed) or `http://localhost:3000` (local).
+
+### `GET /`
+
+Service index: name, version, the list of endpoints with a one-line description of each, and a docs link.
+Takes no parameters. Any other unrouted path still returns a typed `404`.
 
 ### `GET /search`
 

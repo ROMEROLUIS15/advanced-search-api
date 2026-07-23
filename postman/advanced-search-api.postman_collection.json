@@ -7,6 +7,18 @@
   "variable": [{ "key": "baseUrl", "value": "https://advanced-search-api-chet.onrender.com", "type": "string" }],
   "item": [
     {
+      "name": "Service index",
+      "request": {
+        "method": "GET",
+        "description": "Service name, version and the list of available endpoints.",
+        "url": {
+          "raw": "{{baseUrl}}/",
+          "host": ["{{baseUrl}}"],
+          "path": [""]
+        }
+      }
+    },
+    {
       "name": "Search — basic (q=drill)",
       "request": {
         "method": "GET",
