@@ -9,6 +9,7 @@ deployed service. Results from the 2026-07-23 execution are written up in
 | File | Purpose |
 |---|---|
 | `battery.js` | Seven scenarios against a local stack — the capacity test |
+| `rate-limit.js` | Correctness run: flood one client, assert a clean 429 (enforcement **on**) |
 | `smoke.js` | Low-rate correctness run against the deployment — **not** a capacity test |
 | `lib/workload.js` | Query pools and request builders, derived from the seeded dataset |
 | `lib/checks.js` | Response validators (status **and** payload contract) |
@@ -62,6 +63,17 @@ emit the per-scenario latency breakdown in the summary.
 Cloud and Upstash: load-testing it would spend real quota and mostly measure the hosting tier. The smoke run
 is capped at 2 req/s for 30 s and wakes the instance in `setup()`, so the free tier's spin-up (up to a minute)
 is not counted as service latency.
+
+**Rate limiting is measured two ways.** The capacity battery runs with `RATE_LIMIT_ENABLED=false`, because one
+k6 client drives far more than any human and would otherwise be rejected for the whole run — so it measures the
+engine, not the limiter. `rate-limit.js` does the opposite: enforcement **on**, one client flooding a limited
+endpoint, asserting the service answers a clean typed 429 (never a 5xx, never a slow tail) and that rejection
+is cheaper than serving. Start the app with a known budget first:
+
+```bash
+RATE_LIMIT_ENABLED=true RATE_LIMIT_SEARCH=60 npm start
+k6 run loadtest/rate-limit.js
+```
 
 ## Limitations to read before quoting the numbers
 

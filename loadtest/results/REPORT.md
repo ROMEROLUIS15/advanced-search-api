@@ -5,20 +5,20 @@
 
 | Metric | Value |
 |---|---|
-| Requests | 366,306 |
-| Throughput | 1593 req/s |
-| Failed requests | 0.00% (0 of 366,306) |
-| Checks passed | 100.00% (1,458,570 of 1,458,570) |
+| Requests | 398,020 |
+| Throughput | 1730 req/s |
+| Failed requests | 0.00% (0 of 398,020) |
+| Checks passed | 100.00% (1,574,192 of 1,574,192) |
 
 | Scenario | avg | median | p90 | p95 | p99 | max | Threshold |
 |---|---|---|---|---|---|---|---|
-| `autocomplete` | 3.02 ms | 2.77 ms | 3.99 ms | 4.67 ms | 7.12 ms | 37.38 ms | PASS (p(95)<150) |
-| `browse_paged` | 3.34 ms | 3.13 ms | 4.33 ms | 5.00 ms | 7.08 ms | 25.55 ms | PASS (p(95)<300) |
-| `facets_cold` | 15.67 ms | 13.16 ms | 29.69 ms | 33.20 ms | 39.88 ms | 64.02 ms | PASS (p(95)<400) |
-| `mixed_ramp` | 9.66 ms | 8.89 ms | 17.02 ms | 20.50 ms | 28.34 ms | 68.45 ms | PASS (p(95)<800) |
-| `search_cold` | 13.50 ms | 11.05 ms | 26.28 ms | 29.69 ms | 35.72 ms | 66.19 ms | PASS (p(95)<400) |
-| `search_warm` | 3.21 ms | 3.03 ms | 4.02 ms | 4.65 ms | 6.77 ms | 25.78 ms | PASS (p(95)<60) |
-| `suggest` | 8.26 ms | 7.91 ms | 10.60 ms | 11.66 ms | 15.25 ms | 48.63 ms | PASS (p(95)<200) |
+| `autocomplete` | 2.66 ms | 2.47 ms | 3.31 ms | 3.79 ms | 7.02 ms | 22.47 ms | PASS (p(95)<150) |
+| `browse_paged` | 3.12 ms | 2.88 ms | 3.81 ms | 4.52 ms | 7.27 ms | 23.50 ms | PASS (p(95)<300) |
+| `facets_cold` | 14.68 ms | 12.64 ms | 27.45 ms | 30.94 ms | 38.25 ms | 84.83 ms | PASS (p(95)<400) |
+| `mixed_ramp` | 8.87 ms | 7.93 ms | 16.16 ms | 19.42 ms | 27.04 ms | 62.85 ms | PASS (p(95)<800) |
+| `search_cold` | 12.48 ms | 9.72 ms | 26.35 ms | 30.37 ms | 39.01 ms | 212.26 ms | PASS (p(95)<400) |
+| `search_warm` | 3.10 ms | 2.86 ms | 3.84 ms | 4.51 ms | 6.76 ms | 59.77 ms | PASS (p(95)<60) |
+| `suggest` | 7.74 ms | 7.39 ms | 9.97 ms | 11.00 ms | 15.55 ms | 43.85 ms | PASS (p(95)<200) |
 
 ### Production smoke (`loadtest/smoke.js`)
 

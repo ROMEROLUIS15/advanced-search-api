@@ -740,6 +740,79 @@
       ]
     },
     {
+      "name": "Search — rate limit exceeded (429)",
+      "request": {
+        "method": "GET",
+        "description": "Each client (by IP) may call /search 60 times per minute by default. The 61st within the window is rejected with a typed 429 and a Retry-After header; the counter is shared via Redis and falls over to memory if Redis is down. Send this request rapidly to see it, or lower RATE_LIMIT_SEARCH. GET /health is never limited.",
+        "url": {
+          "raw": "{{baseUrl}}/search?q=drill",
+          "host": [
+            "{{baseUrl}}"
+          ],
+          "path": [
+            "search"
+          ],
+          "query": [
+            {
+              "key": "q",
+              "value": "drill"
+            }
+          ]
+        }
+      },
+      "response": [
+        {
+          "name": "429 Too Many Requests",
+          "originalRequest": {
+            "method": "GET",
+            "description": "Each client (by IP) may call /search 60 times per minute by default. The 61st within the window is rejected with a typed 429 and a Retry-After header; the counter is shared via Redis and falls over to memory if Redis is down. Send this request rapidly to see it, or lower RATE_LIMIT_SEARCH. GET /health is never limited.",
+            "url": {
+              "raw": "{{baseUrl}}/search?q=drill",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "search"
+              ],
+              "query": [
+                {
+                  "key": "q",
+                  "value": "drill"
+                }
+              ]
+            }
+          },
+          "status": "Too Many Requests",
+          "code": 429,
+          "_postman_previewlanguage": "json",
+          "header": [
+            {
+              "key": "Content-Type",
+              "value": "application/json; charset=utf-8"
+            },
+            {
+              "key": "RateLimit-Limit",
+              "value": "60"
+            },
+            {
+              "key": "RateLimit-Remaining",
+              "value": "0"
+            },
+            {
+              "key": "RateLimit-Reset",
+              "value": "41"
+            },
+            {
+              "key": "Retry-After",
+              "value": "41"
+            }
+          ],
+          "cookie": [],
+          "body": "{\"statusCode\":429,\"error\":\"Too Many Requests\",\"message\":\"Rate limit exceeded, retry after the window resets\",\"timestamp\":\"2026-07-23T19:40:12.114Z\",\"path\":\"/search?q=drill\"}"
+        }
+      ]
+    },
+    {
       "name": "Autocomplete (q=cord)",
       "request": {
         "method": "GET",

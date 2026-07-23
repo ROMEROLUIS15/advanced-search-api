@@ -46,8 +46,8 @@
 
 ## 6. Load test & docs
 
-- [ ] 6.1 Re-run the k6 battery with `RATE_LIMIT_ENABLED=false` to measure the limiter's overhead against the 2026-07-23 baseline, and record the delta.
-- [ ] 6.2 Add a k6 scenario that drives past a limit and asserts the service answers 429 rather than degrading, and document why the capacity run disables enforcement.
-- [ ] 6.3 Update `README.md`: the 429 in the error table, the new environment variables, and a short note on how a client should read the `RateLimit-*` headers.
-- [ ] 6.4 Add a Postman request demonstrating the 429 with a saved response example.
-- [ ] 6.5 Close audit finding F3 in `docs/AUDIT-2026-07-23.md` and update `CLAUDE.md` with the new guard, the port, and the `/health` exemption.
+- [x] 6.1 Re-run the k6 battery with `RATE_LIMIT_ENABLED=false` to measure the limiter's overhead against the 2026-07-23 baseline, and record the delta.
+- [x] 6.2 Add a k6 scenario that drives past a limit and asserts the service answers 429 rather than degrading, and document why the capacity run disables enforcement.
+- [x] 6.3 Update `README.md`: the 429 in the error table, the new environment variables, and a short note on how a client should read the `RateLimit-*` headers.
+- [x] 6.4 Add a Postman request demonstrating the 429 with a saved response example.
+- [x] 6.5 Close audit finding F3 in `docs/AUDIT-2026-07-23.md` and update `CLAUDE.md` with the new guard, the port, and the `/health` exemption.

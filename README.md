@@ -119,8 +119,8 @@ Response:
 ```
 
 Errors: `400` (invalid/unknown param or `pageSize` above the max), `422` (`page`×`pageSize` beyond
-`max_result_window`), `503` (Elasticsearch unreachable). Suggestions are populated only on low recall
-(`total ≤ SEARCH_SUGGEST_MAX_HITS`).
+`max_result_window`), `429` (rate limit exceeded — see below), `503` (Elasticsearch unreachable).
+Suggestions are populated only on low recall (`total ≤ SEARCH_SUGGEST_MAX_HITS`).
 
 ### `GET /autocomplete?q=<prefix>&limit=<1..20>`
 
@@ -133,10 +133,36 @@ Returns `{ "data": { "didYouMean": "drill", "related": ["drill"] } }`.
 ### `GET /health`
 
 `200` when Elasticsearch is up; `503` when it is down. Redis is non-critical (reported but still `200`).
+Never rate limited — the platform polls it as its readiness probe.
 
 ```json
 { "status": "ok", "info": { "elasticsearch": { "status": "up" }, "redis": { "status": "up" } } }
 ```
+
+### Rate limiting
+
+Each client (by IP) has a per-endpoint budget within a rolling window: **60/min** for `/search` and
+`/suggest`, **300/min** for `/autocomplete` (it fires on nearly every keystroke), **120/min** elsewhere.
+`/health` is exempt. Every response advertises the remaining budget so a client can slow down before being
+refused:
+
+```
+RateLimit-Limit: 60
+RateLimit-Remaining: 57
+RateLimit-Reset: 41          # seconds until the window resets
+```
+
+Over budget returns **429** in the standard error body, plus `Retry-After`:
+
+```json
+{ "statusCode": 429, "error": "Too Many Requests", "message": "Rate limit exceeded, retry after the window resets",
+  "timestamp": "…", "path": "/search?q=drill" }
+```
+
+The counter lives in Redis so the limit is shared across instances, and falls over to an in-process counter if
+Redis is unavailable — it never stops enforcing and never fails a request, so Redis stays non-critical. All
+budgets are environment-tunable, and `RATE_LIMIT_ENABLED=false` turns enforcement off (used by the load-test
+capacity run). Behind a proxy, set `TRUST_PROXY_HOPS` so the real client IP is read from `X-Forwarded-For`.
 
 ## Getting started
 
@@ -185,6 +211,12 @@ Environment is validated at boot (Zod) — the app fails fast on missing/invalid
 | `SEARCH_MAX_RESULT_WINDOW` | `10000` | `from+size` beyond this ⇒ `422` |
 | `RELEVANCE_POPULARITY_FACTOR` | `1` | |
 | `RELEVANCE_RECENCY_SCALE` / `RELEVANCE_RECENCY_DECAY` | `90d` / `0.5` | |
+| `RATE_LIMIT_ENABLED` | `true` | `false` disables enforcement (load-test capacity run, rollback) |
+| `RATE_LIMIT_WINDOW_SECONDS` | `60` | rolling window per client per endpoint |
+| `RATE_LIMIT_SEARCH` / `RATE_LIMIT_SUGGEST` | `60` / `60` | requests per window |
+| `RATE_LIMIT_AUTOCOMPLETE` | `300` | higher — fires on nearly every keystroke |
+| `RATE_LIMIT_DEFAULT` | `120` | any other limited route (`GET /`) |
+| `TRUST_PROXY_HOPS` | `0` | proxy hops to trust for the client IP; `1` behind Render |
 
 ## Testing
 
@@ -261,9 +293,10 @@ The collection uses a `baseUrl` variable, pointing at the live deployment
 (`https://advanced-search-api-chet.onrender.com`) so the requests run as imported — set it to
 `http://localhost:3000` to hit a local instance.
 
-Its 14 requests walk the whole surface: every search dimension (text, category, subcategory ANY-of, location,
+Its 15 requests walk the whole surface: every search dimension (text, category, subcategory ANY-of, location,
 price range), each sort key (`relevance`, `popularity`, `created_at`), pagination, the exclude-own-dimension
-facet behaviour, autocomplete, suggestions, health, and a rejected request showing the typed error body.
+facet behaviour, autocomplete, suggestions, health, and two rejected requests showing the typed error body —
+a `400` validation error and a `429` rate-limit rejection.
 
 Every request also carries a **saved response example** captured from the live deployment, so the payload
 shapes — facet buckets, pagination `meta`, `didYouMean`, the error body — stay readable even if the managed

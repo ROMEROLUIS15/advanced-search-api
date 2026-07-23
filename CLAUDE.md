@@ -142,6 +142,18 @@ metadata, so it registers a controller and nothing else. `app.module.ts` only as
 - **Two different guards, two different codes**: `pageSize` above `SEARCH_MAX_PAGE_SIZE` is rejected in
   `SearchController` (**400**); `from+size` beyond `SEARCH_MAX_RESULT_WINDOW` is rejected in the ES adapter
   (**422**).
+- **Rate limiting is a global guard, fail-over not fail-open (D14–D19).** `RateLimitGuard` (extends
+  `@nestjs/throttler`, registered via `APP_GUARD` in `rate-limit.module.ts`) counts each client-IP per endpoint
+  through `RateLimitStorePort`. The store is `FailoverRateLimitStore`: Redis for a shared count, falling **over**
+  to an in-process counter on a Redis error — it never stops enforcing (fail-open would drop protection exactly
+  when a Redis outage also drops the cache) and never fails a request (fail-closed would make Redis critical,
+  breaking D8/`/health`). The Redis increment is **one atomic Lua eval** (INCR + conditional PEXPIRE + PTTL);
+  splitting it reintroduces an off-by-one under concurrency. `GET /health` is exempt (Render polls it) and
+  `RATE_LIMIT_ENABLED=false` is a full pass-through — both live in the options `skipIf`. Over-budget ⇒ **429**
+  mapped in `AllExceptionsFilter` with `RateLimit-*` headers. Client IP comes from `req.ip`, which needs
+  Express `trust proxy` set from `TRUST_PROXY_HOPS` in `app.setup.ts` — without it every client shares one
+  bucket. The capacity load test runs with enforcement **off**; `loadtest/rate-limit.js` is the correctness run
+  that floods one client and asserts 429.
 - **Suggestions inside `/search` appear only on low recall** (`total <= SEARCH_SUGGEST_MAX_HITS`);
   `GET /suggest` always returns them. The threshold is applied in `product-search.adapter.ts`, **not** in
   `SearchProductsUseCase` — that is the first place one looks and it is not there.
