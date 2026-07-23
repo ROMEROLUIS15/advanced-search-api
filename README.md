@@ -83,6 +83,11 @@ Base URL: `https://advanced-search-api-chet.onrender.com` (deployed) or `http://
 Service index: name, version, the list of endpoints with a one-line description of each, and a docs link.
 Takes no parameters. Any other unrouted path still returns a typed `404`.
 
+> Added after the first deploy: the base URL answered a bare `404`, which reads as a broken service to
+> anyone opening the link. It is operational metadata, not a domain capability — so unlike `/search`,
+> `/autocomplete`, `/suggest` and `/health`, it deliberately has no requirement of its own under
+> `openspec/specs/`.
+
 ### `GET /search`
 
 | Param | Type | Notes |
