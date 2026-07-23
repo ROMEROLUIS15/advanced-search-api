@@ -4,7 +4,13 @@
     "description": "Relevance-ranked product search with filtering, faceting, autocomplete and query suggestions. The `baseUrl` collection variable points at the live deployment, so the requests run as imported; set it to http://localhost:3000 to hit a local instance. The deployment uses Render's free instance type and spins down when idle, so the first request after a pause can take up to a minute.",
     "schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json"
   },
-  "variable": [{ "key": "baseUrl", "value": "https://advanced-search-api-chet.onrender.com", "type": "string" }],
+  "variable": [
+    {
+      "key": "baseUrl",
+      "value": "https://advanced-search-api-chet.onrender.com",
+      "type": "string"
+    }
+  ],
   "item": [
     {
       "name": "Service index",
@@ -13,10 +19,43 @@
         "description": "Service name, version and the list of available endpoints.",
         "url": {
           "raw": "{{baseUrl}}/",
-          "host": ["{{baseUrl}}"],
-          "path": [""]
+          "host": [
+            "{{baseUrl}}"
+          ],
+          "path": [
+            ""
+          ]
         }
-      }
+      },
+      "response": [
+        {
+          "name": "200 OK",
+          "originalRequest": {
+            "method": "GET",
+            "description": "Service name, version and the list of available endpoints.",
+            "url": {
+              "raw": "{{baseUrl}}/",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                ""
+              ]
+            }
+          },
+          "status": "OK",
+          "code": 200,
+          "_postman_previewlanguage": "json",
+          "header": [
+            {
+              "key": "Content-Type",
+              "value": "application/json; charset=utf-8"
+            }
+          ],
+          "cookie": [],
+          "body": "{\"name\":\"Advanced Product Search API\",\"version\":\"0.1.0\",\"endpoints\":{\"GET /search\":\"Relevance-ranked search with filters, facets and low-recall suggestions\",\"GET /autocomplete\":\"Type-ahead product-name completions\",\"GET /suggest\":\"Did-you-mean correction and related queries\",\"GET /health\":\"Dependency health (Elasticsearch critical, Redis non-critical)\"},\"docs\":\"https://github.com/ROMEROLUIS15/advanced-search-api\"}"
+        }
+      ]
     },
     {
       "name": "Search — basic (q=drill)",
@@ -25,11 +64,55 @@
         "description": "Relevance-ranked full-text search.",
         "url": {
           "raw": "{{baseUrl}}/search?q=drill",
-          "host": ["{{baseUrl}}"],
-          "path": ["search"],
-          "query": [{ "key": "q", "value": "drill" }]
+          "host": [
+            "{{baseUrl}}"
+          ],
+          "path": [
+            "search"
+          ],
+          "query": [
+            {
+              "key": "q",
+              "value": "drill"
+            }
+          ]
         }
-      }
+      },
+      "response": [
+        {
+          "name": "200 OK",
+          "originalRequest": {
+            "method": "GET",
+            "description": "Relevance-ranked full-text search.",
+            "url": {
+              "raw": "{{baseUrl}}/search?q=drill",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "search"
+              ],
+              "query": [
+                {
+                  "key": "q",
+                  "value": "drill"
+                }
+              ]
+            }
+          },
+          "status": "OK",
+          "code": 200,
+          "_postman_previewlanguage": "json",
+          "header": [
+            {
+              "key": "Content-Type",
+              "value": "application/json; charset=utf-8"
+            }
+          ],
+          "cookie": [],
+          "body": "{\"data\":[{\"id\":\"tool-001\",\"name\":\"Cordless Drill 18V\",\"description\":\"Compact 18V brushless cordless drill with two batteries and a charger.\",\"category\":\"Tools\",\"subcategories\":[\"Power Tools\",\"Drills\"],\"location\":\"Berlin\",\"price\":129.99,\"currency\":\"USD\",\"popularity\":480,\"createdAt\":\"2026-05-10T09:00:00.000Z\",\"score\":28.871777},{\"id\":\"tool-003\",\"name\":\"Drill Bit Set 40-piece\",\"description\":\"Titanium-coated drill bit set for wood, metal and masonry.\",\"category\":\"Tools\",\"subcategories\":[\"Accessories\",\"Drills\"],\"location\":\"Hamburg\",\"price\":24.99,\"currency\":\"USD\",\"popularity\":150,\"createdAt\":\"2025-11-02T09:00:00.000Z\",\"score\":21.876118},{\"id\":\"tool-002\",\"name\":\"Hammer Drill SDS-Plus\",\"description\":\"Rotary hammer drill for concrete and masonry with SDS-Plus chuck.\",\"category\":\"Tools\",\"subcategories\":[\"Power Tools\",\"Drills\"],\"location\":\"Munich\",\"price\":199.5,\"currency\":\"USD\",\"popularity\":260,\"createdAt\":\"2026-03-22T09:00:00.000Z\",\"score\":21.872913}],\"meta\":{\"total\":3,\"page\":1,\"pageSize\":20,\"totalPages\":1,\"sort\":\"relevance\",\"order\":\"desc\"},\"facets\":{\"categories\":[{\"key\":\"Tools\",\"count\":3}],\"subcategories\":[{\"key\":\"Drills\",\"count\":3},{\"key\":\"Power Tools\",\"count\":2},{\"key\":\"Accessories\",\"count\":1}],\"locations\":[{\"key\":\"Berlin\",\"count\":1},{\"key\":\"Hamburg\",\"count\":1},{\"key\":\"Munich\",\"count\":1}],\"priceRanges\":[{\"to\":50,\"count\":1},{\"from\":50,\"to\":100,\"count\":0},{\"from\":100,\"to\":500,\"count\":2},{\"from\":500,\"count\":0}]},\"suggestions\":{\"didYouMean\":null,\"related\":[]}}"
+        }
+      ]
     },
     {
       "name": "Search — filters + facets",
@@ -38,20 +121,111 @@
         "description": "Combined filters (category + price range) with sorting and pagination; response includes facet counts.",
         "url": {
           "raw": "{{baseUrl}}/search?q=drill&category=Tools&minPrice=50&maxPrice=500&sort=relevance&order=desc&page=1&pageSize=10",
-          "host": ["{{baseUrl}}"],
-          "path": ["search"],
+          "host": [
+            "{{baseUrl}}"
+          ],
+          "path": [
+            "search"
+          ],
           "query": [
-            { "key": "q", "value": "drill" },
-            { "key": "category", "value": "Tools" },
-            { "key": "minPrice", "value": "50" },
-            { "key": "maxPrice", "value": "500" },
-            { "key": "sort", "value": "relevance" },
-            { "key": "order", "value": "desc" },
-            { "key": "page", "value": "1" },
-            { "key": "pageSize", "value": "10" }
+            {
+              "key": "q",
+              "value": "drill"
+            },
+            {
+              "key": "category",
+              "value": "Tools"
+            },
+            {
+              "key": "minPrice",
+              "value": "50"
+            },
+            {
+              "key": "maxPrice",
+              "value": "500"
+            },
+            {
+              "key": "sort",
+              "value": "relevance"
+            },
+            {
+              "key": "order",
+              "value": "desc"
+            },
+            {
+              "key": "page",
+              "value": "1"
+            },
+            {
+              "key": "pageSize",
+              "value": "10"
+            }
           ]
         }
-      }
+      },
+      "response": [
+        {
+          "name": "200 OK",
+          "originalRequest": {
+            "method": "GET",
+            "description": "Combined filters (category + price range) with sorting and pagination; response includes facet counts.",
+            "url": {
+              "raw": "{{baseUrl}}/search?q=drill&category=Tools&minPrice=50&maxPrice=500&sort=relevance&order=desc&page=1&pageSize=10",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "search"
+              ],
+              "query": [
+                {
+                  "key": "q",
+                  "value": "drill"
+                },
+                {
+                  "key": "category",
+                  "value": "Tools"
+                },
+                {
+                  "key": "minPrice",
+                  "value": "50"
+                },
+                {
+                  "key": "maxPrice",
+                  "value": "500"
+                },
+                {
+                  "key": "sort",
+                  "value": "relevance"
+                },
+                {
+                  "key": "order",
+                  "value": "desc"
+                },
+                {
+                  "key": "page",
+                  "value": "1"
+                },
+                {
+                  "key": "pageSize",
+                  "value": "10"
+                }
+              ]
+            }
+          },
+          "status": "OK",
+          "code": 200,
+          "_postman_previewlanguage": "json",
+          "header": [
+            {
+              "key": "Content-Type",
+              "value": "application/json; charset=utf-8"
+            }
+          ],
+          "cookie": [],
+          "body": "{\"data\":[{\"id\":\"tool-001\",\"name\":\"Cordless Drill 18V\",\"description\":\"Compact 18V brushless cordless drill with two batteries and a charger.\",\"category\":\"Tools\",\"subcategories\":[\"Power Tools\",\"Drills\"],\"location\":\"Berlin\",\"price\":129.99,\"currency\":\"USD\",\"popularity\":480,\"createdAt\":\"2026-05-10T09:00:00.000Z\",\"score\":28.871777},{\"id\":\"tool-002\",\"name\":\"Hammer Drill SDS-Plus\",\"description\":\"Rotary hammer drill for concrete and masonry with SDS-Plus chuck.\",\"category\":\"Tools\",\"subcategories\":[\"Power Tools\",\"Drills\"],\"location\":\"Munich\",\"price\":199.5,\"currency\":\"USD\",\"popularity\":260,\"createdAt\":\"2026-03-22T09:00:00.000Z\",\"score\":21.872911}],\"meta\":{\"total\":2,\"page\":1,\"pageSize\":10,\"totalPages\":1,\"sort\":\"relevance\",\"order\":\"desc\"},\"facets\":{\"categories\":[{\"key\":\"Tools\",\"count\":2}],\"subcategories\":[{\"key\":\"Drills\",\"count\":2},{\"key\":\"Power Tools\",\"count\":2}],\"locations\":[{\"key\":\"Berlin\",\"count\":1},{\"key\":\"Munich\",\"count\":1}],\"priceRanges\":[{\"to\":50,\"count\":1},{\"from\":50,\"to\":100,\"count\":0},{\"from\":100,\"to\":500,\"count\":2},{\"from\":500,\"count\":0}]},\"suggestions\":{\"didYouMean\":null,\"related\":[]}}"
+        }
+      ]
     },
     {
       "name": "Search — browse mode (no q, by popularity)",
@@ -60,15 +234,71 @@
         "description": "Browse mode: with no query, results are ordered by the default sort (popularity).",
         "url": {
           "raw": "{{baseUrl}}/search?sort=popularity&order=desc&pageSize=5",
-          "host": ["{{baseUrl}}"],
-          "path": ["search"],
+          "host": [
+            "{{baseUrl}}"
+          ],
+          "path": [
+            "search"
+          ],
           "query": [
-            { "key": "sort", "value": "popularity" },
-            { "key": "order", "value": "desc" },
-            { "key": "pageSize", "value": "5" }
+            {
+              "key": "sort",
+              "value": "popularity"
+            },
+            {
+              "key": "order",
+              "value": "desc"
+            },
+            {
+              "key": "pageSize",
+              "value": "5"
+            }
           ]
         }
-      }
+      },
+      "response": [
+        {
+          "name": "200 OK",
+          "originalRequest": {
+            "method": "GET",
+            "description": "Browse mode: with no query, results are ordered by the default sort (popularity).",
+            "url": {
+              "raw": "{{baseUrl}}/search?sort=popularity&order=desc&pageSize=5",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "search"
+              ],
+              "query": [
+                {
+                  "key": "sort",
+                  "value": "popularity"
+                },
+                {
+                  "key": "order",
+                  "value": "desc"
+                },
+                {
+                  "key": "pageSize",
+                  "value": "5"
+                }
+              ]
+            }
+          },
+          "status": "OK",
+          "code": 200,
+          "_postman_previewlanguage": "json",
+          "header": [
+            {
+              "key": "Content-Type",
+              "value": "application/json; charset=utf-8"
+            }
+          ],
+          "cookie": [],
+          "body": "{\"data\":[{\"id\":\"elec-001\",\"name\":\"Wireless Noise-Cancelling Headphones\",\"description\":\"Over-ear Bluetooth headphones with active noise cancellation and 30h battery.\",\"category\":\"Electronics\",\"subcategories\":[\"Audio\",\"Headphones\"],\"location\":\"Berlin\",\"price\":249.99,\"currency\":\"USD\",\"popularity\":500,\"createdAt\":\"2026-06-01T09:00:00.000Z\",\"score\":7.0595384},{\"id\":\"tool-001\",\"name\":\"Cordless Drill 18V\",\"description\":\"Compact 18V brushless cordless drill with two batteries and a charger.\",\"category\":\"Tools\",\"subcategories\":[\"Power Tools\",\"Drills\"],\"location\":\"Berlin\",\"price\":129.99,\"currency\":\"USD\",\"popularity\":480,\"createdAt\":\"2026-05-10T09:00:00.000Z\",\"score\":6.8593626},{\"id\":\"kitc-002\",\"name\":\"Espresso Machine\",\"description\":\"15-bar espresso machine with milk frother and stainless steel body.\",\"category\":\"Kitchen\",\"subcategories\":[\"Appliances\",\"Coffee\"],\"location\":\"Munich\",\"price\":279,\"currency\":\"USD\",\"popularity\":410,\"createdAt\":\"2026-03-03T09:00:00.000Z\",\"score\":6.2303514},{\"id\":\"furn-001\",\"name\":\"Ergonomic Office Chair\",\"description\":\"Mesh-back ergonomic office chair with adjustable lumbar support.\",\"category\":\"Furniture\",\"subcategories\":[\"Office\",\"Chairs\"],\"location\":\"Cologne\",\"price\":219,\"currency\":\"USD\",\"popularity\":380,\"createdAt\":\"2026-05-02T09:00:00.000Z\",\"score\":6.563246},{\"id\":\"elec-002\",\"name\":\"Bluetooth Portable Speaker\",\"description\":\"Waterproof portable speaker with deep bass and 12h playtime.\",\"category\":\"Electronics\",\"subcategories\":[\"Audio\",\"Speakers\"],\"location\":\"Munich\",\"price\":79.99,\"currency\":\"USD\",\"popularity\":340,\"createdAt\":\"2026-04-12T09:00:00.000Z\",\"score\":6.2961993}],\"meta\":{\"total\":24,\"page\":1,\"pageSize\":5,\"totalPages\":5,\"sort\":\"popularity\",\"order\":\"desc\"},\"facets\":{\"categories\":[{\"key\":\"Tools\",\"count\":6},{\"key\":\"Electronics\",\"count\":5},{\"key\":\"Furniture\",\"count\":3},{\"key\":\"Garden\",\"count\":3},{\"key\":\"Kitchen\",\"count\":3},{\"key\":\"Sports\",\"count\":3},{\"key\":\"Office\",\"count\":1}],\"subcategories\":[{\"key\":\"Power Tools\",\"count\":4},{\"key\":\"Drills\",\"count\":3},{\"key\":\"Hand Tools\",\"count\":3},{\"key\":\"Audio\",\"count\":2},{\"key\":\"Computing\",\"count\":2},{\"key\":\"Fitness\",\"count\":2},{\"key\":\"Office\",\"count\":2},{\"key\":\"Accessories\",\"count\":1},{\"key\":\"Action Cameras\",\"count\":1},{\"key\":\"Appliances\",\"count\":1},{\"key\":\"Cameras\",\"count\":1},{\"key\":\"Chairs\",\"count\":1},{\"key\":\"Coffee\",\"count\":1},{\"key\":\"Cookware\",\"count\":1},{\"key\":\"Cutlery\",\"count\":1},{\"key\":\"Cutting\",\"count\":1},{\"key\":\"Cycling\",\"count\":1},{\"key\":\"Desks\",\"count\":1},{\"key\":\"Grinders\",\"count\":1},{\"key\":\"Hammers\",\"count\":1},{\"key\":\"Headphones\",\"count\":1},{\"key\":\"Helmets\",\"count\":1},{\"key\":\"Hoses\",\"count\":1},{\"key\":\"Keyboards\",\"count\":1},{\"key\":\"Knives\",\"count\":1},{\"key\":\"Laser\",\"count\":1},{\"key\":\"Living Room\",\"count\":1},{\"key\":\"Monitors\",\"count\":1},{\"key\":\"Mowers\",\"count\":1},{\"key\":\"Pans\",\"count\":1},{\"key\":\"Printers\",\"count\":1},{\"key\":\"Speakers\",\"count\":1},{\"key\":\"Storage\",\"count\":1},{\"key\":\"Watering\",\"count\":1},{\"key\":\"Weights\",\"count\":1},{\"key\":\"Wrenches\",\"count\":1},{\"key\":\"Yoga\",\"count\":1}],\"locations\":[{\"key\":\"Berlin\",\"count\":5},{\"key\":\"Cologne\",\"count\":4},{\"key\":\"Frankfurt\",\"count\":4},{\"key\":\"Hamburg\",\"count\":4},{\"key\":\"Munich\",\"count\":4},{\"key\":\"Stuttgart\",\"count\":3}],\"priceRanges\":[{\"to\":50,\"count\":8},{\"from\":50,\"to\":100,\"count\":3},{\"from\":100,\"to\":500,\"count\":13},{\"from\":500,\"count\":0}]},\"suggestions\":{\"didYouMean\":null,\"related\":[]}}"
+        }
+      ]
     },
     {
       "name": "Search — exclude-own-dimension facet (category=Tools)",
@@ -77,11 +307,55 @@
         "description": "Hits are narrowed to Tools, but facets.categories still lists other categories so the dimension can be widened.",
         "url": {
           "raw": "{{baseUrl}}/search?category=Tools",
-          "host": ["{{baseUrl}}"],
-          "path": ["search"],
-          "query": [{ "key": "category", "value": "Tools" }]
+          "host": [
+            "{{baseUrl}}"
+          ],
+          "path": [
+            "search"
+          ],
+          "query": [
+            {
+              "key": "category",
+              "value": "Tools"
+            }
+          ]
         }
-      }
+      },
+      "response": [
+        {
+          "name": "200 OK",
+          "originalRequest": {
+            "method": "GET",
+            "description": "Hits are narrowed to Tools, but facets.categories still lists other categories so the dimension can be widened.",
+            "url": {
+              "raw": "{{baseUrl}}/search?category=Tools",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "search"
+              ],
+              "query": [
+                {
+                  "key": "category",
+                  "value": "Tools"
+                }
+              ]
+            }
+          },
+          "status": "OK",
+          "code": 200,
+          "_postman_previewlanguage": "json",
+          "header": [
+            {
+              "key": "Content-Type",
+              "value": "application/json; charset=utf-8"
+            }
+          ],
+          "cookie": [],
+          "body": "{\"data\":[{\"id\":\"tool-001\",\"name\":\"Cordless Drill 18V\",\"description\":\"Compact 18V brushless cordless drill with two batteries and a charger.\",\"category\":\"Tools\",\"subcategories\":[\"Power Tools\",\"Drills\"],\"location\":\"Berlin\",\"price\":129.99,\"currency\":\"USD\",\"popularity\":480,\"createdAt\":\"2026-05-10T09:00:00.000Z\",\"score\":6.8593626},{\"id\":\"tool-002\",\"name\":\"Hammer Drill SDS-Plus\",\"description\":\"Rotary hammer drill for concrete and masonry with SDS-Plus chuck.\",\"category\":\"Tools\",\"subcategories\":[\"Power Tools\",\"Drills\"],\"location\":\"Munich\",\"price\":199.5,\"currency\":\"USD\",\"popularity\":260,\"createdAt\":\"2026-03-22T09:00:00.000Z\",\"score\":5.8826704},{\"id\":\"tool-004\",\"name\":\"Cordless Angle Grinder\",\"description\":\"125mm cordless angle grinder with brushless motor.\",\"category\":\"Tools\",\"subcategories\":[\"Power Tools\",\"Grinders\"],\"location\":\"Cologne\",\"price\":149,\"currency\":\"USD\",\"popularity\":210,\"createdAt\":\"2026-01-15T09:00:00.000Z\",\"score\":5.4111824},{\"id\":\"tool-003\",\"name\":\"Drill Bit Set 40-piece\",\"description\":\"Titanium-coated drill bit set for wood, metal and masonry.\",\"category\":\"Tools\",\"subcategories\":[\"Accessories\",\"Drills\"],\"location\":\"Hamburg\",\"price\":24.99,\"currency\":\"USD\",\"popularity\":150,\"createdAt\":\"2025-11-02T09:00:00.000Z\",\"score\":5.0209985},{\"id\":\"tool-005\",\"name\":\"Claw Hammer 450g\",\"description\":\"Fibreglass-handled claw hammer with anti-vibration grip.\",\"category\":\"Tools\",\"subcategories\":[\"Hand Tools\",\"Hammers\"],\"location\":\"Frankfurt\",\"price\":15.49,\"currency\":\"USD\",\"popularity\":90,\"createdAt\":\"2025-08-19T09:00:00.000Z\",\"score\":4.510946},{\"id\":\"tool-006\",\"name\":\"Adjustable Wrench Set\",\"description\":\"Three-piece chrome-vanadium adjustable wrench set.\",\"category\":\"Tools\",\"subcategories\":[\"Hand Tools\",\"Wrenches\"],\"location\":\"Stuttgart\",\"price\":34.9,\"currency\":\"USD\",\"popularity\":60,\"createdAt\":\"2025-06-30T09:00:00.000Z\",\"score\":4.110878}],\"meta\":{\"total\":6,\"page\":1,\"pageSize\":20,\"totalPages\":1,\"sort\":\"popularity\",\"order\":\"desc\"},\"facets\":{\"categories\":[{\"key\":\"Tools\",\"count\":6},{\"key\":\"Electronics\",\"count\":5},{\"key\":\"Furniture\",\"count\":3},{\"key\":\"Garden\",\"count\":3},{\"key\":\"Kitchen\",\"count\":3},{\"key\":\"Sports\",\"count\":3},{\"key\":\"Office\",\"count\":1}],\"subcategories\":[{\"key\":\"Drills\",\"count\":3},{\"key\":\"Power Tools\",\"count\":3},{\"key\":\"Hand Tools\",\"count\":2},{\"key\":\"Accessories\",\"count\":1},{\"key\":\"Grinders\",\"count\":1},{\"key\":\"Hammers\",\"count\":1},{\"key\":\"Wrenches\",\"count\":1}],\"locations\":[{\"key\":\"Berlin\",\"count\":1},{\"key\":\"Cologne\",\"count\":1},{\"key\":\"Frankfurt\",\"count\":1},{\"key\":\"Hamburg\",\"count\":1},{\"key\":\"Munich\",\"count\":1},{\"key\":\"Stuttgart\",\"count\":1}],\"priceRanges\":[{\"to\":50,\"count\":3},{\"from\":50,\"to\":100,\"count\":0},{\"from\":100,\"to\":500,\"count\":3},{\"from\":500,\"count\":0}]},\"suggestions\":{\"didYouMean\":null,\"related\":[]}}"
+        }
+      ]
     },
     {
       "name": "Search — typo (low-recall suggestions)",
@@ -90,11 +364,55 @@
         "description": "A misspelled query with few hits populates the suggestions block.",
         "url": {
           "raw": "{{baseUrl}}/search?q=driil",
-          "host": ["{{baseUrl}}"],
-          "path": ["search"],
-          "query": [{ "key": "q", "value": "driil" }]
+          "host": [
+            "{{baseUrl}}"
+          ],
+          "path": [
+            "search"
+          ],
+          "query": [
+            {
+              "key": "q",
+              "value": "driil"
+            }
+          ]
         }
-      }
+      },
+      "response": [
+        {
+          "name": "200 OK",
+          "originalRequest": {
+            "method": "GET",
+            "description": "A misspelled query with few hits populates the suggestions block.",
+            "url": {
+              "raw": "{{baseUrl}}/search?q=driil",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "search"
+              ],
+              "query": [
+                {
+                  "key": "q",
+                  "value": "driil"
+                }
+              ]
+            }
+          },
+          "status": "OK",
+          "code": 200,
+          "_postman_previewlanguage": "json",
+          "header": [
+            {
+              "key": "Content-Type",
+              "value": "application/json; charset=utf-8"
+            }
+          ],
+          "cookie": [],
+          "body": "{\"data\":[{\"id\":\"tool-001\",\"name\":\"Cordless Drill 18V\",\"description\":\"Compact 18V brushless cordless drill with two batteries and a charger.\",\"category\":\"Tools\",\"subcategories\":[\"Power Tools\",\"Drills\"],\"location\":\"Berlin\",\"price\":129.99,\"currency\":\"USD\",\"popularity\":480,\"createdAt\":\"2026-05-10T09:00:00.000Z\",\"score\":23.09742},{\"id\":\"tool-003\",\"name\":\"Drill Bit Set 40-piece\",\"description\":\"Titanium-coated drill bit set for wood, metal and masonry.\",\"category\":\"Tools\",\"subcategories\":[\"Accessories\",\"Drills\"],\"location\":\"Hamburg\",\"price\":24.99,\"currency\":\"USD\",\"popularity\":150,\"createdAt\":\"2025-11-02T09:00:00.000Z\",\"score\":17.500893},{\"id\":\"tool-002\",\"name\":\"Hammer Drill SDS-Plus\",\"description\":\"Rotary hammer drill for concrete and masonry with SDS-Plus chuck.\",\"category\":\"Tools\",\"subcategories\":[\"Power Tools\",\"Drills\"],\"location\":\"Munich\",\"price\":199.5,\"currency\":\"USD\",\"popularity\":260,\"createdAt\":\"2026-03-22T09:00:00.000Z\",\"score\":17.49833}],\"meta\":{\"total\":3,\"page\":1,\"pageSize\":20,\"totalPages\":1,\"sort\":\"relevance\",\"order\":\"desc\"},\"facets\":{\"categories\":[{\"key\":\"Tools\",\"count\":3}],\"subcategories\":[{\"key\":\"Drills\",\"count\":3},{\"key\":\"Power Tools\",\"count\":2},{\"key\":\"Accessories\",\"count\":1}],\"locations\":[{\"key\":\"Berlin\",\"count\":1},{\"key\":\"Hamburg\",\"count\":1},{\"key\":\"Munich\",\"count\":1}],\"priceRanges\":[{\"to\":50,\"count\":1},{\"from\":50,\"to\":100,\"count\":0},{\"from\":100,\"to\":500,\"count\":2},{\"from\":500,\"count\":0}]},\"suggestions\":{\"didYouMean\":\"drill\",\"related\":[\"drill\",\"drills\"]}}"
+        }
+      ]
     },
     {
       "name": "Search — subcategories (ANY-of)",
@@ -103,14 +421,63 @@
         "description": "Repeated `subcategory` params match ANY of the given values, not all of them.",
         "url": {
           "raw": "{{baseUrl}}/search?subcategory=Drills&subcategory=Power%20Tools",
-          "host": ["{{baseUrl}}"],
-          "path": ["search"],
+          "host": [
+            "{{baseUrl}}"
+          ],
+          "path": [
+            "search"
+          ],
           "query": [
-            { "key": "subcategory", "value": "Drills" },
-            { "key": "subcategory", "value": "Power Tools" }
+            {
+              "key": "subcategory",
+              "value": "Drills"
+            },
+            {
+              "key": "subcategory",
+              "value": "Power Tools"
+            }
           ]
         }
-      }
+      },
+      "response": [
+        {
+          "name": "200 OK",
+          "originalRequest": {
+            "method": "GET",
+            "description": "Repeated `subcategory` params match ANY of the given values, not all of them.",
+            "url": {
+              "raw": "{{baseUrl}}/search?subcategory=Drills&subcategory=Power%20Tools",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "search"
+              ],
+              "query": [
+                {
+                  "key": "subcategory",
+                  "value": "Drills"
+                },
+                {
+                  "key": "subcategory",
+                  "value": "Power Tools"
+                }
+              ]
+            }
+          },
+          "status": "OK",
+          "code": 200,
+          "_postman_previewlanguage": "json",
+          "header": [
+            {
+              "key": "Content-Type",
+              "value": "application/json; charset=utf-8"
+            }
+          ],
+          "cookie": [],
+          "body": "{\"data\":[{\"id\":\"tool-001\",\"name\":\"Cordless Drill 18V\",\"description\":\"Compact 18V brushless cordless drill with two batteries and a charger.\",\"category\":\"Tools\",\"subcategories\":[\"Power Tools\",\"Drills\"],\"location\":\"Berlin\",\"price\":129.99,\"currency\":\"USD\",\"popularity\":480,\"createdAt\":\"2026-05-10T09:00:00.000Z\",\"score\":6.859362},{\"id\":\"tool-002\",\"name\":\"Hammer Drill SDS-Plus\",\"description\":\"Rotary hammer drill for concrete and masonry with SDS-Plus chuck.\",\"category\":\"Tools\",\"subcategories\":[\"Power Tools\",\"Drills\"],\"location\":\"Munich\",\"price\":199.5,\"currency\":\"USD\",\"popularity\":260,\"createdAt\":\"2026-03-22T09:00:00.000Z\",\"score\":5.88267},{\"id\":\"gard-001\",\"name\":\"Cordless Lawn Mower\",\"description\":\"36V cordless lawn mower with 40cm cutting width and grass collector.\",\"category\":\"Garden\",\"subcategories\":[\"Power Tools\",\"Mowers\"],\"location\":\"Cologne\",\"price\":349,\"currency\":\"USD\",\"popularity\":240,\"createdAt\":\"2026-04-25T09:00:00.000Z\",\"score\":6.049766},{\"id\":\"tool-004\",\"name\":\"Cordless Angle Grinder\",\"description\":\"125mm cordless angle grinder with brushless motor.\",\"category\":\"Tools\",\"subcategories\":[\"Power Tools\",\"Grinders\"],\"location\":\"Cologne\",\"price\":149,\"currency\":\"USD\",\"popularity\":210,\"createdAt\":\"2026-01-15T09:00:00.000Z\",\"score\":5.4111824},{\"id\":\"tool-003\",\"name\":\"Drill Bit Set 40-piece\",\"description\":\"Titanium-coated drill bit set for wood, metal and masonry.\",\"category\":\"Tools\",\"subcategories\":[\"Accessories\",\"Drills\"],\"location\":\"Hamburg\",\"price\":24.99,\"currency\":\"USD\",\"popularity\":150,\"createdAt\":\"2025-11-02T09:00:00.000Z\",\"score\":5.0209985}],\"meta\":{\"total\":5,\"page\":1,\"pageSize\":20,\"totalPages\":1,\"sort\":\"popularity\",\"order\":\"desc\"},\"facets\":{\"categories\":[{\"key\":\"Tools\",\"count\":4},{\"key\":\"Garden\",\"count\":1}],\"subcategories\":[{\"key\":\"Power Tools\",\"count\":4},{\"key\":\"Drills\",\"count\":3},{\"key\":\"Hand Tools\",\"count\":3},{\"key\":\"Audio\",\"count\":2},{\"key\":\"Computing\",\"count\":2},{\"key\":\"Fitness\",\"count\":2},{\"key\":\"Office\",\"count\":2},{\"key\":\"Accessories\",\"count\":1},{\"key\":\"Action Cameras\",\"count\":1},{\"key\":\"Appliances\",\"count\":1},{\"key\":\"Cameras\",\"count\":1},{\"key\":\"Chairs\",\"count\":1},{\"key\":\"Coffee\",\"count\":1},{\"key\":\"Cookware\",\"count\":1},{\"key\":\"Cutlery\",\"count\":1},{\"key\":\"Cutting\",\"count\":1},{\"key\":\"Cycling\",\"count\":1},{\"key\":\"Desks\",\"count\":1},{\"key\":\"Grinders\",\"count\":1},{\"key\":\"Hammers\",\"count\":1},{\"key\":\"Headphones\",\"count\":1},{\"key\":\"Helmets\",\"count\":1},{\"key\":\"Hoses\",\"count\":1},{\"key\":\"Keyboards\",\"count\":1},{\"key\":\"Knives\",\"count\":1},{\"key\":\"Laser\",\"count\":1},{\"key\":\"Living Room\",\"count\":1},{\"key\":\"Monitors\",\"count\":1},{\"key\":\"Mowers\",\"count\":1},{\"key\":\"Pans\",\"count\":1},{\"key\":\"Printers\",\"count\":1},{\"key\":\"Speakers\",\"count\":1},{\"key\":\"Storage\",\"count\":1},{\"key\":\"Watering\",\"count\":1},{\"key\":\"Weights\",\"count\":1},{\"key\":\"Wrenches\",\"count\":1},{\"key\":\"Yoga\",\"count\":1}],\"locations\":[{\"key\":\"Cologne\",\"count\":2},{\"key\":\"Berlin\",\"count\":1},{\"key\":\"Hamburg\",\"count\":1},{\"key\":\"Munich\",\"count\":1}],\"priceRanges\":[{\"to\":50,\"count\":1},{\"from\":50,\"to\":100,\"count\":0},{\"from\":100,\"to\":500,\"count\":4},{\"from\":500,\"count\":0}]},\"suggestions\":{\"didYouMean\":null,\"related\":[]}}"
+        }
+      ]
     },
     {
       "name": "Search — by location",
@@ -119,11 +486,55 @@
         "description": "Location filter on its own, with facets recomputed for the narrowed set.",
         "url": {
           "raw": "{{baseUrl}}/search?location=Berlin",
-          "host": ["{{baseUrl}}"],
-          "path": ["search"],
-          "query": [{ "key": "location", "value": "Berlin" }]
+          "host": [
+            "{{baseUrl}}"
+          ],
+          "path": [
+            "search"
+          ],
+          "query": [
+            {
+              "key": "location",
+              "value": "Berlin"
+            }
+          ]
         }
-      }
+      },
+      "response": [
+        {
+          "name": "200 OK",
+          "originalRequest": {
+            "method": "GET",
+            "description": "Location filter on its own, with facets recomputed for the narrowed set.",
+            "url": {
+              "raw": "{{baseUrl}}/search?location=Berlin",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "search"
+              ],
+              "query": [
+                {
+                  "key": "location",
+                  "value": "Berlin"
+                }
+              ]
+            }
+          },
+          "status": "OK",
+          "code": 200,
+          "_postman_previewlanguage": "json",
+          "header": [
+            {
+              "key": "Content-Type",
+              "value": "application/json; charset=utf-8"
+            }
+          ],
+          "cookie": [],
+          "body": "{\"data\":[{\"id\":\"elec-001\",\"name\":\"Wireless Noise-Cancelling Headphones\",\"description\":\"Over-ear Bluetooth headphones with active noise cancellation and 30h battery.\",\"category\":\"Electronics\",\"subcategories\":[\"Audio\",\"Headphones\"],\"location\":\"Berlin\",\"price\":249.99,\"currency\":\"USD\",\"popularity\":500,\"createdAt\":\"2026-06-01T09:00:00.000Z\",\"score\":7.0595384},{\"id\":\"tool-001\",\"name\":\"Cordless Drill 18V\",\"description\":\"Compact 18V brushless cordless drill with two batteries and a charger.\",\"category\":\"Tools\",\"subcategories\":[\"Power Tools\",\"Drills\"],\"location\":\"Berlin\",\"price\":129.99,\"currency\":\"USD\",\"popularity\":480,\"createdAt\":\"2026-05-10T09:00:00.000Z\",\"score\":6.859362},{\"id\":\"spor-001\",\"name\":\"Adjustable Dumbbell Set\",\"description\":\"Pair of adjustable dumbbells from 2 to 24kg with quick-select dial.\",\"category\":\"Sports\",\"subcategories\":[\"Fitness\",\"Weights\"],\"location\":\"Berlin\",\"price\":299,\"currency\":\"USD\",\"popularity\":320,\"createdAt\":\"2026-06-11T09:00:00.000Z\",\"score\":6.673614},{\"id\":\"kitc-001\",\"name\":\"Stainless Steel Chef Knife\",\"description\":\"20cm forged stainless steel chef knife with ergonomic handle.\",\"category\":\"Kitchen\",\"subcategories\":[\"Cutlery\",\"Knives\"],\"location\":\"Berlin\",\"price\":44.95,\"currency\":\"USD\",\"popularity\":130,\"createdAt\":\"2025-09-14T09:00:00.000Z\",\"score\":4.875552},{\"id\":\"offi-001\",\"name\":\"Laser Printer Wireless\",\"description\":\"Monochrome wireless laser printer with duplex printing.\",\"category\":\"Office\",\"subcategories\":[\"Printers\",\"Laser\"],\"location\":\"Berlin\",\"price\":169,\"currency\":\"USD\",\"popularity\":120,\"createdAt\":\"2025-12-22T09:00:00.000Z\",\"score\":4.822565}],\"meta\":{\"total\":5,\"page\":1,\"pageSize\":20,\"totalPages\":1,\"sort\":\"popularity\",\"order\":\"desc\"},\"facets\":{\"categories\":[{\"key\":\"Electronics\",\"count\":1},{\"key\":\"Kitchen\",\"count\":1},{\"key\":\"Office\",\"count\":1},{\"key\":\"Sports\",\"count\":1},{\"key\":\"Tools\",\"count\":1}],\"subcategories\":[{\"key\":\"Audio\",\"count\":1},{\"key\":\"Cutlery\",\"count\":1},{\"key\":\"Drills\",\"count\":1},{\"key\":\"Fitness\",\"count\":1},{\"key\":\"Headphones\",\"count\":1},{\"key\":\"Knives\",\"count\":1},{\"key\":\"Laser\",\"count\":1},{\"key\":\"Power Tools\",\"count\":1},{\"key\":\"Printers\",\"count\":1},{\"key\":\"Weights\",\"count\":1}],\"locations\":[{\"key\":\"Berlin\",\"count\":5},{\"key\":\"Cologne\",\"count\":4},{\"key\":\"Frankfurt\",\"count\":4},{\"key\":\"Hamburg\",\"count\":4},{\"key\":\"Munich\",\"count\":4},{\"key\":\"Stuttgart\",\"count\":3}],\"priceRanges\":[{\"to\":50,\"count\":1},{\"from\":50,\"to\":100,\"count\":0},{\"from\":100,\"to\":500,\"count\":4},{\"from\":500,\"count\":0}]},\"suggestions\":{\"didYouMean\":null,\"related\":[]}}"
+        }
+      ]
     },
     {
       "name": "Search — sort by created_at",
@@ -132,15 +543,71 @@
         "description": "Newest first. `sort` also accepts `relevance` and `popularity`.",
         "url": {
           "raw": "{{baseUrl}}/search?sort=created_at&order=desc&pageSize=5",
-          "host": ["{{baseUrl}}"],
-          "path": ["search"],
+          "host": [
+            "{{baseUrl}}"
+          ],
+          "path": [
+            "search"
+          ],
           "query": [
-            { "key": "sort", "value": "created_at" },
-            { "key": "order", "value": "desc" },
-            { "key": "pageSize", "value": "5" }
+            {
+              "key": "sort",
+              "value": "created_at"
+            },
+            {
+              "key": "order",
+              "value": "desc"
+            },
+            {
+              "key": "pageSize",
+              "value": "5"
+            }
           ]
         }
-      }
+      },
+      "response": [
+        {
+          "name": "200 OK",
+          "originalRequest": {
+            "method": "GET",
+            "description": "Newest first. `sort` also accepts `relevance` and `popularity`.",
+            "url": {
+              "raw": "{{baseUrl}}/search?sort=created_at&order=desc&pageSize=5",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "search"
+              ],
+              "query": [
+                {
+                  "key": "sort",
+                  "value": "created_at"
+                },
+                {
+                  "key": "order",
+                  "value": "desc"
+                },
+                {
+                  "key": "pageSize",
+                  "value": "5"
+                }
+              ]
+            }
+          },
+          "status": "OK",
+          "code": 200,
+          "_postman_previewlanguage": "json",
+          "header": [
+            {
+              "key": "Content-Type",
+              "value": "application/json; charset=utf-8"
+            }
+          ],
+          "cookie": [],
+          "body": "{\"data\":[{\"id\":\"spor-001\",\"name\":\"Adjustable Dumbbell Set\",\"description\":\"Pair of adjustable dumbbells from 2 to 24kg with quick-select dial.\",\"category\":\"Sports\",\"subcategories\":[\"Fitness\",\"Weights\"],\"location\":\"Berlin\",\"price\":299,\"currency\":\"USD\",\"popularity\":320,\"createdAt\":\"2026-06-11T09:00:00.000Z\",\"score\":6.673614},{\"id\":\"elec-001\",\"name\":\"Wireless Noise-Cancelling Headphones\",\"description\":\"Over-ear Bluetooth headphones with active noise cancellation and 30h battery.\",\"category\":\"Electronics\",\"subcategories\":[\"Audio\",\"Headphones\"],\"location\":\"Berlin\",\"price\":249.99,\"currency\":\"USD\",\"popularity\":500,\"createdAt\":\"2026-06-01T09:00:00.000Z\",\"score\":7.0595384},{\"id\":\"elec-004\",\"name\":\"Mechanical Keyboard RGB\",\"description\":\"Compact mechanical keyboard with hot-swappable switches and RGB backlight.\",\"category\":\"Electronics\",\"subcategories\":[\"Computing\",\"Keyboards\"],\"location\":\"Cologne\",\"price\":99.9,\"currency\":\"USD\",\"popularity\":300,\"createdAt\":\"2026-05-28T09:00:00.000Z\",\"score\":6.5235286},{\"id\":\"tool-001\",\"name\":\"Cordless Drill 18V\",\"description\":\"Compact 18V brushless cordless drill with two batteries and a charger.\",\"category\":\"Tools\",\"subcategories\":[\"Power Tools\",\"Drills\"],\"location\":\"Berlin\",\"price\":129.99,\"currency\":\"USD\",\"popularity\":480,\"createdAt\":\"2026-05-10T09:00:00.000Z\",\"score\":6.859362},{\"id\":\"furn-001\",\"name\":\"Ergonomic Office Chair\",\"description\":\"Mesh-back ergonomic office chair with adjustable lumbar support.\",\"category\":\"Furniture\",\"subcategories\":[\"Office\",\"Chairs\"],\"location\":\"Cologne\",\"price\":219,\"currency\":\"USD\",\"popularity\":380,\"createdAt\":\"2026-05-02T09:00:00.000Z\",\"score\":6.563246}],\"meta\":{\"total\":24,\"page\":1,\"pageSize\":5,\"totalPages\":5,\"sort\":\"created_at\",\"order\":\"desc\"},\"facets\":{\"categories\":[{\"key\":\"Tools\",\"count\":6},{\"key\":\"Electronics\",\"count\":5},{\"key\":\"Furniture\",\"count\":3},{\"key\":\"Garden\",\"count\":3},{\"key\":\"Kitchen\",\"count\":3},{\"key\":\"Sports\",\"count\":3},{\"key\":\"Office\",\"count\":1}],\"subcategories\":[{\"key\":\"Power Tools\",\"count\":4},{\"key\":\"Drills\",\"count\":3},{\"key\":\"Hand Tools\",\"count\":3},{\"key\":\"Audio\",\"count\":2},{\"key\":\"Computing\",\"count\":2},{\"key\":\"Fitness\",\"count\":2},{\"key\":\"Office\",\"count\":2},{\"key\":\"Accessories\",\"count\":1},{\"key\":\"Action Cameras\",\"count\":1},{\"key\":\"Appliances\",\"count\":1},{\"key\":\"Cameras\",\"count\":1},{\"key\":\"Chairs\",\"count\":1},{\"key\":\"Coffee\",\"count\":1},{\"key\":\"Cookware\",\"count\":1},{\"key\":\"Cutlery\",\"count\":1},{\"key\":\"Cutting\",\"count\":1},{\"key\":\"Cycling\",\"count\":1},{\"key\":\"Desks\",\"count\":1},{\"key\":\"Grinders\",\"count\":1},{\"key\":\"Hammers\",\"count\":1},{\"key\":\"Headphones\",\"count\":1},{\"key\":\"Helmets\",\"count\":1},{\"key\":\"Hoses\",\"count\":1},{\"key\":\"Keyboards\",\"count\":1},{\"key\":\"Knives\",\"count\":1},{\"key\":\"Laser\",\"count\":1},{\"key\":\"Living Room\",\"count\":1},{\"key\":\"Monitors\",\"count\":1},{\"key\":\"Mowers\",\"count\":1},{\"key\":\"Pans\",\"count\":1},{\"key\":\"Printers\",\"count\":1},{\"key\":\"Speakers\",\"count\":1},{\"key\":\"Storage\",\"count\":1},{\"key\":\"Watering\",\"count\":1},{\"key\":\"Weights\",\"count\":1},{\"key\":\"Wrenches\",\"count\":1},{\"key\":\"Yoga\",\"count\":1}],\"locations\":[{\"key\":\"Berlin\",\"count\":5},{\"key\":\"Cologne\",\"count\":4},{\"key\":\"Frankfurt\",\"count\":4},{\"key\":\"Hamburg\",\"count\":4},{\"key\":\"Munich\",\"count\":4},{\"key\":\"Stuttgart\",\"count\":3}],\"priceRanges\":[{\"to\":50,\"count\":8},{\"from\":50,\"to\":100,\"count\":3},{\"from\":100,\"to\":500,\"count\":13},{\"from\":500,\"count\":0}]},\"suggestions\":{\"didYouMean\":null,\"related\":[]}}"
+        }
+      ]
     },
     {
       "name": "Search — pagination (page 2)",
@@ -149,14 +616,63 @@
         "description": "Second page of the full catalogue; `meta` carries total, page, pageSize and totalPages.",
         "url": {
           "raw": "{{baseUrl}}/search?page=2&pageSize=10",
-          "host": ["{{baseUrl}}"],
-          "path": ["search"],
+          "host": [
+            "{{baseUrl}}"
+          ],
+          "path": [
+            "search"
+          ],
           "query": [
-            { "key": "page", "value": "2" },
-            { "key": "pageSize", "value": "10" }
+            {
+              "key": "page",
+              "value": "2"
+            },
+            {
+              "key": "pageSize",
+              "value": "10"
+            }
           ]
         }
-      }
+      },
+      "response": [
+        {
+          "name": "200 OK",
+          "originalRequest": {
+            "method": "GET",
+            "description": "Second page of the full catalogue; `meta` carries total, page, pageSize and totalPages.",
+            "url": {
+              "raw": "{{baseUrl}}/search?page=2&pageSize=10",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "search"
+              ],
+              "query": [
+                {
+                  "key": "page",
+                  "value": "2"
+                },
+                {
+                  "key": "pageSize",
+                  "value": "10"
+                }
+              ]
+            }
+          },
+          "status": "OK",
+          "code": 200,
+          "_postman_previewlanguage": "json",
+          "header": [
+            {
+              "key": "Content-Type",
+              "value": "application/json; charset=utf-8"
+            }
+          ],
+          "cookie": [],
+          "body": "{\"data\":[{\"id\":\"elec-003\",\"name\":\"4K Action Camera\",\"description\":\"Compact 4K action camera with image stabilisation and waterproof case.\",\"category\":\"Electronics\",\"subcategories\":[\"Cameras\",\"Action Cameras\"],\"location\":\"Hamburg\",\"price\":189,\"currency\":\"USD\",\"popularity\":220,\"createdAt\":\"2026-02-08T09:00:00.000Z\",\"score\":5.5172677},{\"id\":\"tool-004\",\"name\":\"Cordless Angle Grinder\",\"description\":\"125mm cordless angle grinder with brushless motor.\",\"category\":\"Tools\",\"subcategories\":[\"Power Tools\",\"Grinders\"],\"location\":\"Cologne\",\"price\":149,\"currency\":\"USD\",\"popularity\":210,\"createdAt\":\"2026-01-15T09:00:00.000Z\",\"score\":5.4111824},{\"id\":\"elec-005\",\"name\":\"27-inch 4K Monitor\",\"description\":\"27-inch UHD IPS monitor with USB-C power delivery.\",\"category\":\"Electronics\",\"subcategories\":[\"Computing\",\"Monitors\"],\"location\":\"Frankfurt\",\"price\":329,\"currency\":\"USD\",\"popularity\":180,\"createdAt\":\"2025-12-05T09:00:00.000Z\",\"score\":5.2128544},{\"id\":\"spor-002\",\"name\":\"Yoga Mat Pro\",\"description\":\"Extra-thick non-slip yoga mat with carrying strap.\",\"category\":\"Sports\",\"subcategories\":[\"Fitness\",\"Yoga\"],\"location\":\"Munich\",\"price\":34.99,\"currency\":\"USD\",\"popularity\":160,\"createdAt\":\"2026-01-27T09:00:00.000Z\",\"score\":5.166505},{\"id\":\"tool-003\",\"name\":\"Drill Bit Set 40-piece\",\"description\":\"Titanium-coated drill bit set for wood, metal and masonry.\",\"category\":\"Tools\",\"subcategories\":[\"Accessories\",\"Drills\"],\"location\":\"Hamburg\",\"price\":24.99,\"currency\":\"USD\",\"popularity\":150,\"createdAt\":\"2025-11-02T09:00:00.000Z\",\"score\":5.0209985},{\"id\":\"spor-003\",\"name\":\"Carbon Road Bike Helmet\",\"description\":\"Lightweight aerodynamic road cycling helmet with MIPS protection.\",\"category\":\"Sports\",\"subcategories\":[\"Cycling\",\"Helmets\"],\"location\":\"Hamburg\",\"price\":129,\"currency\":\"USD\",\"popularity\":140,\"createdAt\":\"2025-10-30T09:00:00.000Z\",\"score\":4.9520187},{\"id\":\"kitc-001\",\"name\":\"Stainless Steel Chef Knife\",\"description\":\"20cm forged stainless steel chef knife with ergonomic handle.\",\"category\":\"Kitchen\",\"subcategories\":[\"Cutlery\",\"Knives\"],\"location\":\"Berlin\",\"price\":44.95,\"currency\":\"USD\",\"popularity\":130,\"createdAt\":\"2025-09-14T09:00:00.000Z\",\"score\":4.875552},{\"id\":\"offi-001\",\"name\":\"Laser Printer Wireless\",\"description\":\"Monochrome wireless laser printer with duplex printing.\",\"category\":\"Office\",\"subcategories\":[\"Printers\",\"Laser\"],\"location\":\"Berlin\",\"price\":169,\"currency\":\"USD\",\"popularity\":120,\"createdAt\":\"2025-12-22T09:00:00.000Z\",\"score\":4.822565},{\"id\":\"kitc-003\",\"name\":\"Non-Stick Frying Pan 28cm\",\"description\":\"Induction-ready non-stick frying pan with cool-touch handle.\",\"category\":\"Kitchen\",\"subcategories\":[\"Cookware\",\"Pans\"],\"location\":\"Hamburg\",\"price\":29.99,\"currency\":\"USD\",\"popularity\":100,\"createdAt\":\"2025-07-21T09:00:00.000Z\",\"score\":4.615136},{\"id\":\"tool-005\",\"name\":\"Claw Hammer 450g\",\"description\":\"Fibreglass-handled claw hammer with anti-vibration grip.\",\"category\":\"Tools\",\"subcategories\":[\"Hand Tools\",\"Hammers\"],\"location\":\"Frankfurt\",\"price\":15.49,\"currency\":\"USD\",\"popularity\":90,\"createdAt\":\"2025-08-19T09:00:00.000Z\",\"score\":4.510946}],\"meta\":{\"total\":24,\"page\":2,\"pageSize\":10,\"totalPages\":3,\"sort\":\"popularity\",\"order\":\"desc\"},\"facets\":{\"categories\":[{\"key\":\"Tools\",\"count\":6},{\"key\":\"Electronics\",\"count\":5},{\"key\":\"Furniture\",\"count\":3},{\"key\":\"Garden\",\"count\":3},{\"key\":\"Kitchen\",\"count\":3},{\"key\":\"Sports\",\"count\":3},{\"key\":\"Office\",\"count\":1}],\"subcategories\":[{\"key\":\"Power Tools\",\"count\":4},{\"key\":\"Drills\",\"count\":3},{\"key\":\"Hand Tools\",\"count\":3},{\"key\":\"Audio\",\"count\":2},{\"key\":\"Computing\",\"count\":2},{\"key\":\"Fitness\",\"count\":2},{\"key\":\"Office\",\"count\":2},{\"key\":\"Accessories\",\"count\":1},{\"key\":\"Action Cameras\",\"count\":1},{\"key\":\"Appliances\",\"count\":1},{\"key\":\"Cameras\",\"count\":1},{\"key\":\"Chairs\",\"count\":1},{\"key\":\"Coffee\",\"count\":1},{\"key\":\"Cookware\",\"count\":1},{\"key\":\"Cutlery\",\"count\":1},{\"key\":\"Cutting\",\"count\":1},{\"key\":\"Cycling\",\"count\":1},{\"key\":\"Desks\",\"count\":1},{\"key\":\"Grinders\",\"count\":1},{\"key\":\"Hammers\",\"count\":1},{\"key\":\"Headphones\",\"count\":1},{\"key\":\"Helmets\",\"count\":1},{\"key\":\"Hoses\",\"count\":1},{\"key\":\"Keyboards\",\"count\":1},{\"key\":\"Knives\",\"count\":1},{\"key\":\"Laser\",\"count\":1},{\"key\":\"Living Room\",\"count\":1},{\"key\":\"Monitors\",\"count\":1},{\"key\":\"Mowers\",\"count\":1},{\"key\":\"Pans\",\"count\":1},{\"key\":\"Printers\",\"count\":1},{\"key\":\"Speakers\",\"count\":1},{\"key\":\"Storage\",\"count\":1},{\"key\":\"Watering\",\"count\":1},{\"key\":\"Weights\",\"count\":1},{\"key\":\"Wrenches\",\"count\":1},{\"key\":\"Yoga\",\"count\":1}],\"locations\":[{\"key\":\"Berlin\",\"count\":5},{\"key\":\"Cologne\",\"count\":4},{\"key\":\"Frankfurt\",\"count\":4},{\"key\":\"Hamburg\",\"count\":4},{\"key\":\"Munich\",\"count\":4},{\"key\":\"Stuttgart\",\"count\":3}],\"priceRanges\":[{\"to\":50,\"count\":8},{\"from\":50,\"to\":100,\"count\":3},{\"from\":100,\"to\":500,\"count\":13},{\"from\":500,\"count\":0}]},\"suggestions\":{\"didYouMean\":null,\"related\":[]}}"
+        }
+      ]
     },
     {
       "name": "Search — validation error (400)",
@@ -165,14 +681,63 @@
         "description": "pageSize above SEARCH_MAX_PAGE_SIZE is rejected with a typed 400 body. Reading past the result window returns 422 instead.",
         "url": {
           "raw": "{{baseUrl}}/search?q=drill&pageSize=500",
-          "host": ["{{baseUrl}}"],
-          "path": ["search"],
+          "host": [
+            "{{baseUrl}}"
+          ],
+          "path": [
+            "search"
+          ],
           "query": [
-            { "key": "q", "value": "drill" },
-            { "key": "pageSize", "value": "500" }
+            {
+              "key": "q",
+              "value": "drill"
+            },
+            {
+              "key": "pageSize",
+              "value": "500"
+            }
           ]
         }
-      }
+      },
+      "response": [
+        {
+          "name": "400 Bad Request",
+          "originalRequest": {
+            "method": "GET",
+            "description": "pageSize above SEARCH_MAX_PAGE_SIZE is rejected with a typed 400 body. Reading past the result window returns 422 instead.",
+            "url": {
+              "raw": "{{baseUrl}}/search?q=drill&pageSize=500",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "search"
+              ],
+              "query": [
+                {
+                  "key": "q",
+                  "value": "drill"
+                },
+                {
+                  "key": "pageSize",
+                  "value": "500"
+                }
+              ]
+            }
+          },
+          "status": "Bad Request",
+          "code": 400,
+          "_postman_previewlanguage": "json",
+          "header": [
+            {
+              "key": "Content-Type",
+              "value": "application/json; charset=utf-8"
+            }
+          ],
+          "cookie": [],
+          "body": "{\"statusCode\":400,\"error\":\"Bad Request\",\"message\":\"pageSize must not exceed 100\",\"timestamp\":\"2026-07-23T01:26:18.287Z\",\"path\":\"/search?q=drill&pageSize=500\"}"
+        }
+      ]
     },
     {
       "name": "Autocomplete (q=cord)",
@@ -181,14 +746,63 @@
         "description": "Type-ahead completions honoring `limit`.",
         "url": {
           "raw": "{{baseUrl}}/autocomplete?q=cord&limit=5",
-          "host": ["{{baseUrl}}"],
-          "path": ["autocomplete"],
+          "host": [
+            "{{baseUrl}}"
+          ],
+          "path": [
+            "autocomplete"
+          ],
           "query": [
-            { "key": "q", "value": "cord" },
-            { "key": "limit", "value": "5" }
+            {
+              "key": "q",
+              "value": "cord"
+            },
+            {
+              "key": "limit",
+              "value": "5"
+            }
           ]
         }
-      }
+      },
+      "response": [
+        {
+          "name": "200 OK",
+          "originalRequest": {
+            "method": "GET",
+            "description": "Type-ahead completions honoring `limit`.",
+            "url": {
+              "raw": "{{baseUrl}}/autocomplete?q=cord&limit=5",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "autocomplete"
+              ],
+              "query": [
+                {
+                  "key": "q",
+                  "value": "cord"
+                },
+                {
+                  "key": "limit",
+                  "value": "5"
+                }
+              ]
+            }
+          },
+          "status": "OK",
+          "code": 200,
+          "_postman_previewlanguage": "json",
+          "header": [
+            {
+              "key": "Content-Type",
+              "value": "application/json; charset=utf-8"
+            }
+          ],
+          "cookie": [],
+          "body": "{\"data\":[{\"text\":\"Cordless Drill 18V\",\"score\":1},{\"text\":\"Cordless Angle Grinder\",\"score\":1},{\"text\":\"Cordless Lawn Mower\",\"score\":1}]}"
+        }
+      ]
     },
     {
       "name": "Suggest — did you mean (q=driil)",
@@ -197,11 +811,55 @@
         "description": "\"Did you mean\" + related query suggestions.",
         "url": {
           "raw": "{{baseUrl}}/suggest?q=driil",
-          "host": ["{{baseUrl}}"],
-          "path": ["suggest"],
-          "query": [{ "key": "q", "value": "driil" }]
+          "host": [
+            "{{baseUrl}}"
+          ],
+          "path": [
+            "suggest"
+          ],
+          "query": [
+            {
+              "key": "q",
+              "value": "driil"
+            }
+          ]
         }
-      }
+      },
+      "response": [
+        {
+          "name": "200 OK",
+          "originalRequest": {
+            "method": "GET",
+            "description": "\"Did you mean\" + related query suggestions.",
+            "url": {
+              "raw": "{{baseUrl}}/suggest?q=driil",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "suggest"
+              ],
+              "query": [
+                {
+                  "key": "q",
+                  "value": "driil"
+                }
+              ]
+            }
+          },
+          "status": "OK",
+          "code": 200,
+          "_postman_previewlanguage": "json",
+          "header": [
+            {
+              "key": "Content-Type",
+              "value": "application/json; charset=utf-8"
+            }
+          ],
+          "cookie": [],
+          "body": "{\"data\":{\"didYouMean\":\"drill\",\"related\":[\"drill\",\"drills\"]}}"
+        }
+      ]
     },
     {
       "name": "Health",
@@ -210,10 +868,43 @@
         "description": "Readiness: 200 when Elasticsearch is up (Redis non-critical), 503 otherwise.",
         "url": {
           "raw": "{{baseUrl}}/health",
-          "host": ["{{baseUrl}}"],
-          "path": ["health"]
+          "host": [
+            "{{baseUrl}}"
+          ],
+          "path": [
+            "health"
+          ]
         }
-      }
+      },
+      "response": [
+        {
+          "name": "200 OK",
+          "originalRequest": {
+            "method": "GET",
+            "description": "Readiness: 200 when Elasticsearch is up (Redis non-critical), 503 otherwise.",
+            "url": {
+              "raw": "{{baseUrl}}/health",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "health"
+              ]
+            }
+          },
+          "status": "OK",
+          "code": 200,
+          "_postman_previewlanguage": "json",
+          "header": [
+            {
+              "key": "Content-Type",
+              "value": "application/json; charset=utf-8"
+            }
+          ],
+          "cookie": [],
+          "body": "{\"status\":\"ok\",\"info\":{\"elasticsearch\":{\"status\":\"up\"},\"redis\":{\"status\":\"up\"}}}"
+        }
+      ]
     }
   ]
 }

@@ -239,6 +239,10 @@ Its 14 requests walk the whole surface: every search dimension (text, category, 
 price range), each sort key (`relevance`, `popularity`, `created_at`), pagination, the exclude-own-dimension
 facet behaviour, autocomplete, suggestions, health, and a rejected request showing the typed error body.
 
+Every request also carries a **saved response example** captured from the live deployment, so the payload
+shapes — facet buckets, pagination `meta`, `didYouMean`, the error body — stay readable even if the managed
+Elasticsearch or Redis behind the demo is no longer reachable.
+
 ## Project layout
 
 ```
