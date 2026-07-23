@@ -195,6 +195,24 @@ npm run lint             # ESLint (no-explicit-any as error, max 250 lines/file)
 
 Tests follow the AAA pattern; unit specs are co-located with the code, e2e/integration specs live in `test/`.
 
+## Load testing
+
+A [k6](https://k6.io) battery lives in [`loadtest/`](loadtest/README.md) — seven scenarios that measure the
+cached and uncached search paths separately, plus faceting, browse, autocomplete, suggestions and a ramp to 50
+concurrent users. It sits outside `src/`, adds no dependency, and only issues `GET`s against the public
+contract.
+
+```bash
+npm run loadtest         # local battery (~4 min) — needs the stack up, seeded, and the API running
+npm run loadtest:smoke   # low-rate correctness run against the deployment (~30 s)
+npm run loadtest:report  # render the exported summaries into Markdown
+```
+
+Last run (2026-07-23): **366,306 requests, zero failures**, uncached search at 29.7 ms p95 and cached at
+4.7 ms p95. Full results and the method behind them are in
+[`docs/LOAD-TEST-2026-07-23.md`](docs/LOAD-TEST-2026-07-23.md); the accompanying project audit is in
+[`docs/AUDIT-2026-07-23.md`](docs/AUDIT-2026-07-23.md).
+
 ## Deploy (Elastic Cloud Serverless + Upstash + Render)
 
 The service is environment-driven and runs identically locally and in the cloud — only the env values change.
@@ -253,5 +271,7 @@ src/
   presentation/    # controllers, DTOs, exception filter, logging interceptor
   seed/            # dataset fixture + seed CLI (Nest standalone context)
 test/              # e2e + integration specs
+loadtest/          # k6 battery + smoke run (no dependency on the app)
+docs/              # audit and load-test reports
 openspec/          # spec-driven design artifacts (proposal, design, specs, tasks)
 ```
