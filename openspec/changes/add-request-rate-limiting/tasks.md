@@ -7,10 +7,10 @@
 
 ## 1. Dependency & configuration
 
-- [ ] 1.1 Add `@nestjs/throttler` to `dependencies` (official package; no third-party storage package — D15).
-- [ ] 1.2 Extend `env.schema.ts` with `RATE_LIMIT_ENABLED` (default `true`), `RATE_LIMIT_WINDOW_SECONDS` (default `60`), `RATE_LIMIT_SEARCH` (60), `RATE_LIMIT_AUTOCOMPLETE` (300), `RATE_LIMIT_SUGGEST` (60), `RATE_LIMIT_DEFAULT` (120) and `TRUST_PROXY_HOPS` (default `0`), all coerced and range-validated so an invalid value fails fast at boot.
-- [ ] 1.3 Map them in `app-config.ts` into a namespaced `RateLimitConfig` behind `APP_CONFIG`; add unit specs covering defaults, coercion and rejection of negative/non-numeric values.
-- [ ] 1.4 Document every new variable in `.env.example` with its local and Render value (`TRUST_PROXY_HOPS=1` in cloud).
+- [x] 1.1 Add `@nestjs/throttler` to `dependencies` (official package; no third-party storage package — D15).
+- [x] 1.2 Extend `env.schema.ts` with `RATE_LIMIT_ENABLED` (default `true`), `RATE_LIMIT_WINDOW_SECONDS` (default `60`), `RATE_LIMIT_SEARCH` (60), `RATE_LIMIT_AUTOCOMPLETE` (300), `RATE_LIMIT_SUGGEST` (60), `RATE_LIMIT_DEFAULT` (120) and `TRUST_PROXY_HOPS` (default `0`), all coerced and range-validated so an invalid value fails fast at boot.
+- [x] 1.3 Map them in `app-config.ts` into a namespaced `RateLimitConfig` behind `APP_CONFIG`; add unit specs covering defaults, coercion and rejection of negative/non-numeric values.
+- [x] 1.4 Document every new variable in `.env.example` with its local and Render value (`TRUST_PROXY_HOPS=1` in cloud).
 
 ## 2. Counter store port & adapters (D14)
 

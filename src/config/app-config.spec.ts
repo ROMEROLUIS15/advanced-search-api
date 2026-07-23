@@ -35,3 +35,26 @@ describe('buildConfig', () => {
     expect(config.app.corsOrigins).toEqual([]);
   });
 });
+
+describe('buildConfig — rate limiting', () => {
+  it('maps the rate limit env into its own namespace', () => {
+    // Arrange
+    const env = validateEnv({
+      ELASTICSEARCH_NODE: 'http://localhost:9200',
+      REDIS_URL: 'redis://localhost:6379',
+      RATE_LIMIT_SEARCH: '5',
+      RATE_LIMIT_ENABLED: 'false',
+      TRUST_PROXY_HOPS: '1',
+    });
+
+    // Act
+    const config = buildConfig(env);
+
+    // Assert
+    expect(config.rateLimit.enabled).toBe(false);
+    expect(config.rateLimit.search).toBe(5);
+    expect(config.rateLimit.autocomplete).toBe(300);
+    expect(config.rateLimit.windowSeconds).toBe(60);
+    expect(config.rateLimit.trustProxyHops).toBe(1);
+  });
+});

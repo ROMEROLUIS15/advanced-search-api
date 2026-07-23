@@ -38,6 +38,21 @@ export const envSchema = z
     RELEVANCE_POPULARITY_FACTOR: z.coerce.number().nonnegative().default(1),
     RELEVANCE_RECENCY_SCALE: z.string().min(1).default('90d'),
     RELEVANCE_RECENCY_DECAY: z.coerce.number().gt(0).lt(1).default(0.5),
+
+    // Rate limiting (design D14–D19). Parsed explicitly rather than with
+    // z.coerce.boolean(), which treats any non-empty string as true.
+    RATE_LIMIT_ENABLED: z
+      .enum(['true', 'false'])
+      .default('true')
+      .transform((value) => value === 'true'),
+    RATE_LIMIT_WINDOW_SECONDS: z.coerce.number().int().positive().default(60),
+    RATE_LIMIT_SEARCH: z.coerce.number().int().positive().default(60),
+    RATE_LIMIT_AUTOCOMPLETE: z.coerce.number().int().positive().default(300),
+    RATE_LIMIT_SUGGEST: z.coerce.number().int().positive().default(60),
+    RATE_LIMIT_DEFAULT: z.coerce.number().int().positive().default(120),
+    // Number of proxy hops to trust, never `true`: believing a client-supplied
+    // X-Forwarded-For would let anyone forge an identity past the limiter (D16).
+    TRUST_PROXY_HOPS: z.coerce.number().int().nonnegative().default(0),
   })
   .refine((env) => !env.ELASTICSEARCH_USERNAME || Boolean(env.ELASTICSEARCH_PASSWORD), {
     message: 'ELASTICSEARCH_PASSWORD is required when ELASTICSEARCH_USERNAME is set',

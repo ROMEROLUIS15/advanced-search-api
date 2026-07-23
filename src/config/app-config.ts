@@ -40,6 +40,18 @@ export interface RelevanceConfig {
   recencyDecay: number;
 }
 
+/** Per-endpoint request budgets and how a client is identified (design D14–D19). */
+export interface RateLimitConfig {
+  enabled: boolean;
+  windowSeconds: number;
+  search: number;
+  autocomplete: number;
+  suggest: number;
+  default: number;
+  /** Proxy hops Express may trust when resolving the client address. */
+  trustProxyHops: number;
+}
+
 /** Namespaced configuration consumed across the app; adapters read this, never `process.env`. */
 export interface AppConfiguration {
   app: AppRuntimeConfig;
@@ -48,6 +60,7 @@ export interface AppConfiguration {
   cache: CacheConfig;
   search: SearchConfig;
   relevance: RelevanceConfig;
+  rateLimit: RateLimitConfig;
 }
 
 /** Maps flat validated env into the namespaced configuration object. */
@@ -81,6 +94,15 @@ export function buildConfig(env: Env): AppConfiguration {
       popularityFactor: env.RELEVANCE_POPULARITY_FACTOR,
       recencyScale: env.RELEVANCE_RECENCY_SCALE,
       recencyDecay: env.RELEVANCE_RECENCY_DECAY,
+    },
+    rateLimit: {
+      enabled: env.RATE_LIMIT_ENABLED,
+      windowSeconds: env.RATE_LIMIT_WINDOW_SECONDS,
+      search: env.RATE_LIMIT_SEARCH,
+      autocomplete: env.RATE_LIMIT_AUTOCOMPLETE,
+      suggest: env.RATE_LIMIT_SUGGEST,
+      default: env.RATE_LIMIT_DEFAULT,
+      trustProxyHops: env.TRUST_PROXY_HOPS,
     },
   };
 }

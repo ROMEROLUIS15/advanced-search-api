@@ -56,3 +56,63 @@ describe('validateEnv', () => {
     ).toThrow(/SEARCH_MAX_PAGE_SIZE/);
   });
 });
+
+describe('validateEnv — rate limiting (D14–D19)', () => {
+  it('defaults to enforcement on, a one-minute window and per-endpoint budgets', () => {
+    // Arrange & Act
+    const env = validateEnv({ ...baseEnv });
+
+    // Assert
+    expect(env.RATE_LIMIT_ENABLED).toBe(true);
+    expect(env.RATE_LIMIT_WINDOW_SECONDS).toBe(60);
+    expect(env.RATE_LIMIT_SEARCH).toBe(60);
+    expect(env.RATE_LIMIT_AUTOCOMPLETE).toBe(300);
+    expect(env.RATE_LIMIT_SUGGEST).toBe(60);
+    expect(env.RATE_LIMIT_DEFAULT).toBe(120);
+  });
+
+  it('trusts no proxy hop by default, so a forged header cannot claim an identity', () => {
+    // Arrange & Act
+    const env = validateEnv({ ...baseEnv });
+
+    // Assert
+    expect(env.TRUST_PROXY_HOPS).toBe(0);
+  });
+
+  it('parses the enable flag explicitly rather than by truthiness', () => {
+    // Arrange & Act
+    const disabled = validateEnv({ ...baseEnv, RATE_LIMIT_ENABLED: 'false' });
+
+    // Assert
+    expect(disabled.RATE_LIMIT_ENABLED).toBe(false);
+  });
+
+  it('coerces numeric strings for limits and hops', () => {
+    // Arrange & Act
+    const env = validateEnv({
+      ...baseEnv,
+      RATE_LIMIT_SEARCH: '10',
+      RATE_LIMIT_WINDOW_SECONDS: '30',
+      TRUST_PROXY_HOPS: '1',
+    });
+
+    // Assert
+    expect(env.RATE_LIMIT_SEARCH).toBe(10);
+    expect(env.RATE_LIMIT_WINDOW_SECONDS).toBe(30);
+    expect(env.TRUST_PROXY_HOPS).toBe(1);
+  });
+
+  it.each([
+    ['RATE_LIMIT_SEARCH', '0'],
+    ['RATE_LIMIT_SEARCH', '-5'],
+    ['RATE_LIMIT_SEARCH', 'many'],
+    ['RATE_LIMIT_WINDOW_SECONDS', '0'],
+    ['TRUST_PROXY_HOPS', '-1'],
+    ['RATE_LIMIT_ENABLED', 'yes'],
+  ])('fails fast at boot on an invalid %s of "%s"', (key, value) => {
+    // Arrange & Act & Assert
+    expect(() => validateEnv({ ...baseEnv, [key]: value })).toThrow(
+      /Invalid environment configuration/,
+    );
+  });
+});
