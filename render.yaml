@@ -28,6 +28,11 @@ services:
         value: 3000
       - key: ELASTICSEARCH_INDEX
         value: products
+      # One proxy hop: Render's load balancer. Lets the rate limiter read the
+      # real client IP from X-Forwarded-For; without it every client shares one
+      # bucket and a single abuser locks out everyone (design D16).
+      - key: TRUST_PROXY_HOPS
+        value: 1
       # ── Prompted on apply ──────────────────────────────────────
       # https://<project>.es.<region>.gcp.elastic.cloud:443
       - key: ELASTICSEARCH_NODE

@@ -22,19 +22,19 @@
 
 ## 3. Guard & error mapping (D17, D18)
 
-- [ ] 3.1 Implement the throttler storage adapter bridging `@nestjs/throttler`'s storage contract to `RateLimitStorePort`.
-- [ ] 3.2 Configure per-endpoint budgets from `RateLimitConfig` and mark `GET /health` exempt.
-- [ ] 3.3 Resolve the client key from the request address, honouring the trusted-hop setting (D16).
-- [ ] 3.4 Map the throttler exception to **429** in `AllExceptionsFilter` with the project's standard error body; add a unit case next to the existing mapping specs.
-- [ ] 3.5 Emit `RateLimit-Limit`, `RateLimit-Remaining`, `RateLimit-Reset` on limited responses and `Retry-After` on a 429.
-- [ ] 3.6 Honour `RATE_LIMIT_ENABLED=false` as a complete pass-through (D19).
+- [x] 3.1 Implement the throttler storage adapter bridging `@nestjs/throttler`'s storage contract to `RateLimitStorePort`.
+- [x] 3.2 Configure per-endpoint budgets from `RateLimitConfig` and mark `GET /health` exempt.
+- [x] 3.3 Resolve the client key from the request address, honouring the trusted-hop setting (D16).
+- [x] 3.4 Map the throttler exception to **429** in `AllExceptionsFilter` with the project's standard error body; add a unit case next to the existing mapping specs.
+- [x] 3.5 Emit `RateLimit-Limit`, `RateLimit-Remaining`, `RateLimit-Reset` on limited responses and `Retry-After` on a 429.
+- [x] 3.6 Honour `RATE_LIMIT_ENABLED=false` as a complete pass-through (D19).
 
 ## 4. Composition & edge wiring
 
-- [ ] 4.1 Create `rate-limit.module.ts` binding the port to the fail-over store and registering the guard globally; import it from `app.module.ts`.
-- [ ] 4.2 Set Express's proxy trust from `TRUST_PROXY_HOPS` in `app.setup.ts`, so `main.ts` and every e2e test exercise an identical edge.
-- [ ] 4.3 Declare `TRUST_PROXY_HOPS=1` in `render.yaml` — the deployed service sits behind the platform proxy, and without it every online client shares one bucket (D16).
-- [ ] 4.4 Verify no adapter is imported by a use-case and no Redis type crosses the port; keep every touched file under the 250-line cap.
+- [x] 4.1 Create `rate-limit.module.ts` binding the port to the fail-over store and registering the guard globally; import it from `app.module.ts`.
+- [x] 4.2 Set Express's proxy trust from `TRUST_PROXY_HOPS` in `app.setup.ts`, so `main.ts` and every e2e test exercise an identical edge.
+- [x] 4.3 Declare `TRUST_PROXY_HOPS=1` in `render.yaml` — the deployed service sits behind the platform proxy, and without it every online client shares one bucket (D16).
+- [x] 4.4 Verify no adapter is imported by a use-case and no Redis type crosses the port; keep every touched file under the 250-line cap.
 
 ## 5. Tests
 

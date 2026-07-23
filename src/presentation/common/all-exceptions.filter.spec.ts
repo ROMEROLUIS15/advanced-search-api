@@ -1,4 +1,4 @@
-import { BadRequestException, HttpStatus } from '@nestjs/common';
+import { BadRequestException, HttpException, HttpStatus } from '@nestjs/common';
 import { errors as esErrors } from '@elastic/elasticsearch';
 import { AllExceptionsFilter } from './all-exceptions.filter';
 import { ResultWindowExceededError } from '@application/errors/application.error';
@@ -90,5 +90,43 @@ describe('AllExceptionsFilter', () => {
 
     expect(body.message).toBe('Validation failed');
     expect(body.details).toEqual(['q must be a string']);
+  });
+});
+
+describe('AllExceptionsFilter — rate limiting (design D18)', () => {
+  it('renders the guard rejection as a 429 in the project error shape', () => {
+    // Arrange
+    const exception = new HttpException(
+      {
+        statusCode: HttpStatus.TOO_MANY_REQUESTS,
+        error: 'Too Many Requests',
+        message: 'Rate limit exceeded, retry after the window resets',
+      },
+      HttpStatus.TOO_MANY_REQUESTS,
+    );
+
+    // Act
+    const { status, body } = runFilter(exception);
+
+    // Assert
+    expect(status).toBe(429);
+    expect(body.error).toBe('Too Many Requests');
+    expect(body.message).toMatch(/rate limit exceeded/i);
+    expect(body).toHaveProperty('timestamp');
+    expect(body).toHaveProperty('path');
+  });
+
+  it('does not leak the guard internals as the error label', () => {
+    // Arrange
+    const exception = new HttpException(
+      { statusCode: 429, error: 'Too Many Requests', message: 'slow down' },
+      429,
+    );
+
+    // Act
+    const { body } = runFilter(exception);
+
+    // Assert — never "ThrottlerException"
+    expect(body.error).not.toMatch(/Throttler/);
   });
 });
