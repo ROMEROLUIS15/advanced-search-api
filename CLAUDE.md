@@ -6,13 +6,15 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 
 **Advanced Product Search API** — NestJS + TypeScript over Elasticsearch (relevance, filtering, faceting,
 suggestions) and Redis (fail-open cache), in a strict hexagonal architecture. Read-only over a single seeded
-index. Endpoints: `GET /search`, `GET /autocomplete`, `GET /suggest`, `GET /health` (contract and env table
-documented in `README.md`).
+index. Endpoints: `GET /`, `GET /search`, `GET /autocomplete`, `GET /suggest`, `GET /health` (contract and env
+table documented in `README.md`).
 
-The system is **implemented**: `tasks.md` groups 1–15 are done; only §16 (provision managed ES/Redis, deploy,
-seed online) is pending. `openspec/changes/advanced-search-system/` remains the design record —
+The system is **implemented and deployed** — all 53 tasks done, live at
+<https://advanced-search-api-chet.onrender.com> (Render, Docker runtime built from `render.yaml`). The change
+is archived at `openspec/changes/archive/2026-07-22-advanced-search-system/`, which remains the design record:
 `design.md` decisions **D1–D13** are cited by ID in code comments, so when a comment says "design D4", that is
-where the rationale lives. Spec scenarios in `specs/<capability>/spec.md` are the acceptance criteria.
+where the rationale lives. Its delta specs were synced to `openspec/specs/<capability>/spec.md` (six
+capabilities), and those scenarios are the acceptance criteria.
 
 ## Commands
 
@@ -59,7 +61,9 @@ domain  →  application (use-cases + ports)  →  infrastructure (ES/Redis adap
 
 Composition is by **feature module** at the root: `search.module.ts`, `autocomplete.module.ts`,
 `suggestion.module.ts`, `health.module.ts` each import `ElasticsearchModule` + `RedisModule`, provide their
-use-case, and register their controller. `app.module.ts` only assembles those plus the global `AppConfigModule`.
+use-case, and register their controller. `service-index.module.ts` is the exception — `GET /` is static
+metadata, so it registers a controller and nothing else. `app.module.ts` only assembles those plus the global
+`AppConfigModule`.
 
 - **DI is exclusively via `Symbol` tokens.** Every port is `interface` + token
   (`PRODUCT_SEARCH_PORT`, `AUTOCOMPLETE_PORT`, `QUERY_SUGGESTION_PORT`, `PRODUCT_INDEX_PORT`, `CACHE_PORT`,
@@ -133,8 +137,12 @@ use-case, and register their controller. `app.module.ts` only assembles those pl
 
 ## OpenSpec workflow
 
-Implementation is driven by the skills/commands under `.claude/` rather than ad-hoc coding:
-`/opsx:apply advanced-search-system` (or the `openspec-apply-change` skill) reads the context files and works
-`tasks.md` in order. Inspect with `openspec status --change advanced-search-system --json`; validate with
-`openspec validate --change advanced-search-system`. Precedence when artifacts disagree:
-**spec scenarios → design.md → tasks.md → proposal.md**.
+Implementation is driven by the skills/commands under `.claude/` rather than ad-hoc coding: `/opsx:propose`
+creates a change, `/opsx:apply <name>` (or the `openspec-apply-change` skill) works its `tasks.md` in order,
+and `/opsx:archive <name>` retires it — syncing delta specs into `openspec/specs/` on the way out. Precedence
+when artifacts disagree: **spec scenarios → design.md → tasks.md → proposal.md**.
+
+There is **no active change** right now (`openspec list` is empty), so new work needs a new change. Note the
+flags are not uniform: `openspec status --change <name> --json` takes `--change`, while validation does not —
+it is `openspec validate <name> --strict` for a change and `openspec validate --specs --strict` for the
+capability specs.
