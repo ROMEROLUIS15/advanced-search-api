@@ -7,6 +7,14 @@ strict **hexagonal architecture**.
 It exposes relevance-ranked full-text search with typo tolerance, faceted navigation, type-ahead
 autocomplete, and "did you mean" suggestions — all read-only over a single seeded Elasticsearch index.
 
+**Live:** <https://advanced-search-api-chet.onrender.com> — try
+[`/health`](https://advanced-search-api-chet.onrender.com/health),
+[`/search?q=drill`](https://advanced-search-api-chet.onrender.com/search?q=drill),
+[`/autocomplete?q=cord`](https://advanced-search-api-chet.onrender.com/autocomplete?q=cord) or
+[`/suggest?q=driil`](https://advanced-search-api-chet.onrender.com/suggest?q=driil).
+It runs on Render's free instance type, which spins down when idle — the first request after a pause can
+take up to a minute.
+
 ## Capabilities
 
 - **Full-text search** across name / description / category / subcategories / location, ranked by BM25 with a
@@ -68,7 +76,7 @@ NestJS 11 · TypeScript (strict) · Elasticsearch 8 (`@elastic/elasticsearch`) �
 
 ## API
 
-Base URL: `http://localhost:3000` (local).
+Base URL: `https://advanced-search-api-chet.onrender.com` (deployed) or `http://localhost:3000` (local).
 
 ### `GET /search`
 
@@ -180,6 +188,8 @@ Tests follow the AAA pattern; unit specs are co-located with the code, e2e/integ
 ## Deploy (Elastic Cloud Serverless + Upstash + Render)
 
 The service is environment-driven and runs identically locally and in the cloud — only the env values change.
+This repo is deployed at <https://advanced-search-api-chet.onrender.com> (Render, Ohio, free plan,
+auto-deploying from `main`); the steps below are what it took, and reproduce it from scratch.
 
 1. **Provision managed services**
    - **Elasticsearch**: an *Elastic Cloud Serverless* project → capture the endpoint and create a base64
@@ -188,7 +198,10 @@ The service is environment-driven and runs identically locally and in the cloud 
    - **Redis**: an *Upstash* database → capture its `rediss://` URL.
 2. **Create the service from the blueprint** — in Render, *New → Blueprint Instance* pointed at this repo.
    [`render.yaml`](render.yaml) declares a Docker web service with `healthCheckPath: /health` and
-   `autoDeploy` on `main`. Render prompts for the four secrets (they are never stored in the repo):
+   `autoDeploy` on `main`. Use the blueprint rather than creating a web service by hand: a dashboard-created
+   **Node** service sets `NODE_ENV=production`, so `npm install` skips the devDependencies and the build dies
+   with `sh: 1: nest: not found`. The Dockerfile's builder stage runs a full `npm ci`, so it is unaffected.
+   Render prompts for the four secrets (they are never stored in the repo):
    ```
    ELASTICSEARCH_NODE=https://<your-project>.es.<region>.gcp.elastic.cloud:443
    ELASTICSEARCH_API_KEY=<base64-api-key>
@@ -208,7 +221,9 @@ build a new versioned index and flip the `products` alias.
 ## Postman
 
 Import [`postman/advanced-search-api.postman_collection.json`](postman/advanced-search-api.postman_collection.json).
-The collection uses a `baseUrl` variable (default `http://localhost:3000`) — change it to your deployed URL.
+The collection uses a `baseUrl` variable, pointing at the live deployment
+(`https://advanced-search-api-chet.onrender.com`) so the requests run as imported — set it to
+`http://localhost:3000` to hit a local instance.
 
 ## Project layout
 

@@ -1,10 +1,10 @@
 {
   "info": {
     "name": "Advanced Product Search API",
-    "description": "Relevance-ranked product search with filtering, faceting, autocomplete and query suggestions. Set the `baseUrl` collection variable to your local (http://localhost:3000) or deployed URL.",
+    "description": "Relevance-ranked product search with filtering, faceting, autocomplete and query suggestions. The `baseUrl` collection variable points at the live deployment, so the requests run as imported; set it to http://localhost:3000 to hit a local instance. The deployment uses Render's free instance type and spins down when idle, so the first request after a pause can take up to a minute.",
     "schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json"
   },
-  "variable": [{ "key": "baseUrl", "value": "http://localhost:3000", "type": "string" }],
+  "variable": [{ "key": "baseUrl", "value": "https://advanced-search-api-chet.onrender.com", "type": "string" }],
   "item": [
     {
       "name": "Search — basic (q=drill)",
