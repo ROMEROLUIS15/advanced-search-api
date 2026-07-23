@@ -14,11 +14,11 @@
 
 ## 2. Counter store port & adapters (D14)
 
-- [ ] 2.1 Define `RateLimitStorePort` + `RATE_LIMIT_STORE` `Symbol` token in `application/ports/`, exposing a single `hit(key, ttlSeconds)` returning the current count and the time left in the window. No Redis or Nest types in the signature.
-- [ ] 2.2 Implement `InMemoryRateLimitStore` in `infrastructure/` — a per-process map with expiry, used as the fallback and safe to use on its own.
-- [ ] 2.3 Implement `RedisRateLimitStore` using the existing `REDIS_CLIENT`: one pipelined `INCR` + `EXPIRE` per hit, keys namespaced and versioned like the cache keys.
-- [ ] 2.4 Implement the fail-over composition: try Redis, and on any Redis error log once and serve the hit from the in-memory store — never throw, never skip counting (D14).
-- [ ] 2.5 Unit-test all three: Redis path, in-memory path, and the fail-over path asserting that a Redis outage still increments and still enforces.
+- [x] 2.1 Define `RateLimitStorePort` + `RATE_LIMIT_STORE` `Symbol` token in `application/ports/`, exposing a single `hit(key, ttlSeconds)` returning the current count and the time left in the window. No Redis or Nest types in the signature.
+- [x] 2.2 Implement `InMemoryRateLimitStore` in `infrastructure/` — a per-process map with expiry, used as the fallback and safe to use on its own.
+- [x] 2.3 Implement `RedisRateLimitStore` using the existing `REDIS_CLIENT`: one pipelined `INCR` + `EXPIRE` per hit, keys namespaced and versioned like the cache keys.
+- [x] 2.4 Implement the fail-over composition: try Redis, and on any Redis error log once and serve the hit from the in-memory store — never throw, never skip counting (D14).
+- [x] 2.5 Unit-test all three: Redis path, in-memory path, and the fail-over path asserting that a Redis outage still increments and still enforces.
 
 ## 3. Guard & error mapping (D17, D18)
 
