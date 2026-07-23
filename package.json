@@ -21,7 +21,10 @@
     "test:watch": "jest --watch",
     "test:cov": "jest --coverage",
     "test:e2e": "jest --config ./test/jest-e2e.json --runInBand",
-    "test:integration": "jest --config ./test/jest-integration.json --runInBand"
+    "test:integration": "jest --config ./test/jest-integration.json --runInBand",
+    "loadtest": "k6 run --summary-export loadtest/results/battery.json loadtest/battery.js",
+    "loadtest:smoke": "k6 run --summary-export loadtest/results/smoke.json loadtest/smoke.js",
+    "loadtest:report": "node loadtest/report.mjs --out loadtest/results/REPORT.md"
   },
   "dependencies": {
     "@elastic/elasticsearch": "^8.17.0",

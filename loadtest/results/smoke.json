@@ -1,0 +1,219 @@
+{
+    "metrics": {
+        "http_req_sending": {
+            "p(99)": 2.4112370000000003,
+            "max": 2.642,
+            "avg": 0.21713064516129038,
+            "min": 0,
+            "med": 0,
+            "p(90)": 0.58696,
+            "p(95)": 0.61919
+        },
+        "http_req_duration": {
+            "p(90)": 349.80004,
+            "p(95)": 365.42493,
+            "p(99)": 382.319455,
+            "max": 393.1863,
+            "avg": 297.03067096774197,
+            "min": 174.84,
+            "med": 295.24654999999996,
+            "thresholds": {
+                "p(95)<1500": false
+            }
+        },
+        "http_req_tls_handshaking": {
+            "avg": 9.052785483870968,
+            "min": 0,
+            "med": 0,
+            "p(90)": 0,
+            "p(95)": 79.27846999999998,
+            "p(99)": 123.19883100000001,
+            "max": 147.1736
+        },
+        "http_req_blocked": {
+            "med": 0,
+            "p(90)": 0,
+            "p(95)": 143.67199,
+            "p(99)": 226.33402800000002,
+            "max": 250.4078,
+            "avg": 16.579870967741936,
+            "min": 0
+        },
+        "http_req_connecting": {
+            "p(99)": 64.842055,
+            "max": 65.3572,
+            "avg": 6.210761290322581,
+            "min": 0,
+            "med": 0,
+            "p(90)": 0,
+            "p(95)": 63.7589
+        },
+        "http_req_receiving": {
+            "max": 119.7242,
+            "avg": 104.04551451612902,
+            "min": 0,
+            "med": 112.10555,
+            "p(90)": 117.81985,
+            "p(95)": 118.209665,
+            "p(99)": 119.215704
+        },
+        "http_req_duration{expected_response:true}": {
+            "min": 174.84,
+            "med": 295.24654999999996,
+            "p(90)": 349.80004,
+            "p(95)": 365.42493,
+            "p(99)": 382.319455,
+            "max": 393.1863,
+            "avg": 297.03067096774197
+        },
+        "checks": {
+            "passes": 239,
+            "fails": 0,
+            "thresholds": {
+                "rate>0.99": false
+            },
+            "value": 1
+        },
+        "iterations": {
+            "count": 61,
+            "rate": 1.9667151135231005
+        },
+        "http_reqs": {
+            "count": 62,
+            "rate": 1.9989563448923315
+        },
+        "data_received": {
+            "count": 66662,
+            "rate": 2149.264965535687
+        },
+        "http_req_failed": {
+            "passes": 0,
+            "fails": 62,
+            "thresholds": {
+                "rate<0.02": false
+            },
+            "value": 0
+        },
+        "http_req_waiting": {
+            "med": 187.89409999999998,
+            "p(90)": 237.39027,
+            "p(95)": 255.996195,
+            "p(99)": 275.259082,
+            "max": 278.4456,
+            "avg": 192.76802580645165,
+            "min": 135.9083
+        },
+        "data_sent": {
+            "count": 15215,
+            "rate": 490.550335282852
+        },
+        "vus": {
+            "min": 0,
+            "max": 1,
+            "value": 1
+        },
+        "iteration_duration": {
+            "p(90)": 466.9999,
+            "p(95)": 579.7965,
+            "p(99)": 621.0757,
+            "max": 622.9699,
+            "avg": 409.4792721311475,
+            "min": 276.0964,
+            "med": 396.1669
+        },
+        "vus_max": {
+            "value": 5,
+            "min": 5,
+            "max": 5
+        }
+    },
+    "setup_data": {
+        "coldStart": false,
+        "wakeMs": 617
+    },
+    "root_group": {
+        "name": "",
+        "path": "",
+        "id": "d41d8cd98f00b204e9800998ecf8427e",
+        "groups": {},
+        "checks": {
+                "search: 200": {
+                    "name": "search: 200",
+                    "path": "::search: 200",
+                    "id": "e05469b84c31555559852e0b0e9e462a",
+                    "passes": 39,
+                    "fails": 0
+                },
+                "search: data is an array": {
+                    "name": "search: data is an array",
+                    "path": "::search: data is an array",
+                    "id": "165ac41b80f73892dcf72dadee5ba049",
+                    "passes": 39,
+                    "fails": 0
+                },
+                "search: meta.total is a number": {
+                    "id": "315b0b7e48e8b227a96e07e927f931b6",
+                    "passes": 39,
+                    "fails": 0,
+                    "name": "search: meta.total is a number",
+                    "path": "::search: meta.total is a number"
+                },
+                "search: facets present": {
+                    "name": "search: facets present",
+                    "path": "::search: facets present",
+                    "id": "eb89d17ce8f1e161f07e2281c5252680",
+                    "passes": 39,
+                    "fails": 0
+                },
+                "search: suggestions block present": {
+                    "name": "search: suggestions block present",
+                    "path": "::search: suggestions block present",
+                    "id": "21fee8e71e9841eb89c1de563cd4177d",
+                    "passes": 39,
+                    "fails": 0
+                },
+                "health: 200": {
+                    "id": "9963793a350980a497eabc7f99e9733e",
+                    "passes": 8,
+                    "fails": 0,
+                    "name": "health: 200",
+                    "path": "::health: 200"
+                },
+                "health: elasticsearch up": {
+                    "name": "health: elasticsearch up",
+                    "path": "::health: elasticsearch up",
+                    "id": "9efa8df6602c53bc690c530cfc8cadb3",
+                    "passes": 8,
+                    "fails": 0
+                },
+                "suggest: 200": {
+                    "name": "suggest: 200",
+                    "path": "::suggest: 200",
+                    "id": "a7787787360ca3542a605366b605e9ed",
+                    "passes": 8,
+                    "fails": 0
+                },
+                "suggest: didYouMean key present": {
+                    "name": "suggest: didYouMean key present",
+                    "path": "::suggest: didYouMean key present",
+                    "id": "5863354969d0bf260cb9e3049aa0a7b5",
+                    "passes": 8,
+                    "fails": 0
+                },
+                "autocomplete: 200": {
+                    "passes": 6,
+                    "fails": 0,
+                    "name": "autocomplete: 200",
+                    "path": "::autocomplete: 200",
+                    "id": "92c55b648984327206ccb12fcf72a37c"
+                },
+                "autocomplete: data is an array": {
+                    "id": "80a0cb1803a8330a9719ebd385e03e94",
+                    "passes": 6,
+                    "fails": 0,
+                    "name": "autocomplete: data is an array",
+                    "path": "::autocomplete: data is an array"
+                }
+            }
+    }
+}
