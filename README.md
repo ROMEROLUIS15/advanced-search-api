@@ -46,7 +46,7 @@ domain  →  application (use-cases + ports)  →  infrastructure (Elasticsearch
   serialized directly), and a global exception filter.
 
 A single `GET /search` request returns hits **+ facets + suggestions** in **one Elasticsearch round-trip**.
-The full design rationale (D1–D13) lives in [`openspec/changes/advanced-search-system/design.md`](openspec/changes/advanced-search-system/design.md).
+The full design rationale (D1–D13) lives in [`openspec/changes/archive/2026-07-22-advanced-search-system/design.md`](openspec/changes/archive/2026-07-22-advanced-search-system/design.md).
 
 ### How ranking works
 
