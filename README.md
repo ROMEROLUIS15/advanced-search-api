@@ -302,6 +302,10 @@ Every request also carries a **saved response example** captured from the live d
 shapes — facet buckets, pagination `meta`, `didYouMean`, the error body — stay readable even if the managed
 Elasticsearch or Redis behind the demo is no longer reachable.
 
+Prefer plain text over importing a collection? [`postman/api-requests.http`](postman/api-requests.http) covers
+the same surface for the VS Code **REST Client** extension (or a JetBrains IDE): open it and click *Send
+Request* above any block. Flip its `@baseUrl` between the deployment and `http://localhost:3000`.
+
 ## Project layout
 
 ```
