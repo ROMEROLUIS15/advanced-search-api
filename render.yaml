@@ -28,11 +28,16 @@ services:
         value: 3000
       - key: ELASTICSEARCH_INDEX
         value: products
-      # One proxy hop: Render's load balancer. Lets the rate limiter read the
-      # real client IP from X-Forwarded-For; without it every client shares one
-      # bucket and a single abuser locks out everyone (design D16).
+      # Three proxy hops in front of the app on Render: the platform's internal
+      # load balancer, Cloudflare, and the edge. Confirmed by inspecting the live
+      # X-Forwarded-For — the real client is the leftmost of three entries, and
+      # the rightmost (Render-internal) rotates per request. Trusting 3 hops makes
+      # the rate limiter read the stable real client IP; trusting fewer buckets a
+      # single user across rotating internal addresses and weakens the limit
+      # (design D16). Counting from the right also means a client cannot prepend a
+      # forged X-Forwarded-For to escape its bucket.
       - key: TRUST_PROXY_HOPS
-        value: 1
+        value: 3
       # ── Prompted on apply ──────────────────────────────────────
       # https://<project>.es.<region>.gcp.elastic.cloud:443
       - key: ELASTICSEARCH_NODE
