@@ -1,5 +1,7 @@
 # Advanced Product Search API
 
+[![CI](https://github.com/ROMEROLUIS15/advanced-search-api/actions/workflows/ci.yml/badge.svg)](https://github.com/ROMEROLUIS15/advanced-search-api/actions/workflows/ci.yml)
+
 A backend search service for product/manufacturer discovery, built with **NestJS + TypeScript**,
 **Elasticsearch** (relevance, filtering, faceting, suggestions) and **Redis** (fail-open caching), in a
 strict **hexagonal architecture**.
@@ -190,10 +192,16 @@ Environment is validated at boot (Zod) — the app fails fast on missing/invalid
 npm test                 # unit tests (mocked ports) — no infrastructure required
 npm run test:e2e         # HTTP e2e — requires the Docker stack up + seeded
 npm run test:integration # Elasticsearch adapters against real ES — requires the Docker stack up
-npm run lint             # ESLint (no-explicit-any as error, max 250 lines/file)
+npm run lint             # ESLint (no-explicit-any as error, max 250 lines/file) — autofixes
+npm run lint:ci          # same rules, no autofix — what CI runs
 ```
 
 Tests follow the AAA pattern; unit specs are co-located with the code, e2e/integration specs live in `test/`.
+
+All of it runs on every push and pull request to `main` via
+[`.github/workflows/ci.yml`](.github/workflows/ci.yml): one job for lint, unit tests and the build, and a
+second that starts Elasticsearch and Redis from `docker-compose.yml`, seeds the index and runs the e2e and
+integration suites.
 
 ## Load testing
 

@@ -25,6 +25,7 @@ npm start                    # node dist/main.js
 npm run seed                 # provision index + alias, bulk-load src/seed/dataset/products.seed.json (idempotent)
 npm run seed:prod            # same seed from dist/ — the only form that works in Docker/Render (no ts-node there)
 npm run lint                 # eslint --fix over {src,test}
+npm run lint:ci              # same rules WITHOUT --fix — what CI runs (see below)
 npm test                     # unit specs (src/**/*.spec.ts) — mocked ports, NO infrastructure needed
 npm run test:e2e             # test/*.e2e-spec.ts — REQUIRES the stack up AND seeded
 npm run test:integration     # test/*.integration-spec.ts — REQUIRES a real Elasticsearch
@@ -37,6 +38,12 @@ Single integration: `npx jest --config ./test/jest-integration.json test/elastic
 `npm run format` is redundant — Prettier runs as an ESLint rule (`eslint-plugin-prettier/recommended`) over the
 same file set, so `npm run lint` already formats. Lint is **type-aware** (`recommendedTypeChecked` +
 `projectService`): a new file outside the tsconfig project fails to lint at all.
+
+**Never point CI at `npm run lint`** — it carries `--fix`, so an auto-fixable violation gets repaired in the
+runner's working copy and the job reports success while the offending code stays in the repo (measured: a
+badly formatted file exits 0 under `lint`, 1 under `lint:ci`). `.github/workflows/ci.yml` runs `lint:ci`, and
+splits into two independent jobs — `quality` (lint, unit, build) and `integration` (compose up ES + Redis,
+seed, then `test:integration` and `test:e2e`) — so a lint failure cannot mask an e2e failure.
 
 `test:e2e` / `test:integration` run `--runInBand` deliberately: every e2e suite talks to the *same* external
 index and Redis, and in parallel workers the run ends with "a worker process has failed to exit gracefully".

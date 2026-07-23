@@ -16,6 +16,7 @@
     "seed": "ts-node -r tsconfig-paths/register src/seed/seed.command.ts",
     "seed:prod": "node dist/seed/seed.command.js",
     "lint": "eslint \"{src,test}/**/*.ts\" --fix",
+    "lint:ci": "eslint \"{src,test}/**/*.ts\" --max-warnings=0",
     "format": "prettier --write \"src/**/*.ts\" \"test/**/*.ts\"",
     "test": "jest",
     "test:watch": "jest --watch",

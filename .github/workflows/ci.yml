@@ -1,0 +1,89 @@
+name: CI
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+    branches: [main]
+  workflow_dispatch:
+
+# A newer push to the same ref makes an in-flight run irrelevant.
+concurrency:
+  group: ci-${{ github.ref }}
+  cancel-in-progress: true
+
+permissions:
+  contents: read
+
+env:
+  # Matches the Dockerfile's runtime (node:22-alpine) and package.json engines (>=20).
+  NODE_VERSION: '22'
+
+jobs:
+  quality:
+    name: Lint · unit tests · build
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: ${{ env.NODE_VERSION }}
+          cache: npm
+
+      - run: npm ci
+
+      # `npm run lint` carries --fix, which in CI would silently repair a problem
+      # and report success; lint:ci is the same rule set with no autofix.
+      - name: Lint
+        run: npm run lint:ci
+
+      - name: Unit tests
+        run: npm test
+
+      # Also the type check: tsconfig is strict plus noUnusedLocals /
+      # noUnusedParameters / noImplicitReturns, none of which start:dev sees.
+      - name: Build
+        run: npm run build
+
+  integration:
+    name: e2e · integration (real Elasticsearch + Redis)
+    runs-on: ubuntu-latest
+    # Independent of `quality` on purpose: a lint failure should not hide an e2e
+    # failure, and both verdicts land in the same run.
+    env:
+      NODE_ENV: test
+      ELASTICSEARCH_NODE: http://localhost:9200
+      ELASTICSEARCH_INDEX: products
+      REDIS_URL: redis://localhost:6379
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: ${{ env.NODE_VERSION }}
+          cache: npm
+
+      - run: npm ci
+
+      # The repo's own compose file, so CI and the documented local workflow cannot
+      # drift. `--wait` blocks until both containers report healthy.
+      - name: Start Elasticsearch and Redis
+        run: docker compose up -d --wait elasticsearch redis
+
+      # Neither suite is hermetic: both assert on the seeded dataset.
+      - name: Seed the index
+        run: npm run seed
+
+      - name: Integration tests
+        run: npm run test:integration
+
+      # test/resilience.e2e-spec.ts requires that nothing listens on ports 9201 and
+      # 6390 — that is how it provokes the 503 and cache fail-open paths. A fresh
+      # runner satisfies this, so no extra step is needed.
+      - name: End-to-end tests
+        run: npm run test:e2e
+
+      - name: Container logs (on failure)
+        if: failure()
+        run: docker compose logs --tail=100 elasticsearch redis
