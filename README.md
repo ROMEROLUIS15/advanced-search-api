@@ -235,6 +235,10 @@ The collection uses a `baseUrl` variable, pointing at the live deployment
 (`https://advanced-search-api-chet.onrender.com`) so the requests run as imported — set it to
 `http://localhost:3000` to hit a local instance.
 
+Its 14 requests walk the whole surface: every search dimension (text, category, subcategory ANY-of, location,
+price range), each sort key (`relevance`, `popularity`, `created_at`), pagination, the exclude-own-dimension
+facet behaviour, autocomplete, suggestions, health, and a rejected request showing the typed error body.
+
 ## Project layout
 
 ```

@@ -97,6 +97,84 @@
       }
     },
     {
+      "name": "Search — subcategories (ANY-of)",
+      "request": {
+        "method": "GET",
+        "description": "Repeated `subcategory` params match ANY of the given values, not all of them.",
+        "url": {
+          "raw": "{{baseUrl}}/search?subcategory=Drills&subcategory=Power%20Tools",
+          "host": ["{{baseUrl}}"],
+          "path": ["search"],
+          "query": [
+            { "key": "subcategory", "value": "Drills" },
+            { "key": "subcategory", "value": "Power Tools" }
+          ]
+        }
+      }
+    },
+    {
+      "name": "Search — by location",
+      "request": {
+        "method": "GET",
+        "description": "Location filter on its own, with facets recomputed for the narrowed set.",
+        "url": {
+          "raw": "{{baseUrl}}/search?location=Berlin",
+          "host": ["{{baseUrl}}"],
+          "path": ["search"],
+          "query": [{ "key": "location", "value": "Berlin" }]
+        }
+      }
+    },
+    {
+      "name": "Search — sort by created_at",
+      "request": {
+        "method": "GET",
+        "description": "Newest first. `sort` also accepts `relevance` and `popularity`.",
+        "url": {
+          "raw": "{{baseUrl}}/search?sort=created_at&order=desc&pageSize=5",
+          "host": ["{{baseUrl}}"],
+          "path": ["search"],
+          "query": [
+            { "key": "sort", "value": "created_at" },
+            { "key": "order", "value": "desc" },
+            { "key": "pageSize", "value": "5" }
+          ]
+        }
+      }
+    },
+    {
+      "name": "Search — pagination (page 2)",
+      "request": {
+        "method": "GET",
+        "description": "Second page of the full catalogue; `meta` carries total, page, pageSize and totalPages.",
+        "url": {
+          "raw": "{{baseUrl}}/search?page=2&pageSize=10",
+          "host": ["{{baseUrl}}"],
+          "path": ["search"],
+          "query": [
+            { "key": "page", "value": "2" },
+            { "key": "pageSize", "value": "10" }
+          ]
+        }
+      }
+    },
+    {
+      "name": "Search — validation error (400)",
+      "request": {
+        "method": "GET",
+        "description": "pageSize above SEARCH_MAX_PAGE_SIZE is rejected with a typed 400 body. Reading past the result window returns 422 instead.",
+        "url": {
+          "raw": "{{baseUrl}}/search?q=drill&pageSize=500",
+          "host": ["{{baseUrl}}"],
+          "path": ["search"],
+          "query": [
+            { "key": "q", "value": "drill" },
+            { "key": "pageSize", "value": "500" }
+          ]
+        }
+      }
+    },
+    {
       "name": "Autocomplete (q=cord)",
       "request": {
         "method": "GET",
