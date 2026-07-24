@@ -158,6 +158,12 @@ metadata, so it registers a controller and nothing else. `app.module.ts` only as
   request is logged** — `LoggingInterceptor` uses `tap()`, which fires on the success path only. 5xx log as
   `error` with the stack (client still gets a generic message); 4xx log as `warn` with a compact reason
   (validation details, else the message) so client-side failures and 429s stay visible.
+- **Failures _outside_ the request cycle** (an `unhandledRejection` / `uncaughtException`, which the filter
+  never sees) are caught by `installProcessSafetyNet` (`src/process-safety-net.ts`), wired from `main.ts`
+  **only** — it logs, closes the app so shutdown hooks release ES/Redis, then `process.exit(1)` for Render to
+  restart a clean process. Deliberately **not** in `configureApp`: that runs per e2e boot and would stack a
+  listener each. This does not threaten the Redis fail-open — the ioredis client has its own `'error'` listener
+  and cache ops are wrapped in `cacheAside`, so a Redis outage never reaches these process-level handlers.
 - **Two different guards, two different codes**: `pageSize` above `SEARCH_MAX_PAGE_SIZE` is rejected in
   `SearchController` (**400**); `from+size` beyond `SEARCH_MAX_RESULT_WINDOW` is rejected in the ES adapter
   (**422**).
