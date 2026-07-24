@@ -10,11 +10,15 @@ index. Endpoints: `GET /`, `GET /search`, `GET /autocomplete`, `GET /suggest`, `
 table documented in `README.md`).
 
 The system is **implemented and deployed** — all 53 tasks done, live at
-<https://advanced-search-api-chet.onrender.com> (Render, Docker runtime built from `render.yaml`). The change
-is archived at `openspec/changes/archive/2026-07-22-advanced-search-system/`, which remains the design record:
-`design.md` decisions **D1–D13** are cited by ID in code comments, so when a comment says "design D4", that is
-where the rationale lives. Its delta specs were synced to `openspec/specs/<capability>/spec.md` (six
-capabilities), and those scenarios are the acceptance criteria.
+<https://advanced-search-api-chet.onrender.com> (Render, Docker runtime built from `render.yaml`). Code comments
+cite design decisions by ID (`design D4`); the rationale lives in **two** archived changes, not one:
+`openspec/changes/archive/2026-07-22-advanced-search-system/design.md` holds **D1–D13** (the core system) and
+`openspec/changes/archive/2026-07-23-add-request-rate-limiting/design.md` holds **D14–D19** (rate limiting).
+The one exception is **D20** (ES `requestTimeout`/`maxRetries`), which has no `design.md` entry — its rationale
+is in README "Trade-offs" only. The first change's delta specs were synced to
+`openspec/specs/<capability>/spec.md` (six capabilities) and the second's to
+`openspec/specs/request-rate-limiting/spec.md`; those scenarios are the acceptance criteria. Post-ship reports
+(the 2026-07-23 audit, the load-test run) live under `docs/`.
 
 ## Commands
 
@@ -29,7 +33,14 @@ npm run lint:ci              # same rules WITHOUT --fix — what CI runs (see be
 npm test                     # unit specs (src/**/*.spec.ts) — mocked ports, NO infrastructure needed
 npm run test:e2e             # test/*.e2e-spec.ts — REQUIRES the stack up AND seeded
 npm run test:integration     # test/*.integration-spec.ts — REQUIRES a real Elasticsearch
+npm run test:cov             # unit specs with coverage (writes coverage/)
+npm run loadtest             # k6 capacity battery (loadtest/battery.js) — enforcement OFF; needs k6 installed
+npm run loadtest:smoke       # k6 smoke run (loadtest/smoke.js)
+npm run loadtest:report      # render loadtest/results/*.json into loadtest/results/REPORT.md
 ```
+
+`loadtest/rate-limit.js` is run directly (`k6 run loadtest/rate-limit.js`), not via an npm script — it is the
+correctness run that floods one client and asserts 429 (see the rate-limiting note below).
 
 Single test: `npx jest src/path/to/file.spec.ts`, or by name `npm test -- -t "excludes its own dimension"`.
 Single e2e: `npx jest --config ./test/jest-e2e.json test/search.e2e-spec.ts`.
@@ -142,8 +153,11 @@ metadata, so it registers a controller and nothing else. `app.module.ts` only as
   source ⇒ fail fast to 503 + `/health` is the right level); the rationale lives in README "Trade-offs".
 - **Error mapping is centralized** in `AllExceptionsFilter`: `ResultWindowExceededError` → **422**,
   domain/application errors → **400**, ES `ResponseError` → **502**, ES `ElasticsearchClientError` → **503**,
-  anything else → 500 with the stack logged server-side only. Throw typed errors; don't map status codes in
-  controllers or adapters. Body shape: `{ statusCode, error, message, details?, timestamp, path }`.
+  anything else → 500. Throw typed errors; don't map status codes in controllers or adapters. Body shape:
+  `{ statusCode, error, message, details?, timestamp, path }`. **The filter is the only place an errored
+  request is logged** — `LoggingInterceptor` uses `tap()`, which fires on the success path only. 5xx log as
+  `error` with the stack (client still gets a generic message); 4xx log as `warn` with a compact reason
+  (validation details, else the message) so client-side failures and 429s stay visible.
 - **Two different guards, two different codes**: `pageSize` above `SEARCH_MAX_PAGE_SIZE` is rejected in
   `SearchController` (**400**); `from+size` beyond `SEARCH_MAX_RESULT_WINDOW` is rejected in the ES adapter
   (**422**).
@@ -192,8 +206,9 @@ creates a change, `/opsx:apply <name>` (or the `openspec-apply-change` skill) wo
 and `/opsx:archive <name>` retires it — syncing delta specs into `openspec/specs/` on the way out. Precedence
 when artifacts disagree: **spec scenarios → design.md → tasks.md → proposal.md**.
 
-Always check `openspec list` first — it was empty as of the 2026-07-22 archive, and while it stays empty new
-work needs a new change rather than tasks appended to an existing one. Note the flags are not uniform:
+Always check `openspec list` first — it reported no active changes as of the 2026-07-23 rate-limiting archive
+(two changes are now archived), and while it stays empty new work needs a new change rather than tasks appended
+to an existing one. Note the flags are not uniform:
 `openspec status --change <name> --json` takes `--change`, while validation does not — it is
 `openspec validate <name> --strict` for a change and `openspec validate --specs --strict` for the
 capability specs.
