@@ -24,6 +24,12 @@ export const envSchema = z
       .enum(['true', 'false'])
       .default('true')
       .transform((value) => value === 'true'),
+    // Resilience toward Elasticsearch (design D20). A tight request timeout is the
+    // main lever for a read API: the client's 30s default holds a connection while
+    // a slow ES drains the pool. Retries default to 2 (below the client's 3) —
+    // against a single node, more retries amplify load on an ailing cluster.
+    ELASTICSEARCH_REQUEST_TIMEOUT_MS: z.coerce.number().int().positive().default(4000),
+    ELASTICSEARCH_MAX_RETRIES: z.coerce.number().int().nonnegative().default(2),
 
     REDIS_URL: z.string().url(),
 

@@ -116,3 +116,39 @@ describe('validateEnv — rate limiting (D14–D19)', () => {
     );
   });
 });
+
+describe('validateEnv — Elasticsearch resilience (D20)', () => {
+  it('defaults to a 4s request timeout and a retry budget below the client default', () => {
+    // Arrange & Act
+    const env = validateEnv({ ...baseEnv });
+
+    // Assert
+    expect(env.ELASTICSEARCH_REQUEST_TIMEOUT_MS).toBe(4000);
+    expect(env.ELASTICSEARCH_MAX_RETRIES).toBe(2);
+  });
+
+  it('coerces overrides and allows zero retries', () => {
+    // Arrange & Act
+    const env = validateEnv({
+      ...baseEnv,
+      ELASTICSEARCH_REQUEST_TIMEOUT_MS: '2500',
+      ELASTICSEARCH_MAX_RETRIES: '0',
+    });
+
+    // Assert
+    expect(env.ELASTICSEARCH_REQUEST_TIMEOUT_MS).toBe(2500);
+    expect(env.ELASTICSEARCH_MAX_RETRIES).toBe(0);
+  });
+
+  it.each([
+    ['ELASTICSEARCH_REQUEST_TIMEOUT_MS', '0'],
+    ['ELASTICSEARCH_REQUEST_TIMEOUT_MS', '-1'],
+    ['ELASTICSEARCH_MAX_RETRIES', '-1'],
+    ['ELASTICSEARCH_MAX_RETRIES', 'lots'],
+  ])('rejects an invalid %s of "%s" at boot', (key, value) => {
+    // Arrange & Act & Assert
+    expect(() => validateEnv({ ...baseEnv, [key]: value })).toThrow(
+      /Invalid environment configuration/,
+    );
+  });
+});

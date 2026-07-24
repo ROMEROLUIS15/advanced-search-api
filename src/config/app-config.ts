@@ -16,6 +16,9 @@ export interface ElasticsearchConfig {
   password?: string;
   index: string;
   tlsRejectUnauthorized: boolean;
+  /** Per-request timeout in ms and client retry budget (design D20). */
+  requestTimeoutMs: number;
+  maxRetries: number;
 }
 
 export interface RedisConfig {
@@ -78,6 +81,8 @@ export function buildConfig(env: Env): AppConfiguration {
       password: env.ELASTICSEARCH_PASSWORD,
       index: env.ELASTICSEARCH_INDEX,
       tlsRejectUnauthorized: env.ELASTICSEARCH_TLS_REJECT_UNAUTHORIZED,
+      requestTimeoutMs: env.ELASTICSEARCH_REQUEST_TIMEOUT_MS,
+      maxRetries: env.ELASTICSEARCH_MAX_RETRIES,
     },
     redis: { url: env.REDIS_URL },
     cache: {

@@ -58,3 +58,22 @@ describe('buildConfig — rate limiting', () => {
     expect(config.rateLimit.trustProxyHops).toBe(1);
   });
 });
+
+describe('buildConfig — Elasticsearch resilience', () => {
+  it('maps the timeout and retry budget into the elasticsearch namespace', () => {
+    // Arrange
+    const env = validateEnv({
+      ELASTICSEARCH_NODE: 'http://localhost:9200',
+      REDIS_URL: 'redis://localhost:6379',
+      ELASTICSEARCH_REQUEST_TIMEOUT_MS: '3000',
+      ELASTICSEARCH_MAX_RETRIES: '1',
+    });
+
+    // Act
+    const config = buildConfig(env);
+
+    // Assert
+    expect(config.elasticsearch.requestTimeoutMs).toBe(3000);
+    expect(config.elasticsearch.maxRetries).toBe(1);
+  });
+});

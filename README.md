@@ -320,3 +320,27 @@ loadtest/          # k6 battery + smoke run (no dependency on the app)
 docs/              # audit and load-test reports
 openspec/          # spec-driven design artifacts (proposal, design, specs, tasks)
 ```
+
+## Trade-offs and future work
+
+Resilience and observability were scoped deliberately rather than by reflex. What is in, and what was
+consciously deferred and why:
+
+- **Elasticsearch timeout and retries (done).** The client runs with an explicit **4 s `requestTimeout`** and
+  **2 retries** instead of the SDK's 30 s / 3 defaults (env-tunable). For a read API with a single data source,
+  a tight timeout is the highest-value resilience lever: it stops a *slow* — not just down — cluster from
+  holding connections until the pool drains, and a smaller retry budget avoids amplifying load on an ailing
+  single node.
+- **No circuit breaker (deferred, on purpose).** A breaker earns its keep when you fan out to *several*
+  downstream services and want to shed load or stop cascades during partial degradation. Here Elasticsearch is
+  the sole source of data, so the correct behaviour when it is unavailable is already in place: fail fast to a
+  typed `503`, which `/health` surfaces as a critical dependency, while the Redis cache stays fail-open. A
+  breaker would add machinery for little gain at this scope. Because ES access sits behind a port, adding one
+  later is a change to a single adapter — not a redesign.
+- **Structured JSON logging (deferred).** Logging goes through a central interceptor and the Nest `Logger`
+  (no stray `console.log`), and errors are mapped centrally. Swapping the logger for Pino to emit JSON lines
+  for a log aggregator is the natural next step for a real production deployment; it is wiring, not a
+  structural change.
+- **Scaling.** The index is read through an alias, so a mapping change is a new versioned index plus an alias
+  flip with no downtime. The service is stateless behind its two managed dependencies, so it scales
+  horizontally; the rate-limit counter already lives in Redis to stay correct across instances.

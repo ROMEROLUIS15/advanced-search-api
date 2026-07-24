@@ -135,6 +135,11 @@ metadata, so it registers a controller and nothing else. `app.module.ts` only as
 - **Index behind an alias (D1)**: physical `products_v1` read/written through the `products` alias;
   `ensureIndex()` is idempotent. The mapping intentionally sets **no** `number_of_shards`/`number_of_replicas`
   (Elastic Cloud Serverless rejects them).
+- **ES client resilience (D20)**: the client factory sets an explicit `requestTimeout` (4 s) and `maxRetries`
+  (2) from `ELASTICSEARCH_REQUEST_TIMEOUT_MS`/`ELASTICSEARCH_MAX_RETRIES`, overriding the SDK's 30 s / 3
+  defaults — a tight timeout is the main lever keeping a *slow* ES from draining the pool, and fewer retries
+  avoid amplifying load on a single ailing node. A circuit breaker is deliberately **not** added (single data
+  source ⇒ fail fast to 503 + `/health` is the right level); the rationale lives in README "Trade-offs".
 - **Error mapping is centralized** in `AllExceptionsFilter`: `ResultWindowExceededError` → **422**,
   domain/application errors → **400**, ES `ResponseError` → **502**, ES `ElasticsearchClientError` → **503**,
   anything else → 500 with the stack logged server-side only. Throw typed errors; don't map status codes in
