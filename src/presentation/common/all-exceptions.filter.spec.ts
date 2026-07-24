@@ -1,4 +1,4 @@
-import { BadRequestException, HttpException, HttpStatus } from '@nestjs/common';
+import { BadRequestException, HttpException, HttpStatus, Logger } from '@nestjs/common';
 import { errors as esErrors } from '@elastic/elasticsearch';
 import { AllExceptionsFilter } from './all-exceptions.filter';
 import { ResultWindowExceededError } from '@application/errors/application.error';
@@ -128,5 +128,45 @@ describe('AllExceptionsFilter — rate limiting (design D18)', () => {
 
     // Assert — never "ThrottlerException"
     expect(body.error).not.toMatch(/Throttler/);
+  });
+});
+
+describe('AllExceptionsFilter — logging', () => {
+  afterEach(() => jest.restoreAllMocks());
+
+  it('logs a 4xx as a warning carrying the reason, not as an error', () => {
+    const warn = jest.spyOn(Logger.prototype, 'warn').mockImplementation(() => undefined);
+    const error = jest.spyOn(Logger.prototype, 'error').mockImplementation(() => undefined);
+
+    runFilter(new BadRequestException('pageSize too large'));
+
+    expect(error).not.toHaveBeenCalled();
+    expect(warn).toHaveBeenCalledTimes(1);
+    expect(String(warn.mock.calls[0][0])).toContain('-> 400');
+    expect(String(warn.mock.calls[0][0])).toContain('pageSize too large');
+  });
+
+  it('summarizes validation details in the 4xx warning line', () => {
+    const warn = jest.spyOn(Logger.prototype, 'warn').mockImplementation(() => undefined);
+
+    runFilter(
+      new BadRequestException({
+        statusCode: 400,
+        error: 'Bad Request',
+        message: ['q must be a string'],
+      }),
+    );
+
+    expect(String(warn.mock.calls[0][0])).toContain('q must be a string');
+  });
+
+  it('still logs a 5xx as an error, not a warning', () => {
+    const warn = jest.spyOn(Logger.prototype, 'warn').mockImplementation(() => undefined);
+    const error = jest.spyOn(Logger.prototype, 'error').mockImplementation(() => undefined);
+
+    runFilter(new Error('secret stack trace'));
+
+    expect(warn).not.toHaveBeenCalled();
+    expect(error).toHaveBeenCalledTimes(1);
   });
 });

@@ -25,8 +25,12 @@ interface ErrorBody extends ResolvedError {
 
 /**
  * Global exception filter (design D10). Maps typed errors, Nest HTTP exceptions
- * and Elasticsearch upstream failures into a consistent body; 5xx are logged
- * with their stack server-side while the client receives a generic message.
+ * and Elasticsearch upstream failures into a consistent body. 5xx are logged as
+ * errors with their stack (the client still gets a generic message); 4xx are
+ * logged as warnings with a compact reason so client-side failures and
+ * rate-limit hits stay visible in production. This filter is the only place a
+ * request that ends in an error is logged — the LoggingInterceptor only sees the
+ * success path.
  */
 @Catch()
 export class AllExceptionsFilter implements ExceptionFilter {
@@ -38,15 +42,23 @@ export class AllExceptionsFilter implements ExceptionFilter {
     const request = ctx.getRequest<Request>();
     const resolved = resolveError(exception);
 
-    if (resolved.statusCode >= 500) {
-      this.logger.error(
-        `${request.method} ${request.url} -> ${resolved.statusCode}`,
-        exception instanceof Error ? exception.stack : String(exception),
-      );
-    }
+    this.logException(request, resolved, exception);
 
     const body: ErrorBody = { ...resolved, timestamp: new Date().toISOString(), path: request.url };
     response.status(resolved.statusCode).json(body);
+  }
+
+  private logException(request: Request, resolved: ResolvedError, exception: unknown): void {
+    // Plain numeric bounds, not HttpStatus members: statusCode is a number and
+    // comparing it against the enum trips no-unsafe-enum-comparison.
+    const line = `${request.method} ${request.url} -> ${resolved.statusCode}`;
+    if (resolved.statusCode >= 500) {
+      this.logger.error(line, exception instanceof Error ? exception.stack : String(exception));
+      return;
+    }
+    if (resolved.statusCode >= 400) {
+      this.logger.warn(`${line} ${messageSummary(resolved)}`);
+    }
   }
 }
 
@@ -97,4 +109,12 @@ function fromHttpException(exception: HttpException): ResolvedError {
     return { statusCode, error, message: 'Validation failed', details: body.message };
   }
   return { statusCode, error, message: body.message ?? exception.message };
+}
+
+/** Compact reason for the 4xx warning line: validation details win, else the message. */
+function messageSummary(resolved: ResolvedError): string {
+  if (resolved.details && resolved.details.length > 0) {
+    return resolved.details.join('; ');
+  }
+  return Array.isArray(resolved.message) ? resolved.message.join('; ') : resolved.message;
 }
