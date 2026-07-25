@@ -1,6 +1,8 @@
 # Advanced Product Search API
 
 [![CI](https://github.com/ROMEROLUIS15/advanced-search-api/actions/workflows/ci.yml/badge.svg)](https://github.com/ROMEROLUIS15/advanced-search-api/actions/workflows/ci.yml)
+[![CodeQL](https://github.com/ROMEROLUIS15/advanced-search-api/actions/workflows/codeql.yml/badge.svg)](https://github.com/ROMEROLUIS15/advanced-search-api/actions/workflows/codeql.yml)
+[![Security](https://github.com/ROMEROLUIS15/advanced-search-api/actions/workflows/security.yml/badge.svg)](https://github.com/ROMEROLUIS15/advanced-search-api/actions/workflows/security.yml)
 
 A backend search service for product/manufacturer discovery, built with **NestJS + TypeScript**,
 **Elasticsearch** (relevance, filtering, faceting, suggestions) and **Redis** (fail-open caching), in a
@@ -13,7 +15,8 @@ autocomplete, and "did you mean" suggestions — all read-only over a single see
 [`/health`](https://advanced-search-api-chet.onrender.com/health),
 [`/search?q=drill`](https://advanced-search-api-chet.onrender.com/search?q=drill),
 [`/autocomplete?q=cord`](https://advanced-search-api-chet.onrender.com/autocomplete?q=cord) or
-[`/suggest?q=driil`](https://advanced-search-api-chet.onrender.com/suggest?q=driil).
+[`/suggest?q=driil`](https://advanced-search-api-chet.onrender.com/suggest?q=driil), or browse the whole
+contract interactively in the **[Swagger UI at `/docs`](https://advanced-search-api-chet.onrender.com/docs)**.
 It runs on Render's free instance type, which spins down when idle — the first request after a pause can
 take up to a minute.
 
@@ -48,7 +51,10 @@ domain  →  application (use-cases + ports)  →  infrastructure (Elasticsearch
   serialized directly), and a global exception filter.
 
 A single `GET /search` request returns hits **+ facets + suggestions** in **one Elasticsearch round-trip**.
-The full design rationale (D1–D13) lives in [`openspec/changes/archive/2026-07-22-advanced-search-system/design.md`](openspec/changes/archive/2026-07-22-advanced-search-system/design.md).
+The design rationale is cited by decision ID (D1–D20) across two archived changes:
+[D1–D13 — core system](openspec/changes/archive/2026-07-22-advanced-search-system/design.md) and
+[D14–D19 — rate limiting](openspec/changes/archive/2026-07-23-add-request-rate-limiting/design.md); D20
+(Elasticsearch timeout/retries) is documented under [Trade-offs](#trade-offs-and-future-work).
 
 ### How ranking works
 
@@ -74,11 +80,17 @@ GET /search?category=Tools     # hits are all Tools, but facets.categories still
 ## Tech stack
 
 NestJS 11 · TypeScript (strict) · Elasticsearch 8 (`@elastic/elasticsearch`) · Redis (`ioredis`) ·
-`class-validator` / `class-transformer` · Zod (env validation) · Helmet · Jest / Supertest.
+`class-validator` / `class-transformer` · Zod (env validation) · Helmet · OpenAPI (`@nestjs/swagger`) ·
+Jest / Supertest.
 
 ## API
 
 Base URL: `https://advanced-search-api-chet.onrender.com` (deployed) or `http://localhost:3000` (local).
+
+The full contract is published as **OpenAPI**: an interactive Swagger UI at **`/docs`** and the raw spec at
+**`/docs-json`**. The schema is derived from the `class-validator` DTOs by the `@nestjs/swagger` CLI plugin, so
+it stays in sync with validation automatically. `/docs-json` is also what the DAST scan consumes (see
+[Security](#security)).
 
 ### `GET /`
 
@@ -204,6 +216,8 @@ Environment is validated at boot (Zod) — the app fails fast on missing/invalid
 | `ELASTICSEARCH_USERNAME` / `ELASTICSEARCH_PASSWORD` | — | basic auth (local, optional) |
 | `ELASTICSEARCH_INDEX` | `products` | alias name |
 | `ELASTICSEARCH_TLS_REJECT_UNAUTHORIZED` | `true` | |
+| `ELASTICSEARCH_REQUEST_TIMEOUT_MS` | `4000` | per-request timeout (D20) — tighter than the SDK's 30 s |
+| `ELASTICSEARCH_MAX_RETRIES` | `2` | retry budget (D20) — fewer than the SDK's 3 |
 | `REDIS_URL` | — | `redis://` local, `rediss://` (TLS) for Upstash (required) |
 | `CACHE_TTL_SEARCH` / `CACHE_TTL_AUTOCOMPLETE` | `300` / `60` | seconds |
 | `SEARCH_DEFAULT_PAGE_SIZE` / `SEARCH_MAX_PAGE_SIZE` | `20` / `100` | |
@@ -233,7 +247,7 @@ Tests follow the AAA pattern; unit specs are co-located with the code, e2e/integ
 All of it runs on every push and pull request to `main` via
 [`.github/workflows/ci.yml`](.github/workflows/ci.yml): one job for lint, unit tests and the build, and a
 second that starts Elasticsearch and Redis from `docker-compose.yml`, seeds the index and runs the e2e and
-integration suites.
+integration suites. Alongside it, three more workflows run the security scanning — see [Security](#security).
 
 ## Load testing
 
@@ -252,6 +266,31 @@ Last run (2026-07-23): **366,306 requests, zero failures**, uncached search at 2
 4.7 ms p95. Full results and the method behind them are in
 [`docs/LOAD-TEST-2026-07-23.md`](docs/LOAD-TEST-2026-07-23.md); the accompanying project audit is in
 [`docs/AUDIT-2026-07-23.md`](docs/AUDIT-2026-07-23.md).
+
+## Security
+
+The HTTP edge is hardened in one place (`app.setup.ts`): Helmet security headers, env-aware CORS, a global
+`ValidationPipe` with `whitelist` + `forbidNonWhitelisted` (unknown params ⇒ `400`), and a centralized
+exception filter that maps typed errors to consistent bodies and never leaks internals — `5xx` log the stack
+server-side while returning a generic message, `4xx` log as warnings so client-side failures stay visible.
+Failures *outside* the request cycle (unhandled rejection / uncaught exception) are caught by a process-level
+safety net that logs, drains connections and exits for a clean restart.
+
+On top of that, four scanning layers run in CI on every push and PR (all free on a public repo):
+
+| Layer | Tool | What it checks |
+|---|---|---|
+| **SAST** | CodeQL (`security-extended`) | the project's own TypeScript |
+| **SCA** | Dependabot | vulnerable/outdated npm, GitHub Actions and Docker deps |
+| **Secrets** | gitleaks | the full git history (blocking) |
+| **DAST** | OWASP ZAP `api-scan` | the running API, driven by the `/docs-json` OpenAPI contract |
+
+DAST uses **api-scan over the OpenAPI**, not a passive baseline: the baseline spider follows HTML links and so
+never discovers a JSON API's endpoints (it only reaches `/`), whereas api-scan imports the contract and fuzzes
+every endpoint's parameters — SQL injection, XSS, command injection, SSTI, path traversal, Log4Shell and more,
+all exercised against `q` & co. The latest run reached 128 URLs with **0 findings** (118 checks passing), and
+`npm audit --omit=dev` reports **0 production vulnerabilities**. The methodology and figures are in
+[`docs/HARDENING-2026-07-25.md`](docs/HARDENING-2026-07-25.md).
 
 ## Deploy (Elastic Cloud Serverless + Upstash + Render)
 
@@ -317,8 +356,10 @@ src/
   seed/            # dataset fixture + seed CLI (Nest standalone context)
 test/              # e2e + integration specs
 loadtest/          # k6 battery + smoke run (no dependency on the app)
-docs/              # audit and load-test reports
+docs/              # audit, load-test and hardening reports
 openspec/          # spec-driven design artifacts (proposal, design, specs, tasks)
+.github/           # CI + CodeQL + Security workflows and the Dependabot config
+.zap/              # OWASP ZAP rule overrides for the DAST scan
 ```
 
 ## Trade-offs and future work
@@ -331,6 +372,11 @@ consciously deferred and why:
   a tight timeout is the highest-value resilience lever: it stops a *slow* — not just down — cluster from
   holding connections until the pool drains, and a smaller retry budget avoids amplifying load on an ailing
   single node.
+- **Error observability and a process safety net (done).** Errors map centrally to typed bodies with no
+  internal leakage; `5xx` log their stack server-side while `4xx` log as warnings, so a client looping on
+  validation errors or hitting the rate limit is visible rather than silent. Beyond the request cycle, an
+  unhandled rejection or uncaught exception is caught by a process-level safety net that logs it, drains the
+  ES/Redis connections and exits non-zero for the orchestrator to restart a clean process.
 - **No circuit breaker (deferred, on purpose).** A breaker earns its keep when you fan out to *several*
   downstream services and want to shed load or stop cascades during partial degradation. Here Elasticsearch is
   the sole source of data, so the correct behaviour when it is unavailable is already in place: fail fast to a
