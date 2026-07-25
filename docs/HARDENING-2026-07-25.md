@@ -166,16 +166,41 @@ DAST job always has the spec.
 
 ---
 
+## 6 · Dependency upgrades and a fully clean audit
+
+Cleared the Dependabot backlog with judgement, not blind merges. Every upgrade was validated with
+`build` + `lint:ci` + the unit suite before committing:
+
+| Dependency | Decision | Why |
+|---|---|---|
+| **zod 3 → 4** | upgraded | build + 187 tests green with **no code change** — the `z.string().url()` / `.refine()` usage is 4-compatible |
+| **eslint 9 → 10** (+ `@eslint/js`) | upgraded | the two must move together: `@eslint/js` 10 alone (PR #8) failed CI against eslint 9; installed as a pair, lint is clean |
+| **node 22 → 26** | upgraded | bumped both Dockerfile stages **and** `NODE_VERSION` in ci.yml/security.yml (CI runs on the runner's node, not the image); validated by building the image on `node:26-alpine` |
+| **typescript 5 → 6/7** | **deferred** | TS 7.0 ships without the programmatic compiler API `nest build`/`ts-jest`/`typescript-eslint` need (returns in 7.1); TS 6 deprecates `baseUrl` + `moduleResolution=node10`, whose migration touches resolution entangled with `tsc-alias`/`tsconfig-paths`. Pinned on 5.x like the ES 9 pin |
+| **@elastic/elasticsearch 8 → 9** | **closed** | a 9.x client is unsupported against the 8.17 server; PR closed and majors ignored in `dependabot.yml` |
+
+**Audit to zero.** The `@nestjs/swagger` addition had pulled `js-yaml 5.2.1` into the *production* tree
+(GHSA-pm4m-ph32-ghv5 → 2 prod highs); the jest/eslint tooling carried `brace-expansion <=5.0.7` (a DoS → OOM
+advisory → 24 dev highs). Each is a single transitive CVE, so two targeted `package.json` overrides —
+`js-yaml` → `5.2.2` and `brace-expansion` → `5.0.8` — clear them all: `npm audit` now reports **0
+vulnerabilities total** (down from 29 dev + 2 prod), lint/build/tests still green.
+
+**Coverage.** `swagger.setup.ts` had shipped without a spec (0%); a `setupOpenApi` spec brings it to 100% and
+statement coverage to **97.7% across 188 unit tests**.
+
+---
+
 ## Verified green
 
 | Area | Evidence | Result |
 |---|---|---|
-| Unit tests | `npm test` | 47 suites, **187 tests**, all pass (+4 safety-net, +3 filter) |
+| Unit tests | `npm test` | 48 suites, **188 tests**, all pass (+4 safety-net, +3 filter, +1 openapi) |
+| Coverage | `jest --coverage` | **97.7%** statements, no logic file left uncovered |
 | Integration (real ES) | `npm run test:integration` | 1 suite, **5 tests**, all pass |
 | End-to-end | `npm run test:e2e` | 7 suites, **25 tests**, all pass |
 | Lint (type-aware) | `npm run lint:ci` | exit 0 |
-| Build (strict + plugin) | `npm run build` | clean |
-| Prod dependency vulns | `npm audit --omit=dev` | **0 vulnerabilities** |
+| Build (strict + plugin) | `npm run build` | clean (zod 4 · eslint 10 · node 26) |
+| Dependency vulns (dev + prod) | `npm audit` | **0 total** — js-yaml + brace-expansion overrides |
 | Secret history | `gitleaks detect` | **51 commits, 0 leaks** |
 | Repo visibility | `gh repo view` | PUBLIC (CodeQL free) |
 | DAST | `zap-api-scan.py` (OpenAPI) | **128 URLs, 0 FAIL / 0 WARN / 118 PASS** |
@@ -196,5 +221,7 @@ five paths, Swagger UI at <https://advanced-search-api-chet.onrender.com/docs>. 
 
 1. **Make DAST blocking** — remove `-I` from the ZAP step once findings are triaged. Today there are none
    (0 FAIL / 0 WARN), so this can be flipped whenever desired.
-2. **Merge the Dependabot PRs** — the `js-yaml` security bump closes that CVE (dev-only, no prod exposure).
-3. **Optional** — the `README.md` could link `/docs` next to its endpoint table for reviewers.
+2. ~~Merge the Dependabot PRs~~ — **done**: 8 safe PRs merged, ES 9 closed (server pin), TS 6/7 deferred, and
+   the whole audit driven to 0 total (see §6).
+3. ~~README link to `/docs`~~ — **done**: the README now documents OpenAPI, the security pipeline, and links
+   the Swagger UI.

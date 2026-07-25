@@ -289,7 +289,8 @@ DAST uses **api-scan over the OpenAPI**, not a passive baseline: the baseline sp
 never discovers a JSON API's endpoints (it only reaches `/`), whereas api-scan imports the contract and fuzzes
 every endpoint's parameters — SQL injection, XSS, command injection, SSTI, path traversal, Log4Shell and more,
 all exercised against `q` & co. The latest run reached 128 URLs with **0 findings** (118 checks passing), and
-`npm audit --omit=dev` reports **0 production vulnerabilities**. The methodology and figures are in
+`npm audit` reports **0 vulnerabilities** (dev and prod) — two targeted `package.json` overrides close
+transitive DoS advisories in `js-yaml` and `brace-expansion`. The methodology and figures are in
 [`docs/HARDENING-2026-07-25.md`](docs/HARDENING-2026-07-25.md).
 
 ## Deploy (Elastic Cloud Serverless + Upstash + Render)

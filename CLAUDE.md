@@ -67,6 +67,15 @@ against `q` & co.). `RATE_LIMIT_ENABLED=false` so ZAP doesn't scan its own 429s;
 are triaged. On Linux runners the ZAP container uses `--network host` + `localhost`; on Docker Desktop (local)
 it's `host.docker.internal` instead.
 
+**Dependency policy** (SCA-driven): `npm audit` is kept at **0** (dev + prod) via two targeted `overrides` in
+`package.json` — `js-yaml` → `5.2.2` (its DoS advisory reached prod through `@nestjs/swagger`) and
+`brace-expansion` → `5.0.8` (a DoS advisory transitive through the jest/eslint tooling). Two majors are pinned
+on purpose, not neglect, and ignored/kept accordingly: **`@elastic/elasticsearch` stays on 8.x** to match the
+8.17 server (ignored in `dependabot.yml`), and **TypeScript stays on 5.x** — TS 7.0 ships without the
+programmatic compiler API `nest build`/`ts-jest`/`typescript-eslint` need (returns in 7.1), and TS 6 deprecates
+`baseUrl` + `moduleResolution=node10`, whose migration touches resolution entangled with
+`tsc-alias`/`tsconfig-paths`. zod 4, eslint 10 and the node 26 base image are current.
+
 `test:e2e` / `test:integration` run `--runInBand` deliberately: every e2e suite talks to the *same* external
 index and Redis, and in parallel workers the run ends with "a worker process has failed to exit gracefully".
 Serially all suites pass and Jest exits on its own, so neither script needs `--forceExit`.
