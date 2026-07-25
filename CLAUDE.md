@@ -56,6 +56,17 @@ badly formatted file exits 0 under `lint`, 1 under `lint:ci`). `.github/workflow
 splits into two independent jobs — `quality` (lint, unit, build) and `integration` (compose up ES + Redis,
 seed, then `test:integration` and `test:e2e`) — so a lint failure cannot mask an e2e failure.
 
+**Security scanning** rides alongside CI in four layers (all free, public-repo): `codeql.yml` — SAST over the
+TS; `dependabot.yml` — SCA (npm + github-actions + docker); `security.yml` — `secrets` (gitleaks over full
+history, blocking) and `dast` (OWASP ZAP against the API booted on the runner as Render does — `build` +
+`seed:prod` + `node dist/main.js`, never `start:dev`). **api-scan, not baseline**: the passive baseline spider
+follows HTML links, so on a JSON API it only ever reached `/` (3 URLs); `zap-api-scan.py` imports the OpenAPI at
+`/docs-json` and hits every endpoint with its params (SQLi/XSS/command-injection/SSTI/Log4Shell exercised
+against `q` & co.). `RATE_LIMIT_ENABLED=false` so ZAP doesn't scan its own 429s; design-decision false positives
+(CSP off, the ISO `timestamp`) are silenced in `.zap/rules.tsv`; runs with `-I` (non-blocking) until findings
+are triaged. On Linux runners the ZAP container uses `--network host` + `localhost`; on Docker Desktop (local)
+it's `host.docker.internal` instead.
+
 `test:e2e` / `test:integration` run `--runInBand` deliberately: every e2e suite talks to the *same* external
 index and Redis, and in parallel workers the run ends with "a worker process has failed to exit gracefully".
 Serially all suites pass and Jest exits on its own, so neither script needs `--forceExit`.
@@ -106,7 +117,13 @@ metadata, so it registers a controller and nothing else. `app.module.ts` only as
 - **`app.setup.ts` holds the whole HTTP pipeline** (Helmet with CSP off, env-aware CORS, global
   `ValidationPipe({whitelist, forbidNonWhitelisted, transform})`, `LoggingInterceptor`, `AllExceptionsFilter`,
   shutdown hooks) so `main.ts` and every e2e test exercise the identical edge. Add global edge behavior there,
-  not in `main.ts`.
+  not in `main.ts`. Two things live in `main.ts` **on purpose, not** in `configureApp`: `installProcessSafetyNet`
+  and `setupOpenApi` (`src/swagger.setup.ts`) — neither is part of the security edge the e2e suites must
+  exercise, and a per-boot listener/doc route in every e2e app would be waste. OpenAPI is published at `/docs`
+  (UI) and `/docs-json` (the spec the DAST job feeds ZAP); the `@nestjs/swagger` CLI plugin in `nest-cli.json`
+  derives the param schema from the `class-validator` DTOs, so there is no per-field `@ApiProperty`. The plugin
+  runs during `nest build`, **not** under `start:dev`'s `--transpile-only`, so the full spec exists in `dist/`
+  but not in watch mode.
 - **Path aliases** `@domain/* @application/* @infrastructure/* @presentation/* @config/* @shared/*` are declared
   in **four files** that must stay in sync: `tsconfig.json` `paths`, `package.json` `jest.moduleNameMapper`,
   `test/jest-e2e.json` and `test/jest-integration.json`. `dist` resolution depends on `tsc-alias` running as
