@@ -28,7 +28,7 @@
     "loadtest:report": "node loadtest/report.mjs --out loadtest/results/REPORT.md"
   },
   "dependencies": {
-    "@elastic/elasticsearch": "^8.17.0",
+    "@elastic/elasticsearch": "^9.4.2",
     "@nestjs/common": "^11.0.1",
     "@nestjs/config": "^4.0.0",
     "@nestjs/core": "^11.0.1",
