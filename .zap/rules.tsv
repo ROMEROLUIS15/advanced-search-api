@@ -1,0 +1,6 @@
+# OWASP ZAP baseline rule overrides, passed via `zap-baseline.py -c rules.tsv`.
+# Format (tab-separated): <pluginId>	<IGNORE|WARN|FAIL>	<comment>
+# Lines starting with # are ignored. Each entry below is a deliberate design
+# decision, not an unfixed finding — documented so the scan stays signal, not noise.
+10038	IGNORE	CSP header absent on purpose: JSON API renders no HTML (Helmet contentSecurityPolicy:false in app.setup.ts)
+10096	IGNORE	Error body 'timestamp' is an intentional ISO-8601 field, not an information disclosure

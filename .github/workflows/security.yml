@@ -1,0 +1,123 @@
+name: Security
+
+# Two of the four security layers that need CI runtime:
+#   - secrets: gitleaks over the full git history (the SAST/SCA layers are
+#     codeql.yml and dependabot.yml).
+#   - dast:    OWASP ZAP baseline against the running API.
+on:
+  push:
+    branches: [main]
+  pull_request:
+    branches: [main]
+  schedule:
+    - cron: '43 3 * * 1'
+  workflow_dispatch:
+
+concurrency:
+  group: security-${{ github.ref }}
+  cancel-in-progress: true
+
+permissions:
+  contents: read
+
+env:
+  NODE_VERSION: '22'
+
+jobs:
+  secrets:
+    name: Secret scan (gitleaks)
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v5
+        with:
+          # Full history so every commit is scanned, not just the tip. Measured
+          # clean over 51 commits at setup time; --exit-code=1 keeps it that way.
+          fetch-depth: 0
+
+      - name: gitleaks
+        run: |
+          docker run --rm -v "${{ github.workspace }}:/repo" \
+            zricethezav/gitleaks:latest detect \
+            --source=/repo --redact --no-banner --exit-code=1
+
+  dast:
+    name: DAST (OWASP ZAP baseline)
+    runs-on: ubuntu-latest
+    env:
+      NODE_ENV: test
+      ELASTICSEARCH_NODE: http://localhost:9200
+      ELASTICSEARCH_INDEX: products
+      REDIS_URL: redis://localhost:6379
+      PORT: '3000'
+      # ZAP fires many requests from one IP; with the limiter on it would scan
+      # its own 429s. The limiter has its own correctness run
+      # (loadtest/rate-limit.js), so DAST scans the endpoints with it off.
+      RATE_LIMIT_ENABLED: 'false'
+    steps:
+      - uses: actions/checkout@v5
+
+      - uses: actions/setup-node@v5
+        with:
+          node-version: ${{ env.NODE_VERSION }}
+          cache: npm
+
+      - run: npm ci
+
+      # The repo's own compose file, so CI and the local workflow cannot drift.
+      - name: Start Elasticsearch and Redis
+        run: docker compose up -d --wait elasticsearch redis
+
+      - name: Build
+        run: npm run build
+
+      # seed:prod runs from dist/ (no ts-node in this path), matching Docker/Render.
+      - name: Seed the index
+        run: npm run seed:prod
+
+      - name: Start the API
+        run: |
+          node dist/main.js &
+          echo "$!" > api.pid
+
+      - name: Wait for the API
+        run: |
+          for i in $(seq 1 30); do
+            if curl -sf http://localhost:3000/health >/dev/null; then
+              echo "API ready after ~$((i * 2))s"; exit 0
+            fi
+            sleep 2
+          done
+          echo "API did not become ready"; exit 1
+
+      - name: OWASP ZAP API scan (OpenAPI)
+        run: |
+          mkdir -p zap-out && cp .zap/rules.tsv zap-out/rules.tsv && chmod -R 777 zap-out
+          # api-scan imports the OpenAPI contract at /docs-json and scans each
+          # endpoint with its parameters (e.g. the `q` param of /search) — the
+          # passive baseline's spider cannot discover JSON API endpoints, so it
+          # only ever reached /. --network host: reach the API on the runner's
+          # localhost:3000. -f openapi: the target is an OpenAPI definition.
+          # -c rules.tsv: design-decision false positives (.zap/rules.tsv).
+          # -I: report without failing the build for now (drop -I to make findings
+          # blocking once triaged).
+          docker run --rm --network host \
+            -v "${{ github.workspace }}/zap-out:/zap/wrk:rw" \
+            ghcr.io/zaproxy/zaproxy:stable \
+            zap-api-scan.py -t http://localhost:3000/docs-json -f openapi \
+            -c rules.tsv -I -r report.html -w report.md
+
+      - name: Upload ZAP report
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: zap-baseline-report
+          path: zap-out/
+          if-no-files-found: warn
+
+      - name: Stop the API
+        if: always()
+        run: '[ -f api.pid ] && kill "$(cat api.pid)" 2>/dev/null || true'
+
+      - name: Container logs (on failure)
+        if: failure()
+        run: docker compose logs --tail=100 elasticsearch redis

@@ -1,0 +1,45 @@
+name: CodeQL
+
+# SAST (static application security testing) over the project's own TypeScript.
+# Free on public repositories; results land in the repo's Security tab.
+on:
+  push:
+    branches: [main]
+  pull_request:
+    branches: [main]
+  schedule:
+    # Weekly re-scan (Mondays 03:27 UTC) so newly published CodeQL queries run
+    # against unchanged code between commits.
+    - cron: '27 3 * * 1'
+  workflow_dispatch:
+
+concurrency:
+  group: codeql-${{ github.ref }}
+  cancel-in-progress: true
+
+permissions:
+  contents: read
+  security-events: write # upload the SARIF results to the Security tab
+  actions: read
+
+jobs:
+  analyze:
+    name: Analyze (TypeScript)
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v5
+
+      - name: Initialize CodeQL
+        uses: github/codeql-action/init@v3
+        with:
+          languages: javascript-typescript
+          # security-extended layers the deeper security queries on top of the
+          # default set — this is a security scan, not just code hygiene.
+          queries: security-extended
+
+      # No build step: CodeQL analyses TypeScript sources directly, so there is
+      # nothing to compile for the database.
+      - name: Perform CodeQL analysis
+        uses: github/codeql-action/analyze@v3
+        with:
+          category: /language:javascript-typescript
