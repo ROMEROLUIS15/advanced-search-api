@@ -19,8 +19,8 @@ autocomplete, and "did you mean" suggestions — all read-only over a single see
 contract interactively in the **[Swagger UI at `/docs`](https://advanced-search-api-chet.onrender.com/docs)**.
 It runs on Render's free instance type, which spins down when idle; a scheduled keep-alive
 ([`.github/workflows/keep-alive.yml`](.github/workflows/keep-alive.yml)) pings `/health` every 10 minutes
-during waking hours (06:00–22:00 UTC-4) so it stays warm and answers in ~0.5 s. Outside that window — or if
-the workflow is disabled — the first request after a pause pays a ~20 s cold start.
+during waking hours (06:00–23:00 at a UTC-4 local offset) so it stays warm and answers in ~0.5 s. Outside
+that window — or if the workflow is disabled — the first request after a pause pays a ~20 s cold start.
 
 ## Capabilities
 
