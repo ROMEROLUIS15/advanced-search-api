@@ -18,7 +18,7 @@ The one exception is **D20** (ES `requestTimeout`/`maxRetries`), which has no `d
 is in README "Trade-offs" only. The first change's delta specs were synced to
 `openspec/specs/<capability>/spec.md` (six capabilities) and the second's to
 `openspec/specs/request-rate-limiting/spec.md`; those scenarios are the acceptance criteria. Post-ship reports
-(the 2026-07-23 audit, the load-test run) live under `docs/`.
+(the 2026-07-23 audit, the load-test run, the 2026-07-25 hardening report) live under `docs/`.
 
 ## Commands
 
