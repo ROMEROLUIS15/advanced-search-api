@@ -16,8 +16,8 @@ permissions:
   contents: read
 
 env:
-  # Matches the Dockerfile's runtime (node:22-alpine) and package.json engines (>=20).
-  NODE_VERSION: '22'
+  # Matches the Dockerfile's runtime (node:26-alpine) and package.json engines (>=20).
+  NODE_VERSION: '26'
 
 jobs:
   quality:
