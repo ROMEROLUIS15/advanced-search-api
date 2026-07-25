@@ -38,9 +38,11 @@ jobs:
     # hung request from burning runner minutes.
     timeout-minutes: 5
     env:
-      # Overridable without touching the workflow: set a repository variable
-      # named KEEPALIVE_URL to point at a different deployment.
-      TARGET_URL: ${{ vars.KEEPALIVE_URL || 'https://advanced-search-api-chet.onrender.com/health' }}
+      # Literal rather than a `vars.*` lookup: the repo has exactly one
+      # deployment and hardcodes this host in README.md and the Postman
+      # collection too, so an indirection here would buy nothing. Point the
+      # keep-alive elsewhere by editing this line.
+      TARGET_URL: https://advanced-search-api-chet.onrender.com/health
     steps:
       - name: GET /health
         run: |

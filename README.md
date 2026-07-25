@@ -322,8 +322,8 @@ auto-deploying from `main`); the steps below are what it took, and reproduce it 
 3. **Deploy** — Render builds the `Dockerfile` and routes traffic once `GET /health` returns `200`; the app
    validates its environment at boot and fails fast if anything is missing. The free instance type spins down
    after ~15 minutes idle, so [`.github/workflows/keep-alive.yml`](.github/workflows/keep-alive.yml) pings
-   `/health` on a 10-minute cron to keep it warm — point it elsewhere with a `KEEPALIVE_URL` repository
-   variable, or delete the workflow on a paid instance type that never idles. Three things shape that
+   `/health` on a 10-minute cron to keep it warm — point it elsewhere by editing its `TARGET_URL`, or delete
+   the workflow on a paid instance type that never idles. Three things shape that
    schedule: GitHub's scheduler is best-effort (hence 10 minutes against a 15-minute window, not 15 against
    15); the cron covers **waking hours only** (`0-2,10-23` UTC = 06:00–22:00 UTC-4) because Render's free tier
    allows 750 instance-hours a month per workspace and a 24/7 ping would spend ~730 of them here, against
