@@ -283,14 +283,15 @@ On top of that, four scanning layers run in CI on every push and PR (all free on
 | **SAST** | CodeQL (`security-extended`) | the project's own TypeScript |
 | **SCA** | Dependabot | vulnerable/outdated npm, GitHub Actions and Docker deps |
 | **Secrets** | gitleaks | the full git history (blocking) |
-| **DAST** | OWASP ZAP `api-scan` | the running API, driven by the `/docs-json` OpenAPI contract |
+| **DAST** | OWASP ZAP `api-scan` | the running API, driven by the `/docs-json` OpenAPI contract (blocking) |
 
 DAST uses **api-scan over the OpenAPI**, not a passive baseline: the baseline spider follows HTML links and so
 never discovers a JSON API's endpoints (it only reaches `/`), whereas api-scan imports the contract and fuzzes
 every endpoint's parameters — SQL injection, XSS, command injection, SSTI, path traversal, Log4Shell and more,
-all exercised against `q` & co. The latest run reached 128 URLs with **0 findings** (118 checks passing), and
-`npm audit` reports **0 vulnerabilities** (dev and prod) — two targeted `package.json` overrides close
-transitive DoS advisories in `js-yaml` and `brace-expansion`. The methodology and figures are in
+all exercised against `q` & co. The scan is **blocking** (no `-I`) — any WARN or FAIL fails the build, with
+design-decision false positives kept as IGNORE in `.zap/rules.tsv`. The latest run reached 128 URLs with
+**0 findings** (118 checks passing), and `npm audit` reports **0 vulnerabilities** (dev and prod) — two targeted
+`package.json` overrides close transitive DoS advisories in `js-yaml` and `brace-expansion`. The methodology and figures are in
 [`docs/HARDENING-2026-07-25.md`](docs/HARDENING-2026-07-25.md).
 
 ## Deploy (Elastic Cloud Serverless + Upstash + Render)
