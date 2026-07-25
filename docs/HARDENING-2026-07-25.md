@@ -122,8 +122,9 @@ empirically corroborates the design: params flow into typed ES query builders (n
 
 The 3 baseline WARNs (Cacheable content, Base64 disclosure, Sec-Fetch-Dest) were all informational; two
 design-decision false positives (CSP off for a JSON API, the ISO `timestamp` in error bodies) are silenced in
-`.zap/rules.tsv`. ZAP runs with `-I` (non-blocking) for now — drop `-I` to make findings fail the build once
-they're triaged; today there are none to triage.
+`.zap/rules.tsv` (set to IGNORE so they don't count). ZAP runs **blocking** (no `-I`): a WARN or FAIL fails the
+job. Measured 0 WARN / 0 FAIL over 128 URLs in CI, so a new finding is either a real regression or a false
+positive to add to `.zap/rules.tsv`.
 
 **Local vs CI networking (measured, they differ):** on Linux runners the ZAP container uses `--network host` +
 `http://localhost:3000`; on Docker Desktop (local) that doesn't reach the host, so `http://host.docker.internal:3000`
@@ -219,8 +220,8 @@ five paths, Swagger UI at <https://advanced-search-api-chet.onrender.com/docs>. 
 
 ## Open items (non-blocking)
 
-1. **Make DAST blocking** — remove `-I` from the ZAP step once findings are triaged. Today there are none
-   (0 FAIL / 0 WARN), so this can be flipped whenever desired.
+1. ~~Make DAST blocking~~ — **done**: `-I` removed, so the api-scan fails the job on any WARN/FAIL (0/0 over
+   128 URLs today); the artifact was renamed to `zap-api-scan-report`.
 2. ~~Merge the Dependabot PRs~~ — **done**: 8 safe PRs merged, ES 9 closed (server pin), TS 6/7 deferred, and
    the whole audit driven to 0 total (see §6).
 3. ~~README link to `/docs`~~ — **done**: the README now documents OpenAPI, the security pipeline, and links

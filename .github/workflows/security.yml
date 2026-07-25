@@ -97,20 +97,21 @@ jobs:
           # passive baseline's spider cannot discover JSON API endpoints, so it
           # only ever reached /. --network host: reach the API on the runner's
           # localhost:3000. -f openapi: the target is an OpenAPI definition.
-          # -c rules.tsv: design-decision false positives (.zap/rules.tsv).
-          # -I: report without failing the build for now (drop -I to make findings
-          # blocking once triaged).
+          # -c rules.tsv: design-decision false positives (.zap/rules.tsv) are set
+          # to IGNORE there so they don't count. Blocking (no -I): a WARN or FAIL
+          # fails the job. Measured 0 WARN / 0 FAIL over 128 URLs, so a new finding
+          # is either a real regression or a false positive to add to rules.tsv.
           docker run --rm --network host \
             -v "${{ github.workspace }}/zap-out:/zap/wrk:rw" \
             ghcr.io/zaproxy/zaproxy:stable \
             zap-api-scan.py -t http://localhost:3000/docs-json -f openapi \
-            -c rules.tsv -I -r report.html -w report.md
+            -c rules.tsv -r report.html -w report.md
 
       - name: Upload ZAP report
         if: always()
         uses: actions/upload-artifact@v7
         with:
-          name: zap-baseline-report
+          name: zap-api-scan-report
           path: zap-out/
           if-no-files-found: warn
 

@@ -63,8 +63,9 @@ history, blocking) and `dast` (OWASP ZAP against the API booted on the runner as
 follows HTML links, so on a JSON API it only ever reached `/` (3 URLs); `zap-api-scan.py` imports the OpenAPI at
 `/docs-json` and hits every endpoint with its params (SQLi/XSS/command-injection/SSTI/Log4Shell exercised
 against `q` & co.). `RATE_LIMIT_ENABLED=false` so ZAP doesn't scan its own 429s; design-decision false positives
-(CSP off, the ISO `timestamp`) are silenced in `.zap/rules.tsv`; runs with `-I` (non-blocking) until findings
-are triaged. On Linux runners the ZAP container uses `--network host` + `localhost`; on Docker Desktop (local)
+(CSP off, the ISO `timestamp`) are silenced in `.zap/rules.tsv` (set to IGNORE so they don't count); the scan is
+**blocking** (no `-I`) — a WARN or FAIL fails the job, measured 0/0 over 128 URLs. On Linux runners the ZAP
+container uses `--network host` + `localhost`; on Docker Desktop (local)
 it's `host.docker.internal` instead.
 
 **Dependency policy** (SCA-driven): `npm audit` is kept at **0** (dev + prod) via two targeted `overrides` in
