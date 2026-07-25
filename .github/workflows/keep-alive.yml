@@ -27,8 +27,13 @@ concurrency:
   group: keep-alive
   cancel-in-progress: true
 
-# No checkout, no repository access of any kind.
-permissions: {}
+# The job checks nothing out and writes nothing back, so read is all the token
+# ever needs. Spelled out as a scope rather than the empty `{}` mapping: both
+# are valid, but `{}` is the one construct in this file that no other workflow
+# here uses, and some editor validators read an empty flow mapping as a missing
+# value.
+permissions:
+  contents: read
 
 jobs:
   ping:
