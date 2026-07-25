@@ -41,7 +41,7 @@ jobs:
             --source=/repo --redact --no-banner --exit-code=1
 
   dast:
-    name: DAST (OWASP ZAP baseline)
+    name: DAST (OWASP ZAP api-scan)
     runs-on: ubuntu-latest
     env:
       NODE_ENV: test
