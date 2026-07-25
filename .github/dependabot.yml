@@ -16,6 +16,12 @@ updates:
       # still arrive as individual PRs so a breaking change is reviewed on its own.
       npm-minor-patch:
         update-types: [minor, patch]
+    ignore:
+      # The Elasticsearch client is pinned to 8.x to match the 8.17 server
+      # (audit F5 / CLAUDE.md). A 9.x client against an 8.x cluster is
+      # unsupported, so major bumps here are a deliberate no — don't reopen them.
+      - dependency-name: '@elastic/elasticsearch'
+        update-types: ['version-update:semver-major']
 
   - package-ecosystem: github-actions
     directory: /
