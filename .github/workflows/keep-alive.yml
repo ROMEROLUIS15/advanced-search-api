@@ -1,38 +1,34 @@
 name: Keep alive
-
-# Render's free instance type spins down after ~15 minutes without inbound
-# traffic, and the cold start that follows costs ~20-25s on the first request
-# (measured 22.5s). This pings the deployment often enough that it never idles
-# out, so the live URL in the README answers in ~0.5s at any time.
-#
-# It doubles as a poor-man's uptime monitor: the job fails loudly if the
-# deployment stops answering, which is a signal worth having.
 on:
   schedule:
-    # Every 10 minutes, not every 15: GitHub's scheduled runs are best-effort
-    # and are routinely delayed several minutes under load, so the interval
-    # needs headroom against the 15-minute spin-down window.
+    # Why this workflow exists: Render's free instance type spins down after
+    # ~15 minutes without inbound traffic, and the cold start that follows costs
+    # ~20-25s on the first request (measured 22.5s). Pinging the deployment often
+    # enough keeps the live URL in the README answering in ~0.5s at any time.
+    # It doubles as a poor-man's uptime monitor: the job fails loudly if the
+    # deployment stops answering, which is a signal worth having.
+    #
+    # Every 10 minutes, not every 15: GitHub's scheduled runs are best-effort and
+    # are routinely delayed several minutes under load, so the interval needs
+    # headroom against the 15-minute spin-down window.
     #
     # Waking hours only, and deliberately so: Render's free tier bills 750
     # instance-hours per month across the workspace, and a round-the-clock ping
     # would burn ~730 of them on this one service. Cron is UTC; these hours are
-    # 06:00-22:00 in UTC-4, ~525 h/month, leaving room for a second free
-    # service. Overnight the instance is allowed to sleep — the first visitor
-    # then pays the ~20 s cold start.
+    # 06:00-22:00 in UTC-4, ~525 h/month, leaving room for a second free service.
+    # Overnight the instance is allowed to sleep — the first visitor then pays
+    # the ~20 s cold start.
     - cron: '*/10 0-2,10-23 * * *'
   workflow_dispatch:
 
-# A queued ping is worthless once a newer one starts.
 concurrency:
+  # A queued ping is worthless once a newer one starts.
   group: keep-alive
   cancel-in-progress: true
 
-# The job checks nothing out and writes nothing back, so read is all the token
-# ever needs. Spelled out as a scope rather than the empty `{}` mapping: both
-# are valid, but `{}` is the one construct in this file that no other workflow
-# here uses, and some editor validators read an empty flow mapping as a missing
-# value.
 permissions:
+  # The job checks nothing out and writes nothing back, so read is all the token
+  # ever needs.
   contents: read
 
 jobs:
@@ -43,11 +39,9 @@ jobs:
     # hung request from burning runner minutes.
     timeout-minutes: 5
     env:
-      # Literal rather than a `vars.*` lookup: the repo has exactly one
-      # deployment and hardcodes this host in README.md and the Postman
-      # collection too, so an indirection here would buy nothing. Point the
-      # keep-alive elsewhere by editing this line.
-      TARGET_URL: https://advanced-search-api-chet.onrender.com/health
+      # Static literal, no expression syntax. Point the keep-alive at a different
+      # deployment by editing this line.
+      TARGET_URL: 'https://advanced-search-api-chet.onrender.com/health'
     steps:
       - name: GET /health
         run: |
