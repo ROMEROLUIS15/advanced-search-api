@@ -17,8 +17,10 @@ autocomplete, and "did you mean" suggestions — all read-only over a single see
 [`/autocomplete?q=cord`](https://advanced-search-api-chet.onrender.com/autocomplete?q=cord) or
 [`/suggest?q=driil`](https://advanced-search-api-chet.onrender.com/suggest?q=driil), or browse the whole
 contract interactively in the **[Swagger UI at `/docs`](https://advanced-search-api-chet.onrender.com/docs)**.
-It runs on Render's free instance type, which spins down when idle — the first request after a pause can
-take up to a minute.
+It runs on Render's free instance type, which spins down when idle; a scheduled keep-alive
+([`.github/workflows/keep-alive.yml`](.github/workflows/keep-alive.yml)) pings `/health` every 10 minutes
+during waking hours (06:00–22:00 UTC-4) so it stays warm and answers in ~0.5 s. Outside that window — or if
+the workflow is disabled — the first request after a pause pays a ~20 s cold start.
 
 ## Capabilities
 
@@ -318,8 +320,15 @@ auto-deploying from `main`); the steps below are what it took, and reproduce it 
    CORS_ORIGINS=<comma-separated allowed origins, or empty>
    ```
 3. **Deploy** — Render builds the `Dockerfile` and routes traffic once `GET /health` returns `200`; the app
-   validates its environment at boot and fails fast if anything is missing. Note the free instance type spins
-   down when idle, so the first request after a pause takes a while.
+   validates its environment at boot and fails fast if anything is missing. The free instance type spins down
+   after ~15 minutes idle, so [`.github/workflows/keep-alive.yml`](.github/workflows/keep-alive.yml) pings
+   `/health` on a 10-minute cron to keep it warm — point it elsewhere with a `KEEPALIVE_URL` repository
+   variable, or delete the workflow on a paid instance type that never idles. Three things shape that
+   schedule: GitHub's scheduler is best-effort (hence 10 minutes against a 15-minute window, not 15 against
+   15); the cron covers **waking hours only** (`0-2,10-23` UTC = 06:00–22:00 UTC-4) because Render's free tier
+   allows 750 instance-hours a month per workspace and a 24/7 ping would spend ~730 of them here, against
+   ~525 for the windowed one; and scheduled workflows are **auto-disabled after 60 days without repo
+   activity** — re-enable it from the Actions tab if the deployment starts going cold again.
 4. **Seed once** against the managed cluster via a one-off job/shell: `npm run seed:prod`
    (`node dist/seed/seed.command.js`). Idempotent by document id.
 5. **Verify**: `GET /health` is green and `GET /search?q=drill` returns hits online.

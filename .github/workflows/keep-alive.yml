@@ -1,0 +1,66 @@
+name: Keep alive
+
+# Render's free instance type spins down after ~15 minutes without inbound
+# traffic, and the cold start that follows costs ~20-25s on the first request
+# (measured 22.5s). This pings the deployment often enough that it never idles
+# out, so the live URL in the README answers in ~0.5s at any time.
+#
+# It doubles as a poor-man's uptime monitor: the job fails loudly if the
+# deployment stops answering, which is a signal worth having.
+on:
+  schedule:
+    # Every 10 minutes, not every 15: GitHub's scheduled runs are best-effort
+    # and are routinely delayed several minutes under load, so the interval
+    # needs headroom against the 15-minute spin-down window.
+    #
+    # Waking hours only, and deliberately so: Render's free tier bills 750
+    # instance-hours per month across the workspace, and a round-the-clock ping
+    # would burn ~730 of them on this one service. Cron is UTC; these hours are
+    # 06:00-22:00 in UTC-4, ~525 h/month, leaving room for a second free
+    # service. Overnight the instance is allowed to sleep — the first visitor
+    # then pays the ~20 s cold start.
+    - cron: '*/10 0-2,10-23 * * *'
+  workflow_dispatch:
+
+# A queued ping is worthless once a newer one starts.
+concurrency:
+  group: keep-alive
+  cancel-in-progress: true
+
+# No checkout, no repository access of any kind.
+permissions: {}
+
+jobs:
+  ping:
+    name: Ping the deployment
+    runs-on: ubuntu-latest
+    # Cold start + ES/Redis probes stay well inside this; the cap only stops a
+    # hung request from burning runner minutes.
+    timeout-minutes: 5
+    env:
+      # Overridable without touching the workflow: set a repository variable
+      # named KEEPALIVE_URL to point at a different deployment.
+      TARGET_URL: ${{ vars.KEEPALIVE_URL || 'https://advanced-search-api-chet.onrender.com/health' }}
+    steps:
+      - name: GET /health
+        run: |
+          # /health is the right target twice over: it is the same path Render's
+          # own health check polls, and it is the one endpoint the rate limiter
+          # exempts (the skipIf in presentation/rate-limit/rate-limit.options.ts,
+          # design D17), so the keep-alive never eats into a client's budget.
+          #
+          # --max-time 90: if the instance did manage to spin down, this request
+          # is the one paying the cold start. --retry 2 covers curl's transient
+          # errors (timeouts and 408/429/500/502/503/504) — enough to ride out an
+          # Elasticsearch reconnect, not enough to paint a real outage green,
+          # since the explicit check below still fails the job on any non-200.
+          http_code=$(curl -sS --max-time 90 --retry 2 --retry-delay 10 \
+            -o response.json -w '%{http_code}' "$TARGET_URL")
+
+          echo "HTTP $http_code from $TARGET_URL"
+          cat response.json
+
+          if [ "$http_code" != "200" ]; then
+            echo "::error::Keep-alive ping failed with HTTP $http_code"
+            exit 1
+          fi

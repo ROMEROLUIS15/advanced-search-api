@@ -68,6 +68,15 @@ against `q` & co.). `RATE_LIMIT_ENABLED=false` so ZAP doesn't scan its own 429s;
 container uses `--network host` + `localhost`; on Docker Desktop (local)
 it's `host.docker.internal` instead.
 
+A fifth workflow, `keep-alive.yml`, is **not** CI: it pings the deployed `/health` every 10 minutes so
+Render's free instance never idles out into a ~20 s cold start. `/health` on purpose — it is the one endpoint
+the rate limiter skips, so the ping costs no client budget. The cron is UTC and covers waking hours only
+(`*/10 0-2,10-23` = 06:00–22:00 UTC-4): free-tier Render bills 750 instance-hours a month per workspace, and
+a 24/7 ping would consume ~730 of them, so widening the window is a quota decision, not a cosmetic one. It
+needs no repo permissions (`permissions: {}`, no checkout) and fails the run on a non-200, which makes it a
+de-facto uptime alarm. GitHub auto-disables scheduled workflows after 60 days of repo inactivity, so a cold
+deployment is a symptom to check there first.
+
 **Dependency policy** (SCA-driven): `npm audit` is kept at **0** (dev + prod) via two targeted `overrides` in
 `package.json` — `js-yaml` → `5.2.2` (its DoS advisory reached prod through `@nestjs/swagger`) and
 `brace-expansion` → `5.0.8` (a DoS advisory transitive through the jest/eslint tooling). Two majors are pinned
