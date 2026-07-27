@@ -11,16 +11,19 @@ table documented in `README.md`).
 
 The system is **implemented and deployed** — all 82 tasks done (53 in the search-system change, 29 in the
 rate-limiting one), live at <https://advanced-search-api-chet.onrender.com> (Render, Docker runtime built from
-`render.yaml`). Code comments cite design decisions by ID (`design D4`); the rationale lives in **two** archived
-changes, not one: `openspec/changes/archive/2026-07-22-advanced-search-system/design.md` holds **D1–D13** (the
-core system) and `openspec/changes/archive/2026-07-23-add-request-rate-limiting/design.md` holds **D14–D19**
-(rate limiting). The one exception is **D20** (ES `requestTimeout`/`maxRetries`), which has no `design.md`
-entry — its rationale is in README "Trade-offs" only. The first change's delta specs were synced to
-`openspec/specs/<capability>/spec.md` (six capabilities) and the second's to
-`openspec/specs/request-rate-limiting/spec.md`; those scenarios are the acceptance criteria. Post-ship reports
-(the 2026-07-23 audit, the load-test run, the 2026-07-25 hardening report, the 2026-07-26 QA review and the
-2026-07-27 observability report, the 2026-07-27 auth rollout) live under `docs/`. The QA review is the one to read first after a change:
-it records what is still open and why.
+`render.yaml`). **The API is private**: every endpoint except `/health` requires an `X-API-Key` header.
+
+Code comments cite design decisions by ID (`design D4`); the rationale is spread across **four** archived
+changes under `openspec/changes/archive/`, not one — `2026-07-22-advanced-search-system` holds **D1–D13** (the
+core system), `2026-07-23-add-request-rate-limiting` **D14–D19**, `2026-07-27-add-service-observability`
+**D21–D29**, and `2026-07-27-add-api-client-authentication` **D30–D34**. The one exception is **D20** (ES
+`requestTimeout`/`maxRetries`), which has no `design.md` entry — its rationale is in README "Trade-offs" only.
+Each change's delta specs were synced into `openspec/specs/` on archiving, **nine capabilities** in total, and
+those scenarios are the acceptance criteria.
+
+Post-ship reports live under `docs/`: the 2026-07-23 audit, the load-test run, the 2026-07-25 hardening report,
+the 2026-07-26 QA review, the 2026-07-27 observability report and the 2026-07-27 auth rollout. The QA review is
+the one to read first after a change — it records what is still open and why.
 
 ## Commands
 
@@ -313,7 +316,7 @@ creates a change, `/opsx:apply <name>` (or the `openspec-apply-change` skill) wo
 and `/opsx:archive <name>` retires it — syncing delta specs into `openspec/specs/` on the way out. Precedence
 when artifacts disagree: **spec scenarios → design.md → tasks.md → proposal.md**.
 
-**Not all work goes through OpenSpec.** The two archives cover the feature work; post-ship maintenance — the
+**Not all work goes through OpenSpec.** The four archives cover the feature work; post-ship maintenance — the
 security workflows, the dependency policy, the 4xx logging / process safety net / OpenAPI hardening, the
 keep-alive cron — landed as direct conventional commits with a write-up under `docs/`, no change folder. A new
 capability gets a change; CI, dependency, ops and docs work does not.
