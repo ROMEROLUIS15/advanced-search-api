@@ -19,6 +19,10 @@ function config(): AppConfiguration {
       ELASTICSEARCH_NODE: process.env.ELASTICSEARCH_NODE ?? 'http://localhost:9200',
       ELASTICSEARCH_INDEX: TEST_INDEX,
       REDIS_URL: 'redis://localhost:6379',
+      // This suite talks to the ES adapter directly, with no HTTP edge to
+      // authenticate — and the env it builds is its own, so the ambient
+      // API_AUTH_ENABLED never reaches it (design D31).
+      API_AUTH_ENABLED: 'false',
     }),
   );
 }

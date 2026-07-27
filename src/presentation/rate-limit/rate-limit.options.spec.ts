@@ -180,3 +180,35 @@ describe('resolveTracker (design D34)', () => {
     expect(tracker).toMatch(/^key:/);
   });
 });
+
+describe('buildThrottlerOptions — the wiring itself', () => {
+  const identify = createKeyIdentifier(['key-one']);
+
+  function contextFor(path: string): any {
+    return { switchToHttp: () => ({ getRequest: () => ({ path, url: path }) }) };
+  }
+
+  it('resolves the per-endpoint budget through the options, not just the helper', () => {
+    // Arrange
+    const options = buildThrottlerOptions(config, identify) as any;
+
+    // Act: this is the callback the throttler actually invokes.
+    const limit = options.throttlers[0].limit(contextFor('/search'));
+
+    // Assert
+    expect(limit).toBe(config.search);
+  });
+
+  it('tracks through the options, so the guard never needs its own override', async () => {
+    // Arrange
+    const options = buildThrottlerOptions(config, identify) as any;
+
+    // Act
+    const byKey = await options.getTracker({ ip: '1.2.3.4', headers: { 'x-api-key': 'key-one' } });
+    const byAddress = await options.getTracker({ ip: '1.2.3.4', headers: {} });
+
+    // Assert
+    expect(byKey).toMatch(/^key:/);
+    expect(byAddress).toBe('1.2.3.4');
+  });
+});
