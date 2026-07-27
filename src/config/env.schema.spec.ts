@@ -152,3 +152,34 @@ describe('validateEnv — Elasticsearch resilience (D20)', () => {
     );
   });
 });
+
+describe('validateEnv — observability (D21–D25)', () => {
+  it('defaults to inert observability: info logs, JSON output, metrics on, no exporter', () => {
+    // Arrange & Act
+    const env = validateEnv({ ...baseEnv });
+
+    // Assert
+    expect(env.LOG_LEVEL).toBe('info');
+    expect(env.LOG_PRETTY).toBe(false);
+    expect(env.METRICS_ENABLED).toBe(true);
+    expect(env.METRICS_TOKEN).toBeUndefined();
+    expect(env.OTEL_EXPORTER_OTLP_ENDPOINT).toBeUndefined();
+    expect(env.OTEL_TRACES_SAMPLER_RATIO).toBe(0.1);
+  });
+
+  it.each([
+    ['OTEL_TRACES_SAMPLER_RATIO', '-0.1'],
+    ['OTEL_TRACES_SAMPLER_RATIO', '1.5'],
+    ['OTEL_TRACES_SAMPLER_RATIO', 'always'],
+    ['OTEL_EXPORTER_OTLP_ENDPOINT', 'not-a-url'],
+    ['LOG_LEVEL', 'verbose'],
+    ['LOG_PRETTY', 'yes'],
+    ['METRICS_ENABLED', '1'],
+    ['METRICS_TOKEN', ''],
+  ])('fails fast at boot on an invalid %s of "%s"', (key, value) => {
+    // Arrange & Act & Assert
+    expect(() => validateEnv({ ...baseEnv, [key]: value })).toThrow(
+      /Invalid environment configuration/,
+    );
+  });
+});

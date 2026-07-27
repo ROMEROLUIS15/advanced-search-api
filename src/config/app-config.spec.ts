@@ -77,3 +77,62 @@ describe('buildConfig — Elasticsearch resilience', () => {
     expect(config.elasticsearch.maxRetries).toBe(1);
   });
 });
+
+describe('buildConfig — observability', () => {
+  const base = {
+    ELASTICSEARCH_NODE: 'http://localhost:9200',
+    REDIS_URL: 'redis://localhost:6379',
+  };
+
+  it('maps the observability env into its own namespace', () => {
+    // Arrange
+    const env = validateEnv({
+      ...base,
+      LOG_LEVEL: 'debug',
+      LOG_PRETTY: 'true',
+      METRICS_TOKEN: 'secret',
+      OTEL_EXPORTER_OTLP_ENDPOINT: 'https://otlp.example.com',
+      OTEL_TRACES_SAMPLER_RATIO: '0.25',
+    });
+
+    // Act
+    const config = buildConfig(env);
+
+    // Assert
+    expect(config.observability).toMatchObject({
+      logLevel: 'debug',
+      logPretty: true,
+      metricsEnabled: true,
+      metricsToken: 'secret',
+      otlpEndpoint: 'https://otlp.example.com',
+      serviceName: 'advanced-search-api',
+      tracesSamplerRatio: 0.25,
+    });
+  });
+
+  it('parses OTLP headers, keeping base64 padding and skipping malformed pairs', () => {
+    // Arrange: a Grafana Cloud credential is base64 and contains "=" itself.
+    const env = validateEnv({
+      ...base,
+      OTEL_EXPORTER_OTLP_HEADERS: 'Authorization=Basic dXNlcjpwYXNz==, broken ,X-Scope= tenant ',
+    });
+
+    // Act
+    const config = buildConfig(env);
+
+    // Assert
+    expect(config.observability.otlpHeaders).toEqual({
+      Authorization: 'Basic dXNlcjpwYXNz==',
+      'X-Scope': 'tenant',
+    });
+  });
+
+  it('yields no headers and no endpoint when nothing is configured', () => {
+    // Arrange & Act
+    const config = buildConfig(validateEnv({ ...base }));
+
+    // Assert
+    expect(config.observability.otlpHeaders).toEqual({});
+    expect(config.observability.otlpEndpoint).toBeUndefined();
+  });
+});

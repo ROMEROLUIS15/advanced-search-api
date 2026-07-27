@@ -59,6 +59,29 @@ export const envSchema = z
     // Number of proxy hops to trust, never `true`: believing a client-supplied
     // X-Forwarded-For would let anyone forge an identity past the limiter (D16).
     TRUST_PROXY_HOPS: z.coerce.number().int().nonnegative().default(0),
+
+    // Observability (design D21–D25). Every switch here is optional and inert by
+    // default, so a deployment without any of it behaves exactly as before.
+    LOG_LEVEL: z.enum(['fatal', 'error', 'warn', 'info', 'debug', 'trace']).default('info'),
+    // Human-readable output for local work; JSON everywhere a machine reads it.
+    LOG_PRETTY: z
+      .enum(['true', 'false'])
+      .default('false')
+      .transform((value) => value === 'true'),
+    METRICS_ENABLED: z
+      .enum(['true', 'false'])
+      .default('true')
+      .transform((value) => value === 'true'),
+    // Unset leaves /metrics open, which is right for a demo and wrong for a real
+    // production service — so the choice is a deployment decision (design D23).
+    METRICS_TOKEN: z.string().min(1).optional(),
+    // Unset means no OTel SDK is ever started: no exporter, no spans, no overhead
+    // (design D25). This is what keeps CI and the e2e suites collector-free.
+    OTEL_EXPORTER_OTLP_ENDPOINT: z.string().url().optional(),
+    // Comma-separated `key=value` pairs, the OTLP convention for auth headers.
+    OTEL_EXPORTER_OTLP_HEADERS: z.string().optional(),
+    OTEL_SERVICE_NAME: z.string().min(1).default('advanced-search-api'),
+    OTEL_TRACES_SAMPLER_RATIO: z.coerce.number().min(0).max(1).default(0.1),
   })
   .refine((env) => !env.ELASTICSEARCH_USERNAME || Boolean(env.ELASTICSEARCH_PASSWORD), {
     message: 'ELASTICSEARCH_PASSWORD is required when ELASTICSEARCH_USERNAME is set',

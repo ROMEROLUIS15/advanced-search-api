@@ -55,6 +55,20 @@ export interface RateLimitConfig {
   trustProxyHops: number;
 }
 
+/** Logging, metrics and tracing (design D21–D25). Everything here is inert unless switched on. */
+export interface ObservabilityConfig {
+  logLevel: 'fatal' | 'error' | 'warn' | 'info' | 'debug' | 'trace';
+  logPretty: boolean;
+  metricsEnabled: boolean;
+  /** When set, `/metrics` requires this bearer token. */
+  metricsToken?: string;
+  /** Absent means tracing is never started — no SDK, no exporter (design D25). */
+  otlpEndpoint?: string;
+  otlpHeaders: Record<string, string>;
+  serviceName: string;
+  tracesSamplerRatio: number;
+}
+
 /** Namespaced configuration consumed across the app; adapters read this, never `process.env`. */
 export interface AppConfiguration {
   app: AppRuntimeConfig;
@@ -64,6 +78,7 @@ export interface AppConfiguration {
   search: SearchConfig;
   relevance: RelevanceConfig;
   rateLimit: RateLimitConfig;
+  observability: ObservabilityConfig;
 }
 
 /** Maps flat validated env into the namespaced configuration object. */
@@ -109,7 +124,41 @@ export function buildConfig(env: Env): AppConfiguration {
       default: env.RATE_LIMIT_DEFAULT,
       trustProxyHops: env.TRUST_PROXY_HOPS,
     },
+    observability: {
+      logLevel: env.LOG_LEVEL,
+      logPretty: env.LOG_PRETTY,
+      metricsEnabled: env.METRICS_ENABLED,
+      metricsToken: env.METRICS_TOKEN,
+      otlpEndpoint: env.OTEL_EXPORTER_OTLP_ENDPOINT,
+      otlpHeaders: parseOtlpHeaders(env.OTEL_EXPORTER_OTLP_HEADERS),
+      serviceName: env.OTEL_SERVICE_NAME,
+      tracesSamplerRatio: env.OTEL_TRACES_SAMPLER_RATIO,
+    },
   };
+}
+
+/**
+ * Parses the OTLP `key=value,key=value` header convention. A pair without `=` is
+ * skipped rather than producing an empty header name, and only the first `=` is
+ * treated as the separator so a base64 credential keeps its padding.
+ */
+function parseOtlpHeaders(raw: string | undefined): Record<string, string> {
+  if (!raw) {
+    return {};
+  }
+  const headers: Record<string, string> = {};
+  for (const pair of raw.split(',')) {
+    const separator = pair.indexOf('=');
+    if (separator <= 0) {
+      continue;
+    }
+    const key = pair.slice(0, separator).trim();
+    const value = pair.slice(separator + 1).trim();
+    if (key.length > 0 && value.length > 0) {
+      headers[key] = value;
+    }
+  }
+  return headers;
 }
 
 function parseOrigins(raw: string | undefined): string[] {
