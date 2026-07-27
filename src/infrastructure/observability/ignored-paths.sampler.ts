@@ -1,12 +1,6 @@
 import { type Attributes, type Context, type Link, SpanKind } from '@opentelemetry/api';
 import { type Sampler, SamplingDecision, type SamplingResult } from '@opentelemetry/sdk-trace-base';
-
-/**
- * Operator plumbing, not client traffic — the same list `/health` and `/metrics`
- * already sit on elsewhere (exempt from the rate limiter, absent from the
- * OpenAPI document).
- */
-const IGNORED_PREFIXES = ['/health', '/metrics'];
+import { OPERATOR_PATHS, matchesPath } from '@shared/operator-paths';
 
 /** Where the different HTTP semantic conventions put the request path. */
 const PATH_ATTRIBUTES = ['url.path', 'http.route', 'http.target'];
@@ -49,18 +43,10 @@ export class IgnoredPathsSampler implements Sampler {
   }
 }
 
-/**
- * Same matching rule as the rate limiter's `isExempt`: exact, or a sub-path.
- * A plain `startsWith` would silently swallow a future `/healthy-products`.
- */
 function isIgnored(attributes: Attributes): boolean {
   for (const key of PATH_ATTRIBUTES) {
     const value = attributes[key];
-    if (typeof value !== 'string') {
-      continue;
-    }
-    const path = value.split('?')[0];
-    if (IGNORED_PREFIXES.some((prefix) => path === prefix || path.startsWith(`${prefix}/`))) {
+    if (typeof value === 'string' && matchesPath(value, OPERATOR_PATHS)) {
       return true;
     }
   }

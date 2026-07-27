@@ -72,8 +72,9 @@ export const envSchema = z
       .enum(['true', 'false'])
       .default('true')
       .transform((value) => value === 'true'),
-    // Unset leaves /metrics open, which is right for a demo and wrong for a real
-    // production service — so the choice is a deployment decision (design D23).
+    // Required in any environment reachable from outside: /metrics discloses
+    // route names, request volumes, error rates and cache behaviour. Optional
+    // here only so a local run needs no secret — the deployment sets it (D23).
     METRICS_TOKEN: z.string().min(1).optional(),
     // Unset means no OTel SDK is ever started: no exporter, no spans, no overhead
     // (design D25). This is what keeps CI and the e2e suites collector-free.

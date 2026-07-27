@@ -1,13 +1,18 @@
 import type { ExecutionContext } from '@nestjs/common';
 import type { ThrottlerModuleOptions } from '@nestjs/throttler';
 import type { RateLimitConfig } from '@config/app-config';
+import { matchesPath } from '@shared/operator-paths';
 
 interface RoutedRequest {
   path?: string;
   url?: string;
 }
 
-/** Readiness probing is never throttled (design D17). */
+/**
+ * Readiness probing is never throttled (design D17). Deliberately **not** every
+ * operator path: `/metrics` stays inside the limiter, because a scraper fits in
+ * the default budget and exempting it would leave an unlimited endpoint open.
+ */
 const EXEMPT_PATHS = ['/health'];
 
 /**
@@ -49,7 +54,7 @@ export function resolveLimit(context: ExecutionContext, config: RateLimitConfig)
 }
 
 export function isExempt(path: string): boolean {
-  return EXEMPT_PATHS.some((exempt) => path === exempt || path.startsWith(`${exempt}/`));
+  return matchesPath(path, EXEMPT_PATHS);
 }
 
 /** The routed path without its query string. */

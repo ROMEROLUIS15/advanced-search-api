@@ -48,7 +48,27 @@ services:
       # rediss://default:<password>@<host>.upstash.io:6379
       - key: REDIS_URL
         sync: false
-      # Comma-separated browser origins. Leave empty for a curl/Postman-only
-      # demo: with no list, production falls back to same-origin.
+      # Comma-separated browser origins that may call this API. Empty means
+      # same-origin only in production, which is the right setting while every
+      # caller is server-side or a tool; it must list the real origins the day a
+      # browser client ships, and must never become "*".
       - key: CORS_ORIGINS
         sync: false
+      # Bearer token for /metrics. Set on the service, never in this file: the
+      # endpoint discloses route names, volumes, error rates and cache behaviour.
+      - key: METRICS_TOKEN
+        sync: false
+      # ── Observability (design D21–D25) ─────────────────────────
+      # OTLP endpoint and credentials for trace export. Unset means no tracing
+      # SDK is started at all, so a fresh environment boots without them.
+      - key: OTEL_EXPORTER_OTLP_ENDPOINT
+        sync: false
+      - key: OTEL_EXPORTER_OTLP_HEADERS
+        sync: false
+      - key: OTEL_SERVICE_NAME
+        value: advanced-search-api
+      # 1.0 while traffic is low: head sampling at 10% would mean the slow
+      # request someone reports was probably never recorded. Revisit around
+      # ~7.5 req/s sustained — see docs/OBSERVABILITY-2026-07-27.md.
+      - key: OTEL_TRACES_SAMPLER_RATIO
+        value: 1

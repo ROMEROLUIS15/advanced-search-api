@@ -75,9 +75,15 @@ It is excluded from the published OpenAPI document with `@ApiExcludeEndpoint`: t
 a client of the search API needs, and an operations endpoint is not that. This also keeps the blocking ZAP
 api-scan pointed at the client surface rather than fuzzing a text-format ops endpoint.
 
-Because the endpoint is public by default, `METRICS_TOKEN` may be set to require a bearer token; unset, the
-endpoint is open, which is the correct default for a portfolio deployment and the wrong one for a real
-production service. The variable exists so that choice is a deployment decision, not a code change.
+Because the endpoint is public by default, `METRICS_TOKEN` may be set to require a bearer token. The variable
+exists so that choice is a deployment decision, not a code change.
+
+> **Amended 2026-07-27, after archiving.** This decision was written assuming the deployment was a showcase,
+> and said leaving the endpoint open was the correct default for it. That premise was wrong: the service is
+> going into real use. `METRICS_TOKEN` is now **set in production**, and the guidance is that any deployment
+> reachable from outside must set it — the endpoint's disclosure (route names, request volumes, error rates,
+> cache behaviour) is as useful to someone probing the service as to whoever operates it. The mechanism is
+> unchanged; only the default posture is. See `docs/OBSERVABILITY-2026-07-27.md`.
 
 ### D24 — Domain counters go through a `MetricsPort`; HTTP metrics come from an interceptor
 
@@ -171,6 +177,8 @@ functions): high enough to block a regression, not so high that an honest refact
 - **`/metrics` is public by default** → it discloses route names and counts, nothing about payloads or
   clients; `METRICS_TOKEN` closes it where that matters. Excluding it from the OpenAPI keeps it out of the
   documented attack surface without pretending it is hidden.
+  *(Superseded by the amendment under D23: the token is set in production, and "where that matters" turned out
+  to be here.)*
 - **Bootstrap ordering is fragile**: an import added above the tracing bootstrap in `main.ts` silently disables
   instrumentation → the bootstrap file carries a comment saying so, and the ordering is asserted in a unit test.
 - **The inverted price range becomes a 400** → a client relying on the previous empty-result behaviour breaks.
