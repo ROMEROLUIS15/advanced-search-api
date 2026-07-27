@@ -18,8 +18,9 @@ core system) and `openspec/changes/archive/2026-07-23-add-request-rate-limiting/
 entry — its rationale is in README "Trade-offs" only. The first change's delta specs were synced to
 `openspec/specs/<capability>/spec.md` (six capabilities) and the second's to
 `openspec/specs/request-rate-limiting/spec.md`; those scenarios are the acceptance criteria. Post-ship reports
-(the 2026-07-23 audit, the load-test run, the 2026-07-25 hardening report, the 2026-07-26 QA review) live under
-`docs/`. The QA review is the one to read first after a change: it records what is still open and why.
+(the 2026-07-23 audit, the load-test run, the 2026-07-25 hardening report, the 2026-07-26 QA review and the
+2026-07-27 observability report) live under `docs/`. The QA review is the one to read first after a change:
+it records what is still open and why.
 
 ## Commands
 
@@ -49,14 +50,14 @@ Single test: `npx jest src/path/to/file.spec.ts`, or by name `npm test -- -t "ex
 Single e2e: `npx jest --config ./test/jest-e2e.json test/search.e2e-spec.ts`.
 Single integration: `npx jest --config ./test/jest-integration.json test/elasticsearch.integration-spec.ts`.
 
-`npm run lint:ci && npm test && npm run build` is the `quality` CI job reproduced locally — run it before
-calling work done. Green baseline as of 2026-07-26: **48 suites / 188 tests** in ~12 s locally, and `main` at
-`093a520` green across all three workflows — CI (both jobs, real ES + Redis), CodeQL, and Security including
-the blocking DAST. That commit is the known-good anchor to bisect against.
+`npm run lint:ci && npm run test:cov && npm run build` is the `quality` CI job reproduced locally — run it
+before calling work done. Green baseline as of 2026-07-27: **60 suites / 304 tests**, plus 8 e2e suites
+(34 tests) and 5 integration tests against the real stack.
 
-`test:cov` is **not** a gate: `collectCoverageFrom` drops `main.ts`, `**/*.module.ts`, `**/dto/**`,
-`*.client.factory.ts`, `*-client.lifecycle.ts` and `seed/**`, so the headline number covers business logic
-only; there is no `coverageThreshold` and CI never runs it, which means a coverage drop fails nothing.
+`test:cov` **is** the gate: `coverageThreshold` sits just under the measured baseline (98 % statements, 92 %
+branches, 97 % functions) and CI's `quality` job runs `test:cov` instead of `npm test` — same suite, one more
+verdict. Note what the number covers: `collectCoverageFrom` drops `main.ts`, `**/*.module.ts`, `**/dto/**`,
+`*.client.factory.ts`, `*-client.lifecycle.ts` and `seed/**`, so it is business logic only.
 
 `npm run format` is redundant — Prettier runs as an ESLint rule (`eslint-plugin-prettier/recommended`) over the
 same file set, so `npm run lint` already formats. Lint is **type-aware** (`recommendedTypeChecked` +
@@ -137,7 +138,8 @@ metadata, so it registers a controller and nothing else. `app.module.ts` only as
 
 - **DI is exclusively via `Symbol` tokens.** Every port is `interface` + token
   (`PRODUCT_SEARCH_PORT`, `AUTOCOMPLETE_PORT`, `QUERY_SUGGESTION_PORT`, `PRODUCT_INDEX_PORT`, `CACHE_PORT`,
-  `HEALTH_PROBE`, plus `APP_CONFIG`, `ELASTICSEARCH_CLIENT`, `REDIS_CLIENT`). Use-cases `@Inject(TOKEN)` and
+  `HEALTH_PROBE`, `RATE_LIMIT_STORE`, `METRICS_PORT`, `METRICS_EXPORTER`, plus `APP_CONFIG`,
+  `ELASTICSEARCH_CLIENT`, `REDIS_CLIENT`). Use-cases `@Inject(TOKEN)` and
   never import an adapter class. Adapter bindings (`{ provide: TOKEN, useClass: Adapter }`) live in
   `infrastructure/*/{elasticsearch,redis}.module.ts` — with exactly **two** deliberate exceptions outside
   `infrastructure/`, both `useFactory` rather than `useClass`: `APP_CONFIG` in `config/config.module.ts`
@@ -197,7 +199,10 @@ metadata, so it registers a controller and nothing else. `app.module.ts` only as
 - **Cache is strictly cache-aside and fail-open (D8).** All of it lives in `application/caching/cache-aside.ts`:
   a cache error is logged and treated as a miss; only `load()` errors propagate. Reuse that helper rather than
   touching `CachePort` from a use-case. Keys are namespaced+versioned (`search:v1:<sha1>`) over *normalized*
-  criteria — bump the namespace on a reindex/alias flip.
+  criteria — bump the namespace on a reindex/alias flip. Three things happen there that surprise people
+  (D26/D27): concurrent misses for one key **share a single `load()`**, the stored TTL carries **±10 % jitter**,
+  and a hit is **parsed against a zod schema** (`cached-payload.schema.ts`) — so a cache hit is a validated
+  *copy*, not the object that was stored, and a payload of the wrong shape is treated as a miss.
 - **Index behind an alias (D1)**: physical `products_v1` read/written through the `products` alias;
   `ensureIndex()` is idempotent. The mapping intentionally sets **no** `number_of_shards`/`number_of_replicas`
   (Elastic Cloud Serverless rejects them).
@@ -252,6 +257,23 @@ metadata, so it registers a controller and nothing else. `app.module.ts` only as
   Nothing may assume `localhost`; the ES client factory picks API-key vs. basic auth and TLS from env, so the
   same code path runs locally and against Elastic Cloud + Upstash.
 - **Health**: Elasticsearch is critical (down ⇒ 503), Redis is non-critical (reported, still 200).
+- **Observability is three independent pieces (D21–D25), and two of them are load-bearing at import time.**
+  Logs are pino installed via `app.useLogger` in `main.ts`, so the ~30 `new Logger(Context)` call sites emit
+  JSON untouched; the correlation id lives in `AsyncLocalStorage` (`shared/correlation.store.ts`), opened by a
+  middleware in `app.setup.ts`, which is why a line logged inside a use-case carries it without any plumbing.
+  **`main.ts` imports `tracing.bootstrap` second, right after `reflect-metadata`, and that order is the
+  feature**: OpenTelemetry patches modules as they are required, so an import added above it silently leaves
+  http/Express/ioredis untraced — a spec asserts the order against `main.ts`'s source. With
+  `OTEL_EXPORTER_OTLP_ENDPOINT` unset the SDK is never constructed, which is what keeps CI and the e2e suites
+  collector-free. Elasticsearch needs no instrumentation package: `@elastic/transport` emits its own spans.
+- **Metrics cross the boundary through a port, never `prom-client` directly.** `METRICS_PORT` (recording, used
+  by `cacheAside` and the fail-over store) and `METRICS_EXPORTER` (rendering, used only by `MetricsController`)
+  are two tokens bound to **one** adapter instance in `infrastructure/observability/observability.module.ts`,
+  which is `@Global` — the third and last global module after config. `METRICS_ENABLED=false` swaps in a no-op
+  adapter so no call site branches. `GET /metrics` is **not** exempt from the rate limiter (unlike `/health`)
+  and is excluded from the OpenAPI document with `@ApiExcludeEndpoint`, so ZAP never fuzzes it.
+- **`config/load-config.ts` is the only module that reads `process.env`** — both the `APP_CONFIG` provider and
+  the tracing bootstrap call it, because the bootstrap runs before the DI container exists (D12 stays true).
 
 ## Conventions
 

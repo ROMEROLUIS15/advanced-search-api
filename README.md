@@ -53,9 +53,10 @@ domain  →  application (use-cases + ports)  →  infrastructure (Elasticsearch
   serialized directly), and a global exception filter.
 
 A single `GET /search` request returns hits **+ facets + suggestions** in **one Elasticsearch round-trip**.
-The design rationale is cited by decision ID (D1–D20) across two archived changes:
-[D1–D13 — core system](openspec/changes/archive/2026-07-22-advanced-search-system/design.md) and
-[D14–D19 — rate limiting](openspec/changes/archive/2026-07-23-add-request-rate-limiting/design.md); D20
+The design rationale is cited by decision ID (D1–D29) across three changes:
+[D1–D13 — core system](openspec/changes/archive/2026-07-22-advanced-search-system/design.md),
+[D14–D19 — rate limiting](openspec/changes/archive/2026-07-23-add-request-rate-limiting/design.md) and
+[D21–D29 — observability](openspec/changes/archive/2026-07-27-add-service-observability/design.md); D20
 (Elasticsearch timeout/retries) is documented under [Trade-offs](#trade-offs-and-future-work).
 
 ### How ranking works
@@ -242,6 +243,13 @@ Environment is validated at boot (Zod) — the app fails fast on missing/invalid
 | `RATE_LIMIT_AUTOCOMPLETE` | `300` | higher — fires on nearly every keystroke |
 | `RATE_LIMIT_DEFAULT` | `120` | any other limited route (`GET /`) |
 | `TRUST_PROXY_HOPS` | `0` | proxy hops to trust for the client IP; `3` behind Render |
+| `LOG_LEVEL` / `LOG_PRETTY` | `info` / `false` | JSON logs; pretty is for a terminal and is refused in production |
+| `METRICS_ENABLED` | `true` | `false` binds a no-op recorder and `/metrics` returns empty |
+| `METRICS_TOKEN` | — | when set, `/metrics` requires `Authorization: Bearer <token>` |
+| `OTEL_EXPORTER_OTLP_ENDPOINT` | — | **unset ⇒ no tracing SDK is started at all** |
+| `OTEL_EXPORTER_OTLP_HEADERS` | — | `key=value,key=value`; only the first `=` separates |
+| `OTEL_SERVICE_NAME` | `advanced-search-api` | service name on exported spans |
+| `OTEL_TRACES_SAMPLER_RATIO` | `0.1` | parent-based: an inbound sampled trace stays sampled |
 
 ## Testing
 
@@ -280,7 +288,8 @@ Last run (2026-07-23): **366,306 requests, zero failures**, uncached search at 2
 
 A later QA review — architecture, contract, security and testing, verified by ~60 black-box requests against
 the deployment — is in [`docs/QA-REVIEW-2026-07-26.md`](docs/QA-REVIEW-2026-07-26.md). It found and fixed a
-reproducible 502 on an over-long query, and lists what remains open.
+reproducible 502 on an over-long query, and lists what remains open. The observability work that followed is
+in [`docs/OBSERVABILITY-2026-07-27.md`](docs/OBSERVABILITY-2026-07-27.md).
 
 ## Security
 
@@ -308,6 +317,42 @@ design-decision false positives kept as IGNORE in `.zap/rules.tsv`. The latest r
 **0 findings** (118 checks passing), and `npm audit` reports **0 vulnerabilities** (dev and prod) — two targeted
 `package.json` overrides close transitive DoS advisories in `js-yaml` and `brace-expansion`. The methodology and figures are in
 [`docs/HARDENING-2026-07-25.md`](docs/HARDENING-2026-07-25.md).
+
+## Observability
+
+Three layers, each usable on its own and each off by default where it needs somewhere to send data.
+
+**Structured logs.** Every line is JSON — timestamp, level, service, context, message — emitted by pino
+installed as the Nest logger, so the existing `new Logger(Context)` call sites were not touched. Set
+`LOG_PRETTY=true` outside production for a readable terminal.
+
+**Correlation id.** Each request gets one: an inbound `X-Request-Id` is honoured when it is safe (strict
+pattern — the value is echoed into a response header and into every log line), otherwise one is generated. It
+rides in `AsyncLocalStorage`, so a line logged deep inside a use-case carries it without anyone passing it
+down, and the completion line and the error line of the same request finally share an identifier.
+
+```bash
+curl -sS -D - -o /dev/null localhost:3000/search?q=drill | grep -i x-request-id
+```
+
+**Metrics.** `GET /metrics` in Prometheus format: request count and duration by route and status, Node process
+metrics, plus two the service could not answer before — cache hits versus misses, and how often the rate-limit
+counter fell over from Redis to memory. It is excluded from the OpenAPI document (an operations endpoint is not
+part of the client contract), it is **not** exempt from the rate limiter, and `METRICS_TOKEN` closes it when
+set.
+
+**Tracing.** OpenTelemetry over OTLP, covering the HTTP request, the Redis calls and — through the
+Elasticsearch client's own instrumentation — the search itself. Entirely optional:
+
+```bash
+OTEL_EXPORTER_OTLP_ENDPOINT=https://otlp-gateway-<region>.grafana.net/otlp \
+OTEL_EXPORTER_OTLP_HEADERS='Authorization=Basic <base64 instanceID:token>' \
+npm start
+```
+
+With the endpoint unset **no SDK is started at all** — no exporter, no spans, no overhead — which is why the
+test suites and CI need no collector. The bootstrap runs from the first import in `main.ts`: instrumentation
+patches modules as they load, so an import placed above it would leave them untraced.
 
 ## Deploy (Elastic Cloud Serverless + Upstash + Render)
 
@@ -380,7 +425,7 @@ src/
   seed/            # dataset fixture + seed CLI (Nest standalone context)
 test/              # e2e + integration specs
 loadtest/          # k6 battery + smoke run (no dependency on the app)
-docs/              # audit, load-test, hardening and QA-review reports
+docs/              # audit, load-test, hardening, QA-review and observability reports
 openspec/          # spec-driven design artifacts (proposal, design, specs, tasks)
 .github/           # CI + CodeQL + Security workflows and the Dependabot config
 .zap/              # OWASP ZAP rule overrides for the DAST scan
@@ -407,10 +452,14 @@ consciously deferred and why:
   typed `503`, which `/health` surfaces as a critical dependency, while the Redis cache stays fail-open. A
   breaker would add machinery for little gain at this scope. Because ES access sits behind a port, adding one
   later is a change to a single adapter — not a redesign.
-- **Structured JSON logging (deferred).** Logging goes through a central interceptor and the Nest `Logger`
-  (no stray `console.log`), and errors are mapped centrally. Swapping the logger for Pino to emit JSON lines
-  for a log aggregator is the natural next step for a real production deployment; it is wiring, not a
-  structural change.
+- **Structured logging, metrics and tracing (done).** Logs are JSON from pino with a per-request correlation
+  id carried in `AsyncLocalStorage`; `/metrics` exposes RED metrics plus cache and rate-limit-failover
+  counters; OpenTelemetry exports traces over OTLP when an endpoint is configured and starts no SDK at all
+  when it is not. See [Observability](#observability).
+- **Log shipping and alerting (deferred).** JSON logs are the prerequisite for an aggregator, not a
+  substitute for one. Where those lines are shipped, how long they are kept and what pages someone at 3 a.m.
+  are deployment and cost decisions, not code — the same reasoning that keeps a Prometheus instance out of
+  this repo while `/metrics` is served from it.
 - **Scaling.** The index is read through an alias, so a mapping change is a new versioned index plus an alias
   flip with no downtime. The service is stateless behind its two managed dependencies, so it scales
   horizontally; the rate-limit counter already lives in Redis to stay correct across instances.

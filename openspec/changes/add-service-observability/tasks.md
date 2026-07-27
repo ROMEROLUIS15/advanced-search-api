@@ -59,8 +59,8 @@
 
 ## 9. Documentation and verification
 
-- [ ] 9.1 Document the observability surface in `README.md`: log format, correlation id, `/metrics`, tracing setup, and the new env table rows
-- [ ] 9.2 Update `CLAUDE.md` with the non-obvious parts — bootstrap ordering, the ALS store, the metrics port, the cache single-flight
-- [ ] 9.3 Run the full local gate: `lint:ci`, `test:cov`, `build`, and the e2e + integration suites with the stack up
-- [ ] 9.4 Re-run the k6 battery and record whether the warm-path p95 moved (design D27 risk); fall back to the shape-hash alternative if the zod parse dominates
-- [ ] 9.5 Write `docs/OBSERVABILITY-<date>.md` with the measured before/after, in the style of the existing reports
+- [x] 9.1 Document the observability surface in `README.md`: log format, correlation id, `/metrics`, tracing setup, and the new env table rows
+- [x] 9.2 Update `CLAUDE.md` with the non-obvious parts — bootstrap ordering, the ALS store, the metrics port, the cache single-flight
+- [x] 9.3 Run the full local gate: `lint:ci`, `test:cov`, `build`, and the e2e + integration suites with the stack up
+- [x] 9.4 Re-run the k6 battery and record whether the warm-path p95 moved (design D27 risk); fall back to the shape-hash alternative if the zod parse dominates
+- [x] 9.5 Write `docs/OBSERVABILITY-<date>.md` with the measured before/after, in the style of the existing reports
