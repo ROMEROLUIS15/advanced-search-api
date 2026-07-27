@@ -1,5 +1,7 @@
 import { Controller, Get } from '@nestjs/common';
-import type { ServiceIndexResponseDto } from './dto/service-index-response.dto';
+import { ApiOkResponse, ApiOperation, ApiTags } from '@nestjs/swagger';
+import { ApiErrorResponses } from '../common/api-error-responses.decorator';
+import { ServiceIndexResponseDto } from './dto/service-index-response.dto';
 
 /**
  * Declared here rather than imported from `package.json`: that file sits outside
@@ -24,9 +26,13 @@ const SERVICE_INDEX: ServiceIndexResponseDto = {
  * Landing route. Without it the base URL answers a bare 404, which reads as a
  * broken deployment; this tells a caller what the service is and where to go next.
  */
+@ApiTags('service')
 @Controller()
 export class ServiceIndexController {
   @Get()
+  @ApiOperation({ summary: 'What this service is and where to go next' })
+  @ApiOkResponse({ type: ServiceIndexResponseDto })
+  @ApiErrorResponses(429)
   index(): ServiceIndexResponseDto {
     return SERVICE_INDEX;
   }

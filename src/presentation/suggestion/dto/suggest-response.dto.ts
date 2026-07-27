@@ -1,5 +1,8 @@
-import type { SearchSuggestions } from '@application/models/query-suggestion';
+import { ApiProperty } from '@nestjs/swagger';
+import { SearchSuggestionsDto } from '../../common/dto/suggestions.dto';
 
-export interface SuggestResponseDto {
-  data: SearchSuggestions;
+/** Response envelope for `GET /suggest`, which always returns the block. */
+export class SuggestResponseDto {
+  @ApiProperty({ type: SearchSuggestionsDto })
+  data!: SearchSuggestionsDto;
 }

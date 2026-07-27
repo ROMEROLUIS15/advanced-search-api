@@ -17,7 +17,13 @@ export function setupOpenApi(app: INestApplication): void {
     .setDescription(
       'Relevance search, faceting, autocomplete and query suggestions over Elasticsearch.',
     )
-    .setVersion('1.0.0')
+    // Matches package.json and the version GET / reports; three places, one number.
+    .setVersion('0.1.0')
+    .addTag('search', 'Relevance ranking, filtering and facet counts')
+    .addTag('autocomplete', 'Type-ahead completions over product names')
+    .addTag('suggest', 'Did-you-mean correction and related queries')
+    .addTag('health', 'Dependency health for the platform probe')
+    .addTag('service', 'Service index')
     .build();
   const document = SwaggerModule.createDocument(app, config);
   SwaggerModule.setup('docs', app, document, { jsonDocumentUrl: 'docs-json' });
