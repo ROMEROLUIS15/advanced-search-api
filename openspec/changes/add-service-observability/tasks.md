@@ -47,9 +47,9 @@
 
 ## 7. Remaining QA-review fixes
 
-- [ ] 7.1 Throw a typed application error from `search-hit.mapper` instead of a bare `Error`, and map it centrally
-- [ ] 7.2 Reject `minPrice > maxPrice` with 400 in the search DTO, with a table-driven spec
-- [ ] 7.3 e2e: an inverted price range answers 400
+- [x] 7.1 Throw a typed application error from `search-hit.mapper` instead of a bare `Error`, and map it centrally
+- [x] 7.2 Reject `minPrice > maxPrice` with 400 in the search DTO, with a table-driven spec
+- [x] 7.3 e2e: an inverted price range answers 400
 
 ## 8. Coverage gates
 

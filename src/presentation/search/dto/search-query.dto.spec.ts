@@ -45,3 +45,19 @@ describe('SearchQueryDto — length limits', () => {
     expect(rejectedProperties(query)).toEqual(expected);
   });
 });
+
+describe('SearchQueryDto — price range', () => {
+  const cases: Array<[string, Record<string, unknown>, string[]]> = [
+    ['accepts a normal range', { minPrice: 10, maxPrice: 500 }, []],
+    ['accepts equal bounds', { minPrice: 50, maxPrice: 50 }, []],
+    ['accepts a lone lower bound', { minPrice: 500 }, []],
+    ['accepts a lone upper bound', { maxPrice: 10 }, []],
+    // Used to answer 200 with an empty list, indistinguishable from a genuinely
+    // empty catalogue — a typo the client could not detect.
+    ['rejects an inverted range', { minPrice: 500, maxPrice: 10 }, ['maxPrice']],
+  ];
+
+  it.each(cases)('%s', (_name, query, expected) => {
+    expect(rejectedProperties(query)).toEqual(expected);
+  });
+});

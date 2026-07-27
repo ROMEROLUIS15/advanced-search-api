@@ -1,7 +1,10 @@
 import { BadRequestException, HttpException, HttpStatus, Logger } from '@nestjs/common';
 import { errors as esErrors } from '@elastic/elasticsearch';
 import { AllExceptionsFilter } from './all-exceptions.filter';
-import { ResultWindowExceededError } from '@application/errors/application.error';
+import {
+  ResultWindowExceededError,
+  UpstreamResponseError,
+} from '@application/errors/application.error';
 import { InvariantViolationError } from '@domain/errors/domain.error';
 
 function runFilter(exception: unknown): { status: number; body: any } {
@@ -202,5 +205,19 @@ describe('AllExceptionsFilter — logging', () => {
 
     expect(warn).not.toHaveBeenCalled();
     expect(error).toHaveBeenCalledTimes(1);
+  });
+});
+
+describe('AllExceptionsFilter — upstream contract errors', () => {
+  it('maps an unusable Elasticsearch response to 502, not the 400 of other application errors', () => {
+    // Arrange
+    const exception = new UpstreamResponseError('Search hit abc is missing _source');
+
+    // Act
+    const { status, body } = runFilter(exception);
+
+    // Assert
+    expect(status).toBe(502);
+    expect(body.message).toBe('Search engine error');
   });
 });

@@ -8,7 +8,11 @@ import {
 } from '@nestjs/common';
 import type { Request, Response } from 'express';
 import { errors as esErrors } from '@elastic/elasticsearch';
-import { ApplicationError, ResultWindowExceededError } from '@application/errors/application.error';
+import {
+  ApplicationError,
+  ResultWindowExceededError,
+  UpstreamResponseError,
+} from '@application/errors/application.error';
 import { DomainError } from '@domain/errors/domain.error';
 
 interface ResolvedError {
@@ -71,6 +75,13 @@ function resolveError(exception: unknown): ResolvedError {
       statusCode: HttpStatus.UNPROCESSABLE_ENTITY,
       error: 'Unprocessable Entity',
       message: exception.message,
+    };
+  }
+  if (exception instanceof UpstreamResponseError) {
+    return {
+      statusCode: HttpStatus.BAD_GATEWAY,
+      error: 'Bad Gateway',
+      message: 'Search engine error',
     };
   }
   if (exception instanceof ApplicationError || exception instanceof DomainError) {

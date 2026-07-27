@@ -105,6 +105,23 @@ describe('GET /search (e2e)', () => {
     expect(res.body.details.join(' ')).toMatch(/q must be shorter than/i);
   });
 
+  it('rejects an inverted price range with 400 instead of an empty 200', async () => {
+    const res = await request(app.getHttpServer())
+      .get('/search')
+      .query({ minPrice: 500, maxPrice: 10 })
+      .expect(400);
+
+    expect(res.body.details.join(' ')).toMatch(
+      /maxPrice must be greater than or equal to minPrice/,
+    );
+  });
+
+  it('declares the cache policy it actually applies', async () => {
+    const res = await request(app.getHttpServer()).get('/search').query({ q: 'drill' }).expect(200);
+
+    expect(res.headers['cache-control']).toMatch(/^public, max-age=\d+$/);
+  });
+
   it('paginates without duplicating or skipping documents across pages', async () => {
     const pageSize = 10;
     const ids: string[] = [];

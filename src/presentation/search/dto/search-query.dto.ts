@@ -11,6 +11,7 @@ import {
 } from 'class-validator';
 import type { SortField, SortOrder } from '@application/models/search-criteria';
 import { MAX_QUERY_LENGTH, MAX_SUBCATEGORIES, MAX_TERM_LENGTH } from '../../common/input-limits';
+import { IsNotBelowMinPrice } from '../../common/price-range.validator';
 
 const SORT_FIELDS: SortField[] = ['relevance', 'popularity', 'created_at'];
 const SORT_ORDERS: SortOrder[] = ['asc', 'desc'];
@@ -49,6 +50,7 @@ export class SearchQueryDto {
   @Type(() => Number)
   @IsNumber()
   @Min(0)
+  @IsNotBelowMinPrice()
   maxPrice?: number;
 
   @IsOptional()
