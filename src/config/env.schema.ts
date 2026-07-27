@@ -60,6 +60,18 @@ export const envSchema = z
     // X-Forwarded-For would let anyone forge an identity past the limiter (D16).
     TRUST_PROXY_HOPS: z.coerce.number().int().nonnegative().default(0),
 
+    // API client authentication (design D30–D34). Unlike everything else here,
+    // this defaults to ON: the dangerous failure is a deployment that comes up
+    // open because a variable was missed, so an unset value must not mean
+    // "unprotected". Turning it off is always deliberate (design D31).
+    API_AUTH_ENABLED: z
+      .enum(['true', 'false'])
+      .default('true')
+      .transform((value) => value === 'true'),
+    // Comma-separated; several keys are valid at once so one can be rotated by
+    // adding the new one before removing the old.
+    API_KEYS: z.string().optional(),
+
     // Observability (design D21–D25). Every switch here is optional and inert by
     // default, so a deployment without any of it behaves exactly as before.
     LOG_LEVEL: z.enum(['fatal', 'error', 'warn', 'info', 'debug', 'trace']).default('info'),
@@ -91,7 +103,19 @@ export const envSchema = z
   .refine((env) => env.SEARCH_MAX_PAGE_SIZE >= env.SEARCH_DEFAULT_PAGE_SIZE, {
     message: 'SEARCH_MAX_PAGE_SIZE must be >= SEARCH_DEFAULT_PAGE_SIZE',
     path: ['SEARCH_MAX_PAGE_SIZE'],
+  })
+  // Refuse to boot rather than come up serving everyone: a service that cannot
+  // authenticate anybody is not a service with an open door (design D31).
+  .refine((env) => !env.API_AUTH_ENABLED || hasAnyKey(env.API_KEYS), {
+    message:
+      'API_KEYS must list at least one key when API_AUTH_ENABLED is true ' +
+      '(set API_AUTH_ENABLED=false explicitly for local development)',
+    path: ['API_KEYS'],
   });
+
+function hasAnyKey(raw: string | undefined): boolean {
+  return (raw ?? '').split(',').some((key) => key.trim().length > 0);
+}
 
 export type Env = z.infer<typeof envSchema>;
 

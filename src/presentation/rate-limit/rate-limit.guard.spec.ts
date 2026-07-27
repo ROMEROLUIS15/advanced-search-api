@@ -3,10 +3,6 @@ import { RateLimitGuard } from './rate-limit.guard';
 
 /** Exposes the two protected overrides for unit testing. */
 class TestableGuard extends RateLimitGuard {
-  publicGetTracker(req: Record<string, unknown>): Promise<string> {
-    return this.getTracker(req);
-  }
-
   publicThrow(): void {
     // The base signature is async, but the override throws synchronously.
     void this.throwThrottlingException();
@@ -21,34 +17,6 @@ function buildGuard(): TestableGuard {
 }
 
 describe('RateLimitGuard', () => {
-  describe('getTracker (design D16)', () => {
-    it('identifies the client by req.ip when present', async () => {
-      // Arrange & Act
-      const tracker = await buildGuard().publicGetTracker({ ip: '203.0.113.7' });
-
-      // Assert
-      expect(tracker).toBe('203.0.113.7');
-    });
-
-    it('falls back to the socket address when req.ip is absent', async () => {
-      // Arrange & Act
-      const tracker = await buildGuard().publicGetTracker({
-        socket: { remoteAddress: '198.51.100.4' },
-      });
-
-      // Assert
-      expect(tracker).toBe('198.51.100.4');
-    });
-
-    it('yields a stable placeholder when no address can be resolved', async () => {
-      // Arrange & Act
-      const tracker = await buildGuard().publicGetTracker({});
-
-      // Assert
-      expect(tracker).toBe('unknown');
-    });
-  });
-
   describe('throwThrottlingException (design D18)', () => {
     it('throws a typed 429 that AllExceptionsFilter renders, not a raw ThrottlerException', () => {
       // Arrange

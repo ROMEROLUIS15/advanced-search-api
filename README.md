@@ -90,6 +90,26 @@ Jest / Supertest.
 
 Base URL: `https://advanced-search-api-chet.onrender.com` (deployed) or `http://localhost:3000` (local).
 
+### Authentication
+
+**This API is not public.** Every endpoint requires an API key, presented as an `X-API-Key` header; without a
+valid one the response is `401` in the standard error envelope.
+
+```bash
+curl -H "X-API-Key: $API_KEY" "https://advanced-search-api-chet.onrender.com/search?q=drill"
+```
+
+Two endpoints sit outside the scheme, and neither is open: `GET /health` needs no credential because the
+platform's readiness probe cannot send one and a 401 there would be read as an unhealthy instance, and
+`GET /metrics` carries its own bearer token instead, so a monitoring agent never needs an application key. The
+published contract at `/docs` and `/docs-json` **is** protected — gating the data while serving its blueprint
+would be pointless.
+
+Several keys are valid at once (`API_KEYS` is a list), which is how a key is rotated: add the new one, move
+consumers across, then remove the old. Authentication is **on unless explicitly disabled** — a deployment that
+enables it without configuring a key refuses to start rather than coming up open, so the failure is loud
+instead of silent. Local development and CI set `API_AUTH_ENABLED=false` deliberately and visibly.
+
 The full contract is published as **OpenAPI**: an interactive Swagger UI at **`/docs`** and the raw spec at
 **`/docs-json`**. The schema is derived from the `class-validator` DTOs by the `@nestjs/swagger` CLI plugin, so
 it stays in sync with validation automatically. `/docs-json` is also what the DAST scan consumes (see
@@ -243,6 +263,8 @@ Environment is validated at boot (Zod) — the app fails fast on missing/invalid
 | `RATE_LIMIT_AUTOCOMPLETE` | `300` | higher — fires on nearly every keystroke |
 | `RATE_LIMIT_DEFAULT` | `120` | any other limited route (`GET /`) |
 | `TRUST_PROXY_HOPS` | `0` | proxy hops to trust for the client IP; `3` behind Render |
+| `API_AUTH_ENABLED` | **`true`** | on unless disabled; enabling it with no key is a startup failure |
+| `API_KEYS` | — | comma-separated valid keys, sent by clients as `X-API-Key` |
 | `LOG_LEVEL` / `LOG_PRETTY` | `info` / `false` | JSON logs; pretty is for a terminal and is refused in production |
 | `METRICS_ENABLED` | `true` | `false` binds a no-op recorder and `/metrics` returns empty |
 | `METRICS_TOKEN` | — | when set, `/metrics` requires `Authorization: Bearer <token>` |

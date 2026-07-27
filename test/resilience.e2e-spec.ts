@@ -25,6 +25,7 @@ describe('Resilience (e2e)', () => {
       app = await bootApp({
         ELASTICSEARCH_NODE: 'http://localhost:9201', // nothing listening
         REDIS_URL: 'redis://localhost:6379',
+        API_AUTH_ENABLED: 'false',
       });
     });
 
@@ -48,6 +49,7 @@ describe('Resilience (e2e)', () => {
       app = await bootApp({
         ELASTICSEARCH_NODE: 'http://localhost:9200',
         REDIS_URL: 'redis://localhost:6390', // nothing listening
+        API_AUTH_ENABLED: 'false',
       });
     });
 

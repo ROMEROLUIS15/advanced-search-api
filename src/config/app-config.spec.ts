@@ -6,6 +6,7 @@ describe('buildConfig', () => {
     // Arrange
     const env = validateEnv({
       ELASTICSEARCH_NODE: 'http://localhost:9200',
+      API_AUTH_ENABLED: 'false',
       REDIS_URL: 'redis://localhost:6379',
       CORS_ORIGINS: 'http://a.com, http://b.com ,',
     });
@@ -25,6 +26,7 @@ describe('buildConfig', () => {
     // Arrange
     const env = validateEnv({
       ELASTICSEARCH_NODE: 'http://localhost:9200',
+      API_AUTH_ENABLED: 'false',
       REDIS_URL: 'redis://localhost:6379',
     });
 
@@ -41,6 +43,7 @@ describe('buildConfig — rate limiting', () => {
     // Arrange
     const env = validateEnv({
       ELASTICSEARCH_NODE: 'http://localhost:9200',
+      API_AUTH_ENABLED: 'false',
       REDIS_URL: 'redis://localhost:6379',
       RATE_LIMIT_SEARCH: '5',
       RATE_LIMIT_ENABLED: 'false',
@@ -64,6 +67,7 @@ describe('buildConfig — Elasticsearch resilience', () => {
     // Arrange
     const env = validateEnv({
       ELASTICSEARCH_NODE: 'http://localhost:9200',
+      API_AUTH_ENABLED: 'false',
       REDIS_URL: 'redis://localhost:6379',
       ELASTICSEARCH_REQUEST_TIMEOUT_MS: '3000',
       ELASTICSEARCH_MAX_RETRIES: '1',
@@ -81,6 +85,7 @@ describe('buildConfig — Elasticsearch resilience', () => {
 describe('buildConfig — observability', () => {
   const base = {
     ELASTICSEARCH_NODE: 'http://localhost:9200',
+    API_AUTH_ENABLED: 'false',
     REDIS_URL: 'redis://localhost:6379',
   };
 
@@ -140,6 +145,7 @@ describe('buildConfig — observability', () => {
 describe('buildConfig — OTLP header encoding', () => {
   const base = {
     ELASTICSEARCH_NODE: 'http://localhost:9200',
+    API_AUTH_ENABLED: 'false',
     REDIS_URL: 'redis://localhost:6379',
   };
 

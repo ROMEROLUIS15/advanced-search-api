@@ -5,6 +5,7 @@ import { startTracing, stopTracing } from './tracing.bootstrap';
 
 const BASE_ENV = {
   ELASTICSEARCH_NODE: 'http://localhost:9200',
+  API_AUTH_ENABLED: 'false',
   REDIS_URL: 'redis://localhost:6379',
 };
 

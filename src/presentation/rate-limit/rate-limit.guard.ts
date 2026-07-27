@@ -1,11 +1,6 @@
 import { HttpException, HttpStatus, Injectable } from '@nestjs/common';
 import { ThrottlerGuard } from '@nestjs/throttler';
 
-interface TrackedRequest {
-  ip?: string;
-  socket?: { remoteAddress?: string };
-}
-
 /**
  * Global rate limit guard (design D16, D18).
  *
@@ -18,18 +13,15 @@ interface TrackedRequest {
  *   timestamp, path }` body as every other error. Status codes are still not
  *   assembled in controllers or adapters.
  *
- * The client identity is `req.ip`, which Express resolves through the configured
+ * The client identity now comes from `getTracker` in the module options, which
+ * needs the configured API keys: a caller with a valid key gets its own budget,
+ * and everyone else is counted by `req.ip`, resolved through the configured
  * `trust proxy` hop count — that setting, not this guard, is what stops a client
- * forging `X-Forwarded-For` to escape its budget.
+ * forging `X-Forwarded-For` to escape its budget (design D34).
  */
 @Injectable()
 export class RateLimitGuard extends ThrottlerGuard {
   protected headerPrefix = 'RateLimit';
-
-  protected getTracker(req: Record<string, unknown>): Promise<string> {
-    const request = req as TrackedRequest;
-    return Promise.resolve(request.ip ?? request.socket?.remoteAddress ?? 'unknown');
-  }
 
   protected throwThrottlingException(): Promise<void> {
     throw new HttpException(

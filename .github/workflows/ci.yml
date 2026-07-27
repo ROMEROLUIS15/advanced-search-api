@@ -58,6 +58,9 @@ jobs:
       ELASTICSEARCH_NODE: http://localhost:9200
       ELASTICSEARCH_INDEX: products
       REDIS_URL: redis://localhost:6379
+      # The suites exercise domain behaviour; one dedicated e2e suite turns
+      # authentication on and asserts the edge (design D31).
+      API_AUTH_ENABLED: 'false'
     steps:
       - uses: actions/checkout@v7
 

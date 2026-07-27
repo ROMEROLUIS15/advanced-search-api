@@ -1,6 +1,7 @@
 import { Module } from '@nestjs/common';
 import { AppConfigModule } from '@config/config.module';
 import { ObservabilityModule } from '@infrastructure/observability/observability.module';
+import { ApiAuthModule } from './api-auth.module';
 import { MetricsModule } from './metrics.module';
 import { SearchModule } from './search.module';
 import { AutocompleteModule } from './autocomplete.module';
@@ -15,7 +16,11 @@ import { RateLimitModule } from './rate-limit.module';
     AppConfigModule,
     ObservabilityModule,
     MetricsModule,
+    // Order matters: global guards run in registration order, and rate limiting
+    // must precede authentication so an unauthenticated flood still consumes a
+    // budget instead of being rejected for free (design D30).
     RateLimitModule,
+    ApiAuthModule,
     SearchModule,
     AutocompleteModule,
     SuggestionModule,

@@ -4,6 +4,7 @@ import { ThrottlerModule, type ThrottlerModuleOptions } from '@nestjs/throttler'
 import { APP_CONFIG, type AppConfiguration } from '@config/app-config';
 import { RateLimitStoreModule } from '@infrastructure/rate-limit/rate-limit-store.module';
 import { ThrottlerStoreAdapter } from '@infrastructure/rate-limit/throttler-store.adapter';
+import { createKeyIdentifier } from '@presentation/auth/api-key.identity';
 import { RateLimitGuard } from '@presentation/rate-limit/rate-limit.guard';
 import { buildThrottlerOptions } from '@presentation/rate-limit/rate-limit.options';
 
@@ -25,7 +26,7 @@ import { buildThrottlerOptions } from '@presentation/rate-limit/rate-limit.optio
         config: AppConfiguration,
         storage: ThrottlerStoreAdapter,
       ): ThrottlerModuleOptions => ({
-        ...buildThrottlerOptions(config.rateLimit),
+        ...buildThrottlerOptions(config.rateLimit, createKeyIdentifier(config.apiAuth.keys)),
         storage,
       }),
     }),

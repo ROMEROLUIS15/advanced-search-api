@@ -32,7 +32,7 @@ async function bootstrap(): Promise<void> {
     tracing ? 'Tracing enabled, exporting over OTLP' : 'Tracing disabled: no OTLP endpoint set',
   );
   configureApp(app, config);
-  setupOpenApi(app);
+  setupOpenApi(app, config);
   installProcessSafetyNet(app);
   await app.listen(config.app.port);
 }

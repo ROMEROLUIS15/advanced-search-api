@@ -34,6 +34,8 @@ async function bootApp(overrides: Record<string, string>): Promise<INestApplicat
   const env = {
     ELASTICSEARCH_NODE: 'http://localhost:9200',
     REDIS_URL: 'redis://localhost:6379',
+    // This suite is about the limiter, not the gate (design D31).
+    API_AUTH_ENABLED: 'false',
     // Trust one hop so the forwarded address becomes the client identity.
     TRUST_PROXY_HOPS: '1',
     ...overrides,

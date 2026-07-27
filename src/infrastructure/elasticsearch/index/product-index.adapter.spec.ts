@@ -8,6 +8,7 @@ import { Money } from '@domain/product/money.value-object';
 const config: AppConfiguration = buildConfig(
   validateEnv({
     ELASTICSEARCH_NODE: 'http://localhost:9200',
+    API_AUTH_ENABLED: 'false',
     REDIS_URL: 'redis://localhost:6379',
   }),
 );

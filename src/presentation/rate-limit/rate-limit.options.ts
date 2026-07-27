@@ -2,10 +2,17 @@ import type { ExecutionContext } from '@nestjs/common';
 import type { ThrottlerModuleOptions } from '@nestjs/throttler';
 import type { RateLimitConfig } from '@config/app-config';
 import { matchesPath } from '@shared/operator-paths';
+import { API_KEY_HEADER, type KeyIdentifier } from '@presentation/auth/api-key.identity';
 
 interface RoutedRequest {
   path?: string;
   url?: string;
+}
+
+interface TrackedRequest {
+  ip?: string;
+  socket?: { remoteAddress?: string };
+  headers?: Record<string, string | string[] | undefined>;
 }
 
 /**
@@ -24,7 +31,10 @@ const EXEMPT_PATHS = ['/health'];
  * independent regardless, because the generated key includes the controller and
  * handler — exhausting `/search` therefore cannot exhaust `/autocomplete`.
  */
-export function buildThrottlerOptions(config: RateLimitConfig): ThrottlerModuleOptions {
+export function buildThrottlerOptions(
+  config: RateLimitConfig,
+  identify: KeyIdentifier,
+): ThrottlerModuleOptions {
   return {
     throttlers: [
       {
@@ -36,7 +46,30 @@ export function buildThrottlerOptions(config: RateLimitConfig): ThrottlerModuleO
     // Covers both the health exemption (D17) and the runtime switch (D19).
     skipIf: (context: ExecutionContext): boolean =>
       !config.enabled || isExempt(requestPath(context)),
+    // Set here rather than overridden on the guard because the identity needs
+    // the configured keys, and this is where configuration already is.
+    getTracker: (req: Record<string, unknown>): Promise<string> =>
+      Promise.resolve(resolveTracker(req as TrackedRequest, identify)),
   };
+}
+
+/**
+ * Who a budget is counted against (design D34): the client behind a **valid**
+ * API key when there is one, its address otherwise.
+ *
+ * Only a valid key earns its own bucket — otherwise a caller could mint a fresh
+ * budget per request by inventing a key, which is precisely the flood the
+ * limiter exists to stop. An unauthenticated attempt therefore still counts
+ * against the address it came from.
+ */
+export function resolveTracker(request: TrackedRequest, identify: KeyIdentifier): string {
+  const header = request.headers?.[API_KEY_HEADER];
+  const presented = Array.isArray(header) ? header[0] : header;
+  const clientId = identify(presented);
+  if (clientId !== undefined) {
+    return clientId;
+  }
+  return request.ip ?? request.socket?.remoteAddress ?? 'unknown';
 }
 
 export function resolveLimit(context: ExecutionContext, config: RateLimitConfig): number {

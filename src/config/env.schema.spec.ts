@@ -2,6 +2,7 @@ import { validateEnv } from './env.schema';
 
 const baseEnv = {
   ELASTICSEARCH_NODE: 'http://localhost:9200',
+  API_AUTH_ENABLED: 'false',
   REDIS_URL: 'redis://localhost:6379',
 };
 

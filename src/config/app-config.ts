@@ -55,6 +55,13 @@ export interface RateLimitConfig {
   trustProxyHops: number;
 }
 
+/** Who may call the API at all (design D30–D34). On unless explicitly disabled. */
+export interface ApiAuthConfig {
+  enabled: boolean;
+  /** Every key that is currently valid; more than one so a key can be rotated. */
+  keys: string[];
+}
+
 /** Logging, metrics and tracing (design D21–D25). Everything here is inert unless switched on. */
 export interface ObservabilityConfig {
   logLevel: 'fatal' | 'error' | 'warn' | 'info' | 'debug' | 'trace';
@@ -78,6 +85,7 @@ export interface AppConfiguration {
   search: SearchConfig;
   relevance: RelevanceConfig;
   rateLimit: RateLimitConfig;
+  apiAuth: ApiAuthConfig;
   observability: ObservabilityConfig;
 }
 
@@ -123,6 +131,10 @@ export function buildConfig(env: Env): AppConfiguration {
       suggest: env.RATE_LIMIT_SUGGEST,
       default: env.RATE_LIMIT_DEFAULT,
       trustProxyHops: env.TRUST_PROXY_HOPS,
+    },
+    apiAuth: {
+      enabled: env.API_AUTH_ENABLED,
+      keys: parseList(env.API_KEYS),
     },
     observability: {
       logLevel: env.LOG_LEVEL,
@@ -177,11 +189,16 @@ function percentDecode(value: string): string {
 }
 
 function parseOrigins(raw: string | undefined): string[] {
+  return parseList(raw);
+}
+
+/** Comma-separated list, trimmed, empties dropped. */
+function parseList(raw: string | undefined): string[] {
   if (!raw) {
     return [];
   }
   return raw
     .split(',')
-    .map((origin) => origin.trim())
-    .filter((origin) => origin.length > 0);
+    .map((item) => item.trim())
+    .filter((item) => item.length > 0);
 }

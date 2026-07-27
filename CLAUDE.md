@@ -274,6 +274,18 @@ metadata, so it registers a controller and nothing else. `app.module.ts` only as
   which is `@Global` — the third and last global module after config. `METRICS_ENABLED=false` swaps in a no-op
   adapter so no call site branches. `GET /metrics` is **not** exempt from the rate limiter (unlike `/health`)
   and is excluded from the OpenAPI document with `@ApiExcludeEndpoint`, so ZAP never fuzzes it.
+- **The API is private, and authentication is on by default (D30–D34).** `ApiKeyGuard` (`APP_GUARD` in
+  `api-auth.module.ts`) requires `X-API-Key` on every route; `API_AUTH_ENABLED` defaults to **true** and
+  enabling it without `API_KEYS` is a **startup failure**, so a deployment cannot come up open by omission —
+  which is why every spec fixture and both CI jobs set `API_AUTH_ENABLED=false` explicitly. `ApiAuthModule` is
+  imported **after** `RateLimitModule` on purpose: global guards run in registration order, and the limiter
+  must count an unauthenticated flood rather than let it be rejected for free. The exemptions are the operator
+  paths and neither is open — `/health` is a public probe, `/metrics` has its own bearer.
+  **`/docs` and `/docs-json` are guarded by a middleware in `swagger.setup.ts`, not by the guard**: Swagger
+  mounts them straight onto Express, so no Nest guard ever runs for them — an easy way to leave the whole
+  contract public while the data is locked. Keys are compared as SHA-256 digests with `timingSafeEqual`, and
+  the rate limiter buckets by a truncated digest of a **valid** key (invalid ones fall back to the IP, so
+  guessing cannot mint fresh budgets).
 - **`config/load-config.ts` is the only module that reads `process.env`** — both the `APP_CONFIG` provider and
   the tracing bootstrap call it, because the bootstrap runs before the DI container exists (D12 stays true).
 

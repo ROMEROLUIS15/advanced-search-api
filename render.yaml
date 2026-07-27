@@ -54,6 +54,15 @@ services:
       # browser client ships, and must never become "*".
       - key: CORS_ORIGINS
         sync: false
+      # ── API client authentication (design D30–D34) ────────────
+      # Defaults to true in code, stated here so it is visible in the
+      # blueprint. Enabling it without API_KEYS fails startup by design.
+      - key: API_AUTH_ENABLED
+        value: true
+      # Comma-separated keys, prompted on apply and stored on the service.
+      # Several are valid at once so one can be rotated without downtime.
+      - key: API_KEYS
+        sync: false
       # Bearer token for /metrics. Set on the service, never in this file: the
       # endpoint discloses route names, volumes, error rates and cache behaviour.
       - key: METRICS_TOKEN
