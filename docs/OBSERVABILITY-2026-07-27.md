@@ -119,6 +119,18 @@ actually sends:
 Both halves are now proven separately: the gateway accepts the decoded credential (200), and the exporter
 emits the decoded credential (no literal `%` in the header it sends).
 
+**Probes are dropped at the sampler.** Within minutes of the exporter going live, Grafana showed the trace list
+filling with 62–74 ms `GET` spans every 5–30 seconds: Render's readiness polling of `/health` plus the
+container's own 30 s `HEALTHCHECK`, all sampled at 100 %. Thousands of identical traces a day, burying the
+handful of real searches. `IgnoredPathsSampler` returns `NOT_RECORD` for server spans on `/health` and
+`/metrics`, and because the decision is taken at the **root**, `ParentBasedSampler` drops the child spans with
+it. An `ignoreIncomingRequestHook` would not have done: it suppresses only the server span, and the health
+probe's own Elasticsearch and Redis calls would then have been exported as parentless orphans — one useless
+trace turned into two useless spans.
+
+Verified against the local collector: **20 requests to `/health` and 5 to `/metrics` produced zero exports**;
+two `/search` requests immediately after produced one, of 5501 bytes.
+
 **Known limitation.** Spans are flushed on a ~5 s batch schedule and on `SIGTERM` via `sdk.shutdown()`. The
 shutdown flush is asynchronous and races the process exit, so a redeploy can drop the last few seconds of
 traces. Acceptable for this service; worth knowing before anyone debugs a gap around a deploy.

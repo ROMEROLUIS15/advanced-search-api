@@ -354,6 +354,12 @@ With the endpoint unset **no SDK is started at all** — no exporter, no spans, 
 test suites and CI need no collector. The bootstrap runs from the first import in `main.ts`: instrumentation
 patches modules as they load, so an import placed above it would leave them untraced.
 
+`/health` and `/metrics` are dropped at the sampler, so the platform's readiness polling does not bury real
+traffic — measured within minutes of first enabling the exporter, the probes were producing thousands of
+identical traces a day. It is a sampler and not an "ignore incoming request" hook on purpose: the hook would
+suppress only the server span, leaving the health probe's Elasticsearch and Redis calls to be exported as
+orphans. `NOT_RECORD` on the root takes the whole trace with it.
+
 ## Deploy (Elastic Cloud Serverless + Upstash + Render)
 
 The service is environment-driven and runs identically locally and in the cloud — only the env values change.

@@ -4,6 +4,7 @@ import { IORedisInstrumentation } from '@opentelemetry/instrumentation-ioredis';
 import { NodeSDK } from '@opentelemetry/sdk-node';
 import { ParentBasedSampler, TraceIdRatioBasedSampler } from '@opentelemetry/sdk-trace-base';
 import { loadConfig } from '@config/load-config';
+import { IgnoredPathsSampler } from './ignored-paths.sampler';
 
 let sdk: NodeSDK | undefined;
 
@@ -38,8 +39,12 @@ export function startTracing(): boolean {
       headers: otlpHeaders,
     }),
     // Parent-based so a sampled inbound trace stays sampled end to end; the
-    // ratio only decides what happens when this service starts the trace.
-    sampler: new ParentBasedSampler({ root: new TraceIdRatioBasedSampler(tracesSamplerRatio) }),
+    // ratio only decides what happens when this service starts the trace. The
+    // probe filter wraps the root decision, so a `/health` trace is dropped
+    // whole — server span and the Elasticsearch/Redis calls under it alike.
+    sampler: new ParentBasedSampler({
+      root: new IgnoredPathsSampler(new TraceIdRatioBasedSampler(tracesSamplerRatio)),
+    }),
     instrumentations: [new HttpInstrumentation(), new IORedisInstrumentation()],
   });
   sdk.start();

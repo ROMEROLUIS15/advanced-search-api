@@ -265,7 +265,9 @@ metadata, so it registers a controller and nothing else. `app.module.ts` only as
   feature**: OpenTelemetry patches modules as they are required, so an import added above it silently leaves
   http/Express/ioredis untraced — a spec asserts the order against `main.ts`'s source. With
   `OTEL_EXPORTER_OTLP_ENDPOINT` unset the SDK is never constructed, which is what keeps CI and the e2e suites
-  collector-free. Elasticsearch needs no instrumentation package: `@elastic/transport` emits its own spans.
+  collector-free, and `/health` and `/metrics` are dropped at the **sampler** so the platform's polling does
+  not bury real traffic — a hook would suppress the server span and orphan the probe's own ES/Redis spans.
+  Elasticsearch needs no instrumentation package: `@elastic/transport` emits its own spans.
 - **Metrics cross the boundary through a port, never `prom-client` directly.** `METRICS_PORT` (recording, used
   by `cacheAside` and the fail-over store) and `METRICS_EXPORTER` (rendering, used only by `MetricsController`)
   are two tokens bound to **one** adapter instance in `infrastructure/observability/observability.module.ts`,
