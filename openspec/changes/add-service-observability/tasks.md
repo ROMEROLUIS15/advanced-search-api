@@ -53,9 +53,9 @@
 
 ## 8. Coverage gates
 
-- [ ] 8.1 Add specs for the uncovered branches: `search-hit.mapper`, `product-bulk`, `es-errors`, `search-criteria.mapper`
-- [ ] 8.2 Add `coverageThreshold` to the jest config from the measured baseline (design D29)
-- [ ] 8.3 Switch the CI `quality` job from `npm test` to `npm run test:cov`
+- [x] 8.1 Add specs for the uncovered branches: `search-hit.mapper`, `product-bulk`, `es-errors`, `search-criteria.mapper`
+- [x] 8.2 Add `coverageThreshold` to the jest config from the measured baseline (design D29)
+- [x] 8.3 Switch the CI `quality` job from `npm test` to `npm run test:cov`
 
 ## 9. Documentation and verification
 

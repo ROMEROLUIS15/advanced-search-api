@@ -118,3 +118,42 @@ describe('PinoLoggerAdapter', () => {
     expect(records().map((r) => r.level)).toEqual(['trace', 'fatal']);
   });
 });
+
+describe('PinoLoggerAdapter — message shapes', () => {
+  it('logs an Error by its message, not "[object Object]"', () => {
+    const { logger, records } = build();
+
+    logger.error(new Error('connection refused'), 'ElasticsearchHealthProbe');
+
+    expect(records()[0]).toMatchObject({ msg: 'connection refused' });
+  });
+
+  it('serialises a structured message instead of dropping it', () => {
+    const { logger, records } = build();
+
+    logger.log({ event: 'seeded', count: 24 });
+
+    expect(records()[0].msg).toBe('{"event":"seeded","count":24}');
+  });
+
+  it('logs without a context when Nest passes none', () => {
+    const { logger, records } = build();
+
+    logger.log('bare message');
+
+    expect(records()[0]).not.toHaveProperty('context');
+    expect(records()[0].msg).toBe('bare message');
+  });
+
+  it('refuses pretty output in production, where pino-pretty is not installed', () => {
+    const { stream, records } = collector();
+    const config = {
+      app: { nodeEnv: 'production' },
+      observability: { logLevel: 'info', logPretty: true, serviceName: 'svc' },
+    } as AppConfiguration;
+
+    new PinoLoggerAdapter(config, stream).log('still json', 'Ctx');
+
+    expect(records()[0]).toMatchObject({ msg: 'still json', context: 'Ctx' });
+  });
+});

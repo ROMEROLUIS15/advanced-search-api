@@ -38,8 +38,10 @@ jobs:
       - name: Lint
         run: npm run lint:ci
 
-      - name: Unit tests
-        run: npm test
+      # test:cov, not test: same suite, plus the coverageThreshold gate. Running
+      # both would run every spec twice for one verdict.
+      - name: Unit tests with the coverage gate
+        run: npm run test:cov
 
       # Also the type check: tsconfig is strict plus noUnusedLocals /
       # noUnusedParameters / noImplicitReturns, none of which start:dev sees.
