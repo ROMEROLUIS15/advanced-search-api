@@ -86,10 +86,12 @@ it's `host.docker.internal` instead.
 
 A fifth workflow, `keep-alive.yml`, is **not** CI: it pings the deployed `/health` every 10 minutes so
 Render's free instance never idles out into a ~20 s cold start. `/health` on purpose — it is the one endpoint
-the rate limiter skips, so the ping costs no client budget. The cron is UTC and covers waking hours only
-(`*/10 0-2,10-23` = 17 h/day, 06:00–23:00 at a UTC-4 local offset): free-tier Render bills 750 instance-hours
-a month per workspace, and a 24/7 ping would consume ~730 of them, so widening the window is a quota decision,
-not a cosmetic one. It checks nothing out and only reads (`permissions: contents: read`) and fails the run on
+the rate limiter skips *and* the one the API-key guard leaves open, so the ping needs no credential and costs
+no client budget. The cron runs **round the clock** (`*/10 * * * *`) since the API gained real consumers; it
+ran 17 h/day before that. This is a **quota decision, not a cosmetic one**: free-tier Render bills 750
+instance-hours a month *across the workspace* and staying awake costs ~730, so the schedule and a second free
+service cannot coexist — adding one puts the workspace over quota and Render suspends services when that
+happens. It checks nothing out and only reads (`permissions: contents: read`) and fails the run on
 a non-200, which makes it a de-facto uptime alarm. GitHub auto-disables scheduled workflows after 60 days of
 repo inactivity, so a cold deployment is a symptom to check there first.
 

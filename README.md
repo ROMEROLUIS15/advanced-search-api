@@ -19,8 +19,9 @@ autocomplete, and "did you mean" suggestions — all read-only over a single see
 contract interactively in the **[Swagger UI at `/docs`](https://advanced-search-api-chet.onrender.com/docs)**.
 It runs on Render's free instance type, which spins down when idle; a scheduled keep-alive
 ([`.github/workflows/keep-alive.yml`](.github/workflows/keep-alive.yml)) pings `/health` every 10 minutes
-during waking hours (06:00–23:00 at a UTC-4 local offset) so it stays warm and answers in ~0.5 s. Outside
-that window — or if the workflow is disabled — the first request after a pause pays a ~20 s cold start.
+**round the clock** so it stays warm and answers in ~0.5 s at any hour. That costs ~730 of the 750
+instance-hours the free tier grants the whole workspace per month, which fits only while this is the single
+free service in it. If the workflow is disabled, the first request after a pause pays a ~20 s cold start.
 
 ## Capabilities
 
@@ -419,9 +420,9 @@ auto-deploying from `main`); the steps below are what it took, and reproduce it 
    `/health` on a 10-minute cron to keep it warm — point it elsewhere by editing its `TARGET_URL`, or delete
    the workflow on a paid instance type that never idles. Three things shape that
    schedule: GitHub's scheduler is best-effort (hence 10 minutes against a 15-minute window, not 15 against
-   15); the cron covers **waking hours only** (`0-2,10-23` UTC = 06:00–22:00 UTC-4) because Render's free tier
-   allows 750 instance-hours a month per workspace and a 24/7 ping would spend ~730 of them here, against
-   ~525 for the windowed one; and scheduled workflows are **auto-disabled after 60 days without repo
+   15); the cron runs **round the clock**, which spends ~730 of the 750 instance-hours the free tier allows
+   *per workspace* each month, so this schedule and a second free service cannot both exist — going over the
+   quota gets services suspended; and scheduled workflows are **auto-disabled after 60 days without repo
    activity** — re-enable it from the Actions tab if the deployment starts going cold again.
 4. **Seed once** against the managed cluster via a one-off job/shell: `npm run seed:prod`
    (`node dist/seed/seed.command.js`). Idempotent by document id.

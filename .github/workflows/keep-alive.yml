@@ -12,15 +12,20 @@ on:
     # are routinely delayed several minutes under load, so the interval needs
     # headroom against the 15-minute spin-down window.
     #
-    # Waking hours only, and deliberately so: Render's free tier bills 750
-    # instance-hours per month across the workspace, and a round-the-clock ping
-    # would burn ~730 of them on this one service. Cron is always UTC; this hour
-    # list assumes a UTC-4 local offset, under which it covers 06:00-23:00 local
-    # (17 h/day, last ping at 22:50) for ~525 h/month, leaving room for a second
-    # free service. If that offset ever changes, this list is what moves.
-    # Overnight the instance is allowed to sleep — the first visitor then pays
-    # the ~20 s cold start.
-    - cron: '*/10 0-2,10-23 * * *'
+    # Round the clock since 2026-07-27, when the API gained real consumers.
+    # Before that it ran 17 h/day (06:00-23:00 at a UTC-4 offset, ~525 h/month)
+    # and the instance was allowed to sleep overnight, which meant whoever
+    # called first in the morning paid a ~20 s cold start. With consumers on the
+    # other end that is no longer an acceptable trade.
+    #
+    # The quota arithmetic, which is the reason this line is a decision and not
+    # a preference: Render's free tier bills **750 instance-hours per month
+    # across the whole workspace**, and staying awake 24/7 costs ~730 of them.
+    # That fits — with ~20 h of margin, and only while this is the ONLY free
+    # service in the workspace. Adding a second one would put the workspace over
+    # its quota and Render suspends services when that happens, so a new free
+    # service and this schedule cannot coexist: one of them has to give.
+    - cron: '*/10 * * * *'
   workflow_dispatch:
 
 concurrency:
