@@ -41,9 +41,9 @@
 
 ## 6. Rate-limit store follow-ups
 
-- [ ] 6.1 Replace the per-hit full sweep in `InMemoryRateLimitStore` with lazy per-key expiry plus a bounded periodic sweep
-- [ ] 6.2 Move `RedisRateLimitStore` to `defineCommand` so the Lua script runs through EVALSHA
-- [ ] 6.3 Extend both specs, including that a long-lived store does not grow without bound
+- [x] 6.1 Replace the per-hit full sweep in `InMemoryRateLimitStore` with lazy per-key expiry plus a bounded periodic sweep
+- [x] 6.2 Move `RedisRateLimitStore` to `defineCommand` so the Lua script runs through EVALSHA
+- [x] 6.3 Extend both specs, including that a long-lived store does not grow without bound
 
 ## 7. Remaining QA-review fixes
 

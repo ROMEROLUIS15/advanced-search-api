@@ -22,9 +22,18 @@ const HIT_SCRIPT = `
   return {hits, redis.call('PTTL', KEYS[1])}
 `;
 
+/** ioredis attaches commands defined with `defineCommand` to the client at runtime. */
+interface RedisWithHitCommand extends Redis {
+  rateLimitHit(key: string, windowMs: number): Promise<[number, number]>;
+}
+
 /**
  * Redis-backed {@link RateLimitStorePort} (design D14): one shared counter, so a
  * limit is one limit across every instance.
+ *
+ * The script is registered once with `defineCommand`, which makes ioredis call
+ * it through EVALSHA and fall back to EVAL only on NOSCRIPT — otherwise the
+ * whole script body travels to Redis on every single request.
  *
  * Errors propagate — the fail-over decision belongs to
  * {@link FailoverRateLimitStore}, which is the only caller, keeping this adapter
@@ -32,16 +41,18 @@ const HIT_SCRIPT = `
  */
 @Injectable()
 export class RedisRateLimitStore implements RateLimitStorePort {
-  constructor(@Inject(REDIS_CLIENT) private readonly client: Redis) {}
+  private readonly client: RedisWithHitCommand;
+
+  constructor(@Inject(REDIS_CLIENT) client: Redis) {
+    client.defineCommand('rateLimitHit', { numberOfKeys: 1, lua: HIT_SCRIPT });
+    // The command exists only after the call above, which is why the cast is here
+    // and not at the call site.
+    this.client = client as RedisWithHitCommand;
+  }
 
   async hit(key: string, windowMs: number): Promise<RateLimitHit> {
     const namespaced = `${KEY_NAMESPACE}:${key}`;
-
-    const result = (await this.client.eval(HIT_SCRIPT, 1, namespaced, windowMs)) as [
-      number,
-      number,
-    ];
-    const [totalHits, timeToExpireMs] = result;
+    const [totalHits, timeToExpireMs] = await this.client.rateLimitHit(namespaced, windowMs);
 
     return { totalHits: Number(totalHits), timeToExpireMs: Number(timeToExpireMs) };
   }

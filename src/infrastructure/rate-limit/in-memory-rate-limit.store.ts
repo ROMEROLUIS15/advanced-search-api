@@ -16,13 +16,20 @@ interface Window {
  * is N x the limit — a bounded, documented loss of precision, and far better
  * than counting nothing.
  */
+/** How often the map is swept, at most. See {@link InMemoryRateLimitStore.evictExpired}. */
+const SWEEP_INTERVAL_MS = 30_000;
+
+/** A sweep is forced past this many entries, whatever the interval says. */
+const SWEEP_SIZE_THRESHOLD = 10_000;
+
 @Injectable()
 export class InMemoryRateLimitStore implements RateLimitStorePort {
   private readonly windows = new Map<string, Window>();
+  private lastSweepAt = 0;
 
   hit(key: string, windowMs: number): Promise<RateLimitHit> {
     const now = Date.now();
-    this.evictExpired(now);
+    this.maybeEvictExpired(now);
 
     const current = this.windows.get(key);
     if (!current || current.expiresAt <= now) {
@@ -39,11 +46,19 @@ export class InMemoryRateLimitStore implements RateLimitStorePort {
   }
 
   /**
-   * Swept on write rather than on a timer: the map only grows with active
-   * clients, and a timer would keep the event loop alive and complicate
-   * shutdown.
+   * Swept on write rather than on a timer: a timer would keep the event loop
+   * alive and complicate shutdown. But sweeping the *whole* map on every hit
+   * made each request O(active clients) — and this store is the fail-over path,
+   * so it carries the full load exactly when Redis is down and traffic is
+   * heaviest. The per-key expiry check in `hit` already keeps counts correct;
+   * this only reclaims memory, so it is fine to do it rarely.
    */
-  private evictExpired(now: number): void {
+  private maybeEvictExpired(now: number): void {
+    const due = now - this.lastSweepAt >= SWEEP_INTERVAL_MS;
+    if (!due && this.windows.size < SWEEP_SIZE_THRESHOLD) {
+      return;
+    }
+    this.lastSweepAt = now;
     for (const [key, window] of this.windows) {
       if (window.expiresAt <= now) {
         this.windows.delete(key);
