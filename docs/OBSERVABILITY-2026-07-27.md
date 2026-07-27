@@ -241,6 +241,15 @@ re-run the battery with tracing genuinely on.
 discloses route names, request volumes, error rates and cache behaviour — fine to leave open on a demo, not on
 a service that is actually used, which is what this became.
 
+**Probe log lines are skipped too, and the volume is larger than it looks.** The deployed log shows Render
+polling `/health` **every 5 seconds** — 17,280 lines a day, before counting the keep-alive's 102. Every one of
+them says `GET /health 200 6xms`. `LoggingInterceptor` now skips successful operator paths, which costs
+nothing: it runs on `tap`, so it only ever saw successes, and a failing probe still goes through
+`AllExceptionsFilter` — a 503 from `/health` or a 401 from `/metrics` is logged exactly as before.
+
+Verified on the deployment: in the window after the deploy went live, the only application log line is the one
+real `/search` request, with `/health` polls and a manual `/health` producing none.
+
 ## Deferred, on purpose
 
 - **Log shipping and alerting.** JSON logs are the prerequisite, not the solution. Where the lines go, how long
