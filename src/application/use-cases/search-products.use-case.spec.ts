@@ -54,7 +54,7 @@ describe('SearchProductsUseCase', () => {
       config,
     ).execute(criteria);
 
-    expect(result).toBe(outcome);
+    expect(result).toStrictEqual(outcome);
     expect(port.search).not.toHaveBeenCalled();
   });
 
@@ -69,7 +69,7 @@ describe('SearchProductsUseCase', () => {
       config,
     ).execute(criteria);
 
-    expect(result).toBe(outcome);
+    expect(result).toStrictEqual(outcome);
     expect(port.search).toHaveBeenCalledWith(criteria);
     expect(cache.set).toHaveBeenCalledTimes(1);
   });
@@ -85,7 +85,7 @@ describe('SearchProductsUseCase', () => {
       config,
     ).execute(criteria);
 
-    expect(result).toBe(outcome);
+    expect(result).toStrictEqual(outcome);
     expect(port.search).toHaveBeenCalledTimes(1);
   });
 

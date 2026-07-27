@@ -1,11 +1,24 @@
 import { BadRequestException } from '@nestjs/common';
+import type { Response } from 'express';
 import type { AppConfiguration } from '@config/app-config';
 import type { SearchProductsUseCase } from '@application/use-cases/search-products.use-case';
 import type { SearchOutcome } from '@application/models/search-outcome';
 import { SearchController } from './search.controller';
 import { SearchQueryDto } from './dto/search-query.dto';
 
-const config = { search: { maxPageSize: 100, defaultPageSize: 20 } } as AppConfiguration;
+const config = {
+  search: { maxPageSize: 100, defaultPageSize: 20 },
+  cache: { searchTtlSeconds: 300 },
+} as AppConfiguration;
+
+/** The controller only ever sets headers on the response. */
+function responseSpy(): { res: Response; headers: Record<string, string> } {
+  const headers: Record<string, string> = {};
+  const setHeader = (name: string, value: string): void => {
+    headers[name] = value;
+  };
+  return { res: { setHeader } as unknown as Response, headers };
+}
 
 function emptyOutcome(): SearchOutcome {
   return {
@@ -29,7 +42,7 @@ describe('SearchController', () => {
     const query = Object.assign(new SearchQueryDto(), { q: 'drill', pageSize: 20 });
 
     // Act
-    const result = await controller.search(query);
+    const result = await controller.search(query, responseSpy().res);
 
     // Assert
     expect(execute).toHaveBeenCalledTimes(1);
@@ -45,7 +58,9 @@ describe('SearchController', () => {
     const query = Object.assign(new SearchQueryDto(), { q: 'drill', pageSize: 500 });
 
     // Act & Assert
-    await expect(controller.search(query)).rejects.toBeInstanceOf(BadRequestException);
+    await expect(controller.search(query, responseSpy().res)).rejects.toBeInstanceOf(
+      BadRequestException,
+    );
     expect(execute).not.toHaveBeenCalled();
   });
 
@@ -56,9 +71,24 @@ describe('SearchController', () => {
     const query = Object.assign(new SearchQueryDto(), { pageSize: 100 });
 
     // Act
-    await controller.search(query);
+    await controller.search(query, responseSpy().res);
 
     // Assert
     expect(execute).toHaveBeenCalledTimes(1);
+  });
+});
+
+describe('SearchController — cache policy (design D28)', () => {
+  it('declares the same window the service caches for', async () => {
+    // Arrange
+    const controller = buildController(jest.fn().mockResolvedValue(emptyOutcome()));
+    const query = Object.assign(new SearchQueryDto(), { q: 'drill' });
+    const { res, headers } = responseSpy();
+
+    // Act
+    await controller.search(query, res);
+
+    // Assert
+    expect(headers['Cache-Control']).toBe('public, max-age=300');
   });
 });

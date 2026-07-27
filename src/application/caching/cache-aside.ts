@@ -1,4 +1,5 @@
 import type { Logger } from '@nestjs/common';
+import type { ZodType } from 'zod';
 import { errorMessage } from '@shared/error-message';
 import type { CachePort } from '@application/ports/cache.port';
 import type { MetricsPort } from '@application/ports/metrics.port';
@@ -10,7 +11,20 @@ export interface CacheAsideParams<T> {
   load: () => Promise<T>;
   logger: Logger;
   metrics: MetricsPort;
+  /** A cached value that does not match is treated as a miss (design D27). */
+  schema: ZodType<T>;
 }
+
+/**
+ * In-flight loads, so N concurrent misses for one key make one upstream call
+ * instead of N (design D26). Per process rather than per cluster on purpose: a
+ * Redis lock would make the cache path need Redis to make progress, which is
+ * exactly the coupling the fail-open design removed.
+ */
+const inFlight = new Map<string, Promise<unknown>>();
+
+/** ±10 %, so entries written in the same burst do not expire in the same second. */
+const JITTER = 0.1;
 
 /**
  * Cache-aside with fail-open semantics (design D8): a cache hit is returned
@@ -19,9 +33,9 @@ export interface CacheAsideParams<T> {
  * `load()` propagate (they are the real operation, not the optimization).
  */
 export async function cacheAside<T>(params: CacheAsideParams<T>): Promise<T> {
-  const { cache, key, ttlSeconds, load, logger, metrics } = params;
+  const { cache, key, ttlSeconds, load, logger, metrics, schema } = params;
 
-  const cached = await readThrough<T>(cache, key, logger);
+  const cached = await readThrough<T>(cache, key, logger, schema);
   if (cached !== null) {
     metrics.recordCacheHit();
     return cached;
@@ -30,14 +44,46 @@ export async function cacheAside<T>(params: CacheAsideParams<T>): Promise<T> {
   // often did we have to go to Elasticsearch", and a failed read did.
   metrics.recordCacheMiss();
 
-  const value = await load();
-  await writeThrough(cache, key, value, ttlSeconds, logger);
-  return value;
+  return singleFlight(key, async () => {
+    const value = await load();
+    await writeThrough(cache, key, value, ttlSeconds, logger);
+    return value;
+  });
 }
 
-async function readThrough<T>(cache: CachePort, key: string, logger: Logger): Promise<T | null> {
+/** Collapses concurrent loads of the same key onto the first one's promise. */
+async function singleFlight<T>(key: string, load: () => Promise<T>): Promise<T> {
+  const pending = inFlight.get(key);
+  if (pending !== undefined) {
+    return pending as Promise<T>;
+  }
+
+  const promise = load().finally(() => {
+    inFlight.delete(key);
+  });
+  inFlight.set(key, promise);
+  return promise;
+}
+
+async function readThrough<T>(
+  cache: CachePort,
+  key: string,
+  logger: Logger,
+  schema: ZodType<T>,
+): Promise<T | null> {
   try {
-    return await cache.get<T>(key);
+    const raw = await cache.get<unknown>(key);
+    if (raw === null) {
+      return null;
+    }
+    const parsed = schema.safeParse(raw);
+    if (!parsed.success) {
+      // Stale shape from an older deploy, or a partially written value. Serving
+      // it would hand a client something the contract does not describe.
+      logger.warn(`Cache payload rejected (${key}): shape does not match`);
+      return null;
+    }
+    return parsed.data;
   } catch (error) {
     logger.warn(`Cache read failed (${key}): ${errorMessage(error)}`);
     return null;
@@ -52,8 +98,17 @@ async function writeThrough<T>(
   logger: Logger,
 ): Promise<void> {
   try {
-    await cache.set(key, value, ttlSeconds);
+    await cache.set(key, value, withJitter(ttlSeconds));
   } catch (error) {
     logger.warn(`Cache write failed (${key}): ${errorMessage(error)}`);
   }
+}
+
+/** Never below 1 s: a zero TTL in Redis would mean "no expiry at all". */
+export function withJitter(ttlSeconds: number): number {
+  if (ttlSeconds <= 0) {
+    return ttlSeconds;
+  }
+  const spread = 1 + (Math.random() * 2 - 1) * JITTER;
+  return Math.max(1, Math.round(ttlSeconds * spread));
 }

@@ -6,6 +6,7 @@ import { PRODUCT_SEARCH_PORT, type ProductSearchPort } from '../ports/product-se
 import { CACHE_PORT, type CachePort } from '../ports/cache.port';
 import { METRICS_PORT, type MetricsPort } from '../ports/metrics.port';
 import { cacheAside } from '../caching/cache-aside';
+import { searchOutcomeSchema } from '../caching/cached-payload.schema';
 import { buildSearchCacheKey } from '../caching/search-cache-key';
 
 /**
@@ -34,6 +35,7 @@ export class SearchProductsUseCase {
       load: () => this.productSearch.search(criteria),
       logger: this.logger,
       metrics: this.metrics,
+      schema: searchOutcomeSchema,
     });
   }
 }

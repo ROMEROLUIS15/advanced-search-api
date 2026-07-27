@@ -1,5 +1,6 @@
-import { BadRequestException, Controller, Get, Inject, Query } from '@nestjs/common';
+import { BadRequestException, Controller, Get, Inject, Query, Res } from '@nestjs/common';
 import { ApiOkResponse, ApiOperation, ApiTags } from '@nestjs/swagger';
+import type { Response } from 'express';
 import { APP_CONFIG, type AppConfiguration, type SearchConfig } from '@config/app-config';
 import { SearchProductsUseCase } from '@application/use-cases/search-products.use-case';
 import { ApiErrorResponses } from '../common/api-error-responses.decorator';
@@ -12,12 +13,14 @@ import { toSearchResponseDto } from './search-response.mapper';
 @Controller('search')
 export class SearchController {
   private readonly searchConfig: SearchConfig;
+  private readonly cacheTtlSeconds: number;
 
   constructor(
     private readonly searchProducts: SearchProductsUseCase,
     @Inject(APP_CONFIG) config: AppConfiguration,
   ) {
     this.searchConfig = config.search;
+    this.cacheTtlSeconds = config.cache.searchTtlSeconds;
   }
 
   @Get()
@@ -29,10 +32,16 @@ export class SearchController {
   })
   @ApiOkResponse({ type: SearchResponseDto })
   @ApiErrorResponses(400, 422, 429, 503)
-  async search(@Query() query: SearchQueryDto): Promise<SearchResponseDto> {
+  async search(
+    @Query() query: SearchQueryDto,
+    @Res({ passthrough: true }) response: Response,
+  ): Promise<SearchResponseDto> {
     this.assertPageSizeWithinLimit(query.pageSize);
     const criteria = toSearchCriteria(query, this.searchConfig);
     const outcome = await this.searchProducts.execute(criteria);
+    // Say out loud what the service already does internally (design D28): these
+    // results sit in Redis for the same window, and the index is read-only.
+    response.setHeader('Cache-Control', `public, max-age=${this.cacheTtlSeconds}`);
     return toSearchResponseDto(outcome, criteria);
   }
 

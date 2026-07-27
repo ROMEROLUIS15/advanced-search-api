@@ -5,6 +5,7 @@ import { AUTOCOMPLETE_PORT, type AutocompletePort } from '../ports/autocomplete.
 import { CACHE_PORT, type CachePort } from '../ports/cache.port';
 import { METRICS_PORT, type MetricsPort } from '../ports/metrics.port';
 import { cacheAside } from '../caching/cache-aside';
+import { autocompleteItemsSchema } from '../caching/cached-payload.schema';
 import { buildAutocompleteCacheKey } from '../caching/autocomplete-cache-key';
 
 /** Type-ahead completions with a short-lived, fail-open cache-aside layer (design D6). */
@@ -30,6 +31,7 @@ export class AutocompleteUseCase {
       load: () => this.autocomplete.complete(prefix, limit),
       logger: this.logger,
       metrics: this.metrics,
+      schema: autocompleteItemsSchema,
     });
   }
 }

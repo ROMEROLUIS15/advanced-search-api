@@ -27,6 +27,8 @@ export class HealthController {
   async health(@Res({ passthrough: true }) response: Response): Promise<HealthResponseDto> {
     const report = await this.checkHealth.execute();
     response.status(report.status === 'ok' ? HttpStatus.OK : HttpStatus.SERVICE_UNAVAILABLE);
+    // A cached readiness probe is worse than useless (design D28).
+    response.setHeader('Cache-Control', 'no-store');
     return toHealthResponseDto(report);
   }
 }

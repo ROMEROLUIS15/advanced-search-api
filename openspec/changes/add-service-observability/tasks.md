@@ -33,11 +33,11 @@
 
 ## 5. Cache hardening
 
-- [ ] 5.1 Add single-flight to `cacheAside`: concurrent misses for one key share a single `load()` (design D26)
-- [ ] 5.2 Apply ±10 % TTL jitter on write
-- [ ] 5.3 Validate the cached payload against a zod schema before serving it; a mismatch is a miss (design D27)
-- [ ] 5.4 Send `Cache-Control` per endpoint — `public, max-age=<TTL>` for search, `no-store` for `/health` and `/metrics` (design D28)
-- [ ] 5.5 Unit-spec single-flight (one load for N concurrent misses), jitter bounds, and a wrong-shape payload treated as a miss
+- [x] 5.1 Add single-flight to `cacheAside`: concurrent misses for one key share a single `load()` (design D26)
+- [x] 5.2 Apply ±10 % TTL jitter on write
+- [x] 5.3 Validate the cached payload against a zod schema before serving it; a mismatch is a miss (design D27)
+- [x] 5.4 Send `Cache-Control` per endpoint — `public, max-age=<TTL>` for search, `no-store` for `/health` and `/metrics` (design D28)
+- [x] 5.5 Unit-spec single-flight (one load for N concurrent misses), jitter bounds, and a wrong-shape payload treated as a miss
 
 ## 6. Rate-limit store follow-ups
 

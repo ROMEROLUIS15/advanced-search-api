@@ -36,7 +36,7 @@ describe('AutocompleteUseCase', () => {
       config,
     ).execute('dri', 10);
 
-    expect(result).toBe(items);
+    expect(result).toStrictEqual(items);
     expect(port.complete).not.toHaveBeenCalled();
   });
 
@@ -51,7 +51,7 @@ describe('AutocompleteUseCase', () => {
       config,
     ).execute('dri', 10);
 
-    expect(result).toBe(items);
+    expect(result).toStrictEqual(items);
     expect(port.complete).toHaveBeenCalledWith('dri', 10);
     expect(cache.set).toHaveBeenCalledTimes(1);
   });
