@@ -18,7 +18,8 @@ core system) and `openspec/changes/archive/2026-07-23-add-request-rate-limiting/
 entry — its rationale is in README "Trade-offs" only. The first change's delta specs were synced to
 `openspec/specs/<capability>/spec.md` (six capabilities) and the second's to
 `openspec/specs/request-rate-limiting/spec.md`; those scenarios are the acceptance criteria. Post-ship reports
-(the 2026-07-23 audit, the load-test run, the 2026-07-25 hardening report) live under `docs/`.
+(the 2026-07-23 audit, the load-test run, the 2026-07-25 hardening report, the 2026-07-26 QA review) live under
+`docs/`. The QA review is the one to read first after a change: it records what is still open and why.
 
 ## Commands
 

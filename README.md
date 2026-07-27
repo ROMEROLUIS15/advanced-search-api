@@ -278,6 +278,10 @@ Last run (2026-07-23): **366,306 requests, zero failures**, uncached search at 2
 [`docs/LOAD-TEST-2026-07-23.md`](docs/LOAD-TEST-2026-07-23.md); the accompanying project audit is in
 [`docs/AUDIT-2026-07-23.md`](docs/AUDIT-2026-07-23.md).
 
+A later QA review — architecture, contract, security and testing, verified by ~60 black-box requests against
+the deployment — is in [`docs/QA-REVIEW-2026-07-26.md`](docs/QA-REVIEW-2026-07-26.md). It found and fixed a
+reproducible 502 on an over-long query, and lists what remains open.
+
 ## Security
 
 The HTTP edge is hardened in one place (`app.setup.ts`): Helmet security headers, env-aware CORS, a global
@@ -376,7 +380,7 @@ src/
   seed/            # dataset fixture + seed CLI (Nest standalone context)
 test/              # e2e + integration specs
 loadtest/          # k6 battery + smoke run (no dependency on the app)
-docs/              # audit, load-test and hardening reports
+docs/              # audit, load-test, hardening and QA-review reports
 openspec/          # spec-driven design artifacts (proposal, design, specs, tasks)
 .github/           # CI + CodeQL + Security workflows and the Dependabot config
 .zap/              # OWASP ZAP rule overrides for the DAST scan
