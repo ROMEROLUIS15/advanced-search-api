@@ -1,6 +1,16 @@
 import { Transform, Type } from 'class-transformer';
-import { IsIn, IsInt, IsNumber, IsOptional, IsString, Min } from 'class-validator';
+import {
+  ArrayMaxSize,
+  IsIn,
+  IsInt,
+  IsNumber,
+  IsOptional,
+  IsString,
+  MaxLength,
+  Min,
+} from 'class-validator';
 import type { SortField, SortOrder } from '@application/models/search-criteria';
+import { MAX_QUERY_LENGTH, MAX_SUBCATEGORIES, MAX_TERM_LENGTH } from '../../common/input-limits';
 
 const SORT_FIELDS: SortField[] = ['relevance', 'popularity', 'created_at'];
 const SORT_ORDERS: SortOrder[] = ['asc', 'desc'];
@@ -9,19 +19,24 @@ const SORT_ORDERS: SortOrder[] = ['asc', 'desc'];
 export class SearchQueryDto {
   @IsOptional()
   @IsString()
+  @MaxLength(MAX_QUERY_LENGTH)
   q?: string;
 
   @IsOptional()
   @IsString()
+  @MaxLength(MAX_TERM_LENGTH)
   category?: string;
 
   @IsOptional()
   @Transform(({ value }) => toStringArray(value))
   @IsString({ each: true })
+  @MaxLength(MAX_TERM_LENGTH, { each: true })
+  @ArrayMaxSize(MAX_SUBCATEGORIES)
   subcategory?: string[];
 
   @IsOptional()
   @IsString()
+  @MaxLength(MAX_TERM_LENGTH)
   location?: string;
 
   @IsOptional()

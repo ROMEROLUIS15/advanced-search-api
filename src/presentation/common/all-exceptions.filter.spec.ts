@@ -72,6 +72,40 @@ describe('AllExceptionsFilter', () => {
     expect(body.message).toBe('Search engine error');
   });
 
+  it('maps a 400 from Elasticsearch to 400, not 502 (the query was bad, not the cluster)', () => {
+    // Arrange: what a rejected query looks like coming back from the engine.
+    const esError = new esErrors.ResponseError({
+      statusCode: 400,
+      body: { error: { type: 'search_phase_execution_exception' } },
+      headers: {},
+      warnings: null,
+      meta: {},
+    } as never);
+
+    // Act
+    const { status, body } = runFilter(esError);
+
+    // Assert
+    expect(status).toBe(400);
+    expect(body.error).toBe('Bad Request');
+    expect(body.message).toBe('Invalid search query');
+  });
+
+  it('keeps a 404 from Elasticsearch as 502 (a missing index is not the caller)', () => {
+    const esError = new esErrors.ResponseError({
+      statusCode: 404,
+      body: { error: { type: 'index_not_found_exception' } },
+      headers: {},
+      warnings: null,
+      meta: {},
+    } as never);
+
+    const { status, body } = runFilter(esError);
+
+    expect(status).toBe(502);
+    expect(body.message).toBe('Search engine error');
+  });
+
   it('maps Elasticsearch connection errors to 503', () => {
     const { status, body } = runFilter(new esErrors.ConnectionError('connection refused'));
 

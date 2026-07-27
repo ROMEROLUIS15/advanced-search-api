@@ -77,11 +77,7 @@ function resolveError(exception: unknown): ResolvedError {
     return { statusCode: HttpStatus.BAD_REQUEST, error: 'Bad Request', message: exception.message };
   }
   if (exception instanceof esErrors.ResponseError) {
-    return {
-      statusCode: HttpStatus.BAD_GATEWAY,
-      error: 'Bad Gateway',
-      message: 'Search engine error',
-    };
+    return fromElasticsearchResponse(exception);
   }
   if (exception instanceof esErrors.ElasticsearchClientError) {
     return {
@@ -94,6 +90,32 @@ function resolveError(exception: unknown): ResolvedError {
     statusCode: HttpStatus.INTERNAL_SERVER_ERROR,
     error: 'Internal Server Error',
     message: 'Internal server error',
+  };
+}
+
+/**
+ * Elasticsearch answered, but not with results. A **400 from the engine** means
+ * the request built from the client's input was rejected — bad input, not an
+ * upstream failure — so it must not surface as a 502: that would report a healthy
+ * cluster as broken and log a stack for something a client caused. Every other
+ * status stays a 502: a 404 is a missing index, a 401/403 is our credentials, a
+ * 5xx is the cluster itself, and none of those are the caller's doing.
+ *
+ * The DTO length caps (`input-limits.ts`) keep the known trigger from reaching
+ * Elasticsearch at all; this is the classification for whatever else gets through.
+ */
+function fromElasticsearchResponse(exception: esErrors.ResponseError): ResolvedError {
+  if (exception.statusCode === HttpStatus.BAD_REQUEST) {
+    return {
+      statusCode: HttpStatus.BAD_REQUEST,
+      error: 'Bad Request',
+      message: 'Invalid search query',
+    };
+  }
+  return {
+    statusCode: HttpStatus.BAD_GATEWAY,
+    error: 'Bad Gateway',
+    message: 'Search engine error',
   };
 }
 

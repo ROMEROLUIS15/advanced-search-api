@@ -92,6 +92,19 @@ describe('GET /search (e2e)', () => {
     expect(res.body).toMatchObject({ statusCode: 422, error: 'Unprocessable Entity' });
   });
 
+  it('rejects an over-long q with 400 instead of letting Elasticsearch answer 502', async () => {
+    // Measured against the deployment before the length caps existed: a single
+    // token of 3000 characters made Lucene's fuzzy automaton too complex, so
+    // Elasticsearch rejected it and the client saw a 502 for its own bad input.
+    const res = await request(app.getHttpServer())
+      .get('/search')
+      .query({ q: 'a'.repeat(3000) })
+      .expect(400);
+
+    expect(res.body).toMatchObject({ statusCode: 400, message: 'Validation failed' });
+    expect(res.body.details.join(' ')).toMatch(/q must be shorter than/i);
+  });
+
   it('paginates without duplicating or skipping documents across pages', async () => {
     const pageSize = 10;
     const ids: string[] = [];

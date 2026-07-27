@@ -108,10 +108,10 @@ Takes no parameters. Any other unrouted path still returns a typed `404`.
 
 | Param | Type | Notes |
 |---|---|---|
-| `q` | string | free-text query; omit for browse mode |
-| `category` | string | exact category |
-| `subcategory` | string / repeatable / CSV | ANY-of match |
-| `location` | string | exact location |
+| `q` | string, ≤ 256 chars | free-text query; omit for browse mode |
+| `category` | string, ≤ 128 chars | exact category |
+| `subcategory` | string / repeatable / CSV, ≤ 20 values of ≤ 128 chars | ANY-of match |
+| `location` | string, ≤ 128 chars | exact location |
 | `minPrice`, `maxPrice` | number | inclusive price range |
 | `sort` | `relevance` \| `popularity` \| `created_at` | default `relevance` (`popularity` when `q` is empty) |
 | `order` | `asc` \| `desc` | default `desc` |
@@ -132,17 +132,26 @@ Response:
 }
 ```
 
-Errors: `400` (invalid/unknown param or `pageSize` above the max), `422` (`page`×`pageSize` beyond
-`max_result_window`), `429` (rate limit exceeded — see below), `503` (Elasticsearch unreachable).
-Suggestions are populated only on low recall (`total ≤ SEARCH_SUGGEST_MAX_HITS`).
+Errors: `400` (invalid/unknown param, a value past its length limit, or `pageSize` above the max), `422`
+(`page`×`pageSize` beyond `max_result_window`), `429` (rate limit exceeded — see below), `503` (Elasticsearch
+unreachable). Suggestions are populated only on low recall (`total ≤ SEARCH_SUGGEST_MAX_HITS`).
+
+The length caps are not decoration. `q` feeds a `multi_match` with `fuzziness: AUTO`, and Lucene refuses to
+build the fuzzy automaton for a single token past roughly 2 KB — measured against this deployment, 2000
+characters answered `200` and 3000 answered **`502`**, reporting a healthy cluster as broken for what was
+really bad input. The cap turns that into a plain `400`; independently, a `400` coming back *from*
+Elasticsearch is now mapped to `400` rather than `502`, since a rejected query is the caller's, not the
+engine's.
 
 ### `GET /autocomplete?q=<prefix>&limit=<1..20>`
 
-`q` is required; `limit` defaults to 10. Returns `{ "data": [{ "text": "Cordless Drill 18V", "score": 8.1 }] }`.
+`q` is required and capped at 256 characters; `limit` defaults to 10. Returns
+`{ "data": [{ "text": "Cordless Drill 18V", "score": 8.1 }] }`.
 
 ### `GET /suggest?q=<text>`
 
-Returns `{ "data": { "didYouMean": "drill", "related": ["drill"] } }`.
+`q` is required and capped at 256 characters. Returns
+`{ "data": { "didYouMean": "drill", "related": ["drill"] } }`.
 
 ### `GET /health`
 
