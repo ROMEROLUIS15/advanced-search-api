@@ -16,13 +16,13 @@
 
 ## 3. Metrics
 
-- [ ] 3.1 Define `application/ports/metrics.port.ts` with the `METRICS_PORT` token — counters for cache hit/miss and rate-limit fail-over, plus request observation (design D24)
-- [ ] 3.2 Implement the `prom-client` adapter and a no-op adapter in `infrastructure/observability/`, bound by `METRICS_ENABLED`
-- [ ] 3.3 Add the presentation interceptor recording request count and duration by route and status (RED)
-- [ ] 3.4 Add `MetricsController` serving Prometheus text at `GET /metrics`, `@ApiExcludeEndpoint`, `no-store`, and a bearer check when `METRICS_TOKEN` is set (design D23)
-- [ ] 3.5 Count cache hits/misses from `cacheAside` and fail-over events from `FailoverRateLimitStore` through the port
-- [ ] 3.6 Unit-spec the adapters, the interceptor and the token guard (401 without the token when configured)
-- [ ] 3.7 e2e: `/metrics` returns Prometheus text including request and process metrics, and is absent from `/docs-json`
+- [x] 3.1 Define `application/ports/metrics.port.ts` with the `METRICS_PORT` token — counters for cache hit/miss and rate-limit fail-over, plus request observation (design D24)
+- [x] 3.2 Implement the `prom-client` adapter and a no-op adapter in `infrastructure/observability/`, bound by `METRICS_ENABLED`
+- [x] 3.3 Add the presentation interceptor recording request count and duration by route and status (RED)
+- [x] 3.4 Add `MetricsController` serving Prometheus text at `GET /metrics`, `@ApiExcludeEndpoint`, `no-store`, and a bearer check when `METRICS_TOKEN` is set (design D23)
+- [x] 3.5 Count cache hits/misses from `cacheAside` and fail-over events from `FailoverRateLimitStore` through the port
+- [x] 3.6 Unit-spec the adapters, the interceptor and the token guard (401 without the token when configured)
+- [x] 3.7 e2e: `/metrics` returns Prometheus text including request and process metrics, and counts a served request under its route pattern. The OpenAPI exclusion is asserted as a unit test instead — `setupOpenApi` runs only from `main.ts`, so no document is mounted in an e2e boot
 
 ## 4. Distributed tracing
 

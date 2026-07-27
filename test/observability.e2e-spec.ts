@@ -56,4 +56,21 @@ describe('Observability (e2e)', () => {
 
     expect(res.headers['x-request-id']).toBeDefined();
   });
+
+  it('serves Prometheus metrics including process counters', async () => {
+    const res = await request(app.getHttpServer()).get('/metrics').expect(200);
+
+    expect(res.headers['content-type']).toContain('text/plain');
+    expect(res.headers['cache-control']).toBe('no-store');
+    expect(res.text).toContain('process_cpu_user_seconds_total');
+    expect(res.text).toContain('http_requests_total');
+  });
+
+  it('counts a served request under its route pattern', async () => {
+    await request(app.getHttpServer()).get('/').expect(200);
+
+    const res = await request(app.getHttpServer()).get('/metrics').expect(200);
+
+    expect(res.text).toMatch(/http_requests_total\{method="GET",route="\/",status="200"\} [1-9]/);
+  });
 });

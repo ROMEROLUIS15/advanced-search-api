@@ -3,6 +3,7 @@ import { APP_CONFIG, type AppConfiguration } from '@config/app-config';
 import type { AutocompleteItem } from '../models/autocomplete-item';
 import { AUTOCOMPLETE_PORT, type AutocompletePort } from '../ports/autocomplete.port';
 import { CACHE_PORT, type CachePort } from '../ports/cache.port';
+import { METRICS_PORT, type MetricsPort } from '../ports/metrics.port';
 import { cacheAside } from '../caching/cache-aside';
 import { buildAutocompleteCacheKey } from '../caching/autocomplete-cache-key';
 
@@ -15,6 +16,7 @@ export class AutocompleteUseCase {
   constructor(
     @Inject(AUTOCOMPLETE_PORT) private readonly autocomplete: AutocompletePort,
     @Inject(CACHE_PORT) private readonly cache: CachePort,
+    @Inject(METRICS_PORT) private readonly metrics: MetricsPort,
     @Inject(APP_CONFIG) config: AppConfiguration,
   ) {
     this.ttlSeconds = config.cache.autocompleteTtlSeconds;
@@ -27,6 +29,7 @@ export class AutocompleteUseCase {
       ttlSeconds: this.ttlSeconds,
       load: () => this.autocomplete.complete(prefix, limit),
       logger: this.logger,
+      metrics: this.metrics,
     });
   }
 }

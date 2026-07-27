@@ -3,6 +3,7 @@ import type { ProductSearchPort } from '../ports/product-search.port';
 import type { CachePort } from '../ports/cache.port';
 import type { SearchOutcome } from '../models/search-outcome';
 import type { SearchCriteria } from '../models/search-criteria';
+import { NoopMetricsAdapter } from '@infrastructure/observability/noop-metrics.adapter';
 import { buildConfig, type AppConfiguration } from '@config/app-config';
 import { validateEnv } from '@config/env.schema';
 
@@ -46,7 +47,12 @@ describe('SearchProductsUseCase', () => {
     const cache = makeCache({ get: jest.fn().mockResolvedValue(outcome) });
     const port = makeSearchPort();
 
-    const result = await new SearchProductsUseCase(port, cache, config).execute(criteria);
+    const result = await new SearchProductsUseCase(
+      port,
+      cache,
+      new NoopMetricsAdapter(),
+      config,
+    ).execute(criteria);
 
     expect(result).toBe(outcome);
     expect(port.search).not.toHaveBeenCalled();
@@ -56,7 +62,12 @@ describe('SearchProductsUseCase', () => {
     const cache = makeCache();
     const port = makeSearchPort();
 
-    const result = await new SearchProductsUseCase(port, cache, config).execute(criteria);
+    const result = await new SearchProductsUseCase(
+      port,
+      cache,
+      new NoopMetricsAdapter(),
+      config,
+    ).execute(criteria);
 
     expect(result).toBe(outcome);
     expect(port.search).toHaveBeenCalledWith(criteria);
@@ -67,7 +78,12 @@ describe('SearchProductsUseCase', () => {
     const cache = makeCache({ get: jest.fn().mockRejectedValue(new Error('redis down')) });
     const port = makeSearchPort();
 
-    const result = await new SearchProductsUseCase(port, cache, config).execute(criteria);
+    const result = await new SearchProductsUseCase(
+      port,
+      cache,
+      new NoopMetricsAdapter(),
+      config,
+    ).execute(criteria);
 
     expect(result).toBe(outcome);
     expect(port.search).toHaveBeenCalledTimes(1);
@@ -77,8 +93,8 @@ describe('SearchProductsUseCase', () => {
     const cache = makeCache({ set: jest.fn().mockRejectedValue(new Error('redis down')) });
     const port = makeSearchPort();
 
-    await expect(new SearchProductsUseCase(port, cache, config).execute(criteria)).resolves.toBe(
-      outcome,
-    );
+    await expect(
+      new SearchProductsUseCase(port, cache, new NoopMetricsAdapter(), config).execute(criteria),
+    ).resolves.toBe(outcome);
   });
 });

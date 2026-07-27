@@ -4,6 +4,7 @@ import type { SearchCriteria } from '../models/search-criteria';
 import type { SearchOutcome } from '../models/search-outcome';
 import { PRODUCT_SEARCH_PORT, type ProductSearchPort } from '../ports/product-search.port';
 import { CACHE_PORT, type CachePort } from '../ports/cache.port';
+import { METRICS_PORT, type MetricsPort } from '../ports/metrics.port';
 import { cacheAside } from '../caching/cache-aside';
 import { buildSearchCacheKey } from '../caching/search-cache-key';
 
@@ -19,6 +20,7 @@ export class SearchProductsUseCase {
   constructor(
     @Inject(PRODUCT_SEARCH_PORT) private readonly productSearch: ProductSearchPort,
     @Inject(CACHE_PORT) private readonly cache: CachePort,
+    @Inject(METRICS_PORT) private readonly metrics: MetricsPort,
     @Inject(APP_CONFIG) config: AppConfiguration,
   ) {
     this.ttlSeconds = config.cache.searchTtlSeconds;
@@ -31,6 +33,7 @@ export class SearchProductsUseCase {
       ttlSeconds: this.ttlSeconds,
       load: () => this.productSearch.search(criteria),
       logger: this.logger,
+      metrics: this.metrics,
     });
   }
 }

@@ -1,5 +1,6 @@
-import { Injectable, Logger } from '@nestjs/common';
+import { Inject, Injectable, Logger } from '@nestjs/common';
 import { errorMessage } from '@shared/error-message';
+import { METRICS_PORT, type MetricsPort } from '@application/ports/metrics.port';
 import type { RateLimitHit, RateLimitStorePort } from '@application/ports/rate-limit-store.port';
 import { InMemoryRateLimitStore } from './in-memory-rate-limit.store';
 import { RedisRateLimitStore } from './redis-rate-limit.store';
@@ -26,6 +27,7 @@ export class FailoverRateLimitStore implements RateLimitStorePort {
   constructor(
     private readonly redis: RedisRateLimitStore,
     private readonly memory: InMemoryRateLimitStore,
+    @Inject(METRICS_PORT) private readonly metrics: MetricsPort,
   ) {}
 
   async hit(key: string, windowMs: number): Promise<RateLimitHit> {
@@ -34,6 +36,9 @@ export class FailoverRateLimitStore implements RateLimitStorePort {
       this.recover();
       return result;
     } catch (error) {
+      // Counted per occurrence, unlike the log line, which fires once per
+      // transition: the useful signal is the rate of degraded operations.
+      this.metrics.recordRateLimitFailover();
       this.reportDegraded(error);
       return this.memory.hit(key, windowMs);
     }

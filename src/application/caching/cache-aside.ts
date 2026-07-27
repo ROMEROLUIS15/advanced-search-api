@@ -1,6 +1,7 @@
 import type { Logger } from '@nestjs/common';
 import { errorMessage } from '@shared/error-message';
 import type { CachePort } from '@application/ports/cache.port';
+import type { MetricsPort } from '@application/ports/metrics.port';
 
 export interface CacheAsideParams<T> {
   cache: CachePort;
@@ -8,6 +9,7 @@ export interface CacheAsideParams<T> {
   ttlSeconds: number;
   load: () => Promise<T>;
   logger: Logger;
+  metrics: MetricsPort;
 }
 
 /**
@@ -17,12 +19,16 @@ export interface CacheAsideParams<T> {
  * `load()` propagate (they are the real operation, not the optimization).
  */
 export async function cacheAside<T>(params: CacheAsideParams<T>): Promise<T> {
-  const { cache, key, ttlSeconds, load, logger } = params;
+  const { cache, key, ttlSeconds, load, logger, metrics } = params;
 
   const cached = await readThrough<T>(cache, key, logger);
   if (cached !== null) {
+    metrics.recordCacheHit();
     return cached;
   }
+  // A cache *error* counts as a miss here too: what the counter answers is "how
+  // often did we have to go to Elasticsearch", and a failed read did.
+  metrics.recordCacheMiss();
 
   const value = await load();
   await writeThrough(cache, key, value, ttlSeconds, logger);

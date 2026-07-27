@@ -2,6 +2,7 @@ import { Logger } from '@nestjs/common';
 import { FailoverRateLimitStore } from './failover-rate-limit.store';
 import { InMemoryRateLimitStore } from './in-memory-rate-limit.store';
 import type { RedisRateLimitStore } from './redis-rate-limit.store';
+import { NoopMetricsAdapter } from '../observability/noop-metrics.adapter';
 
 function buildRedis(hit: jest.Mock): RedisRateLimitStore {
   return { hit } as unknown as RedisRateLimitStore;
@@ -21,7 +22,11 @@ describe('FailoverRateLimitStore (design D14)', () => {
     // Arrange
     const redisHit = jest.fn().mockResolvedValue({ totalHits: 7, timeToExpireMs: 1_000 });
     const memory = new InMemoryRateLimitStore();
-    const store = new FailoverRateLimitStore(buildRedis(redisHit), memory);
+    const store = new FailoverRateLimitStore(
+      buildRedis(redisHit),
+      memory,
+      new NoopMetricsAdapter(),
+    );
 
     // Act
     const hit = await store.hit('client-a', 60_000);
@@ -34,7 +39,11 @@ describe('FailoverRateLimitStore (design D14)', () => {
   it('KEEPS ENFORCING from memory when Redis fails — it does not fail open', async () => {
     // Arrange
     const redisHit = jest.fn().mockRejectedValue(new Error('connection refused'));
-    const store = new FailoverRateLimitStore(buildRedis(redisHit), new InMemoryRateLimitStore());
+    const store = new FailoverRateLimitStore(
+      buildRedis(redisHit),
+      new InMemoryRateLimitStore(),
+      new NoopMetricsAdapter(),
+    );
 
     // Act
     const first = await store.hit('client-a', 60_000);
@@ -48,7 +57,11 @@ describe('FailoverRateLimitStore (design D14)', () => {
   it('never throws when Redis fails, so a store outage cannot fail a request', async () => {
     // Arrange
     const redisHit = jest.fn().mockRejectedValue(new Error('ECONNREFUSED'));
-    const store = new FailoverRateLimitStore(buildRedis(redisHit), new InMemoryRateLimitStore());
+    const store = new FailoverRateLimitStore(
+      buildRedis(redisHit),
+      new InMemoryRateLimitStore(),
+      new NoopMetricsAdapter(),
+    );
 
     // Act & Assert
     await expect(store.hit('client-a', 60_000)).resolves.toEqual({
@@ -61,7 +74,11 @@ describe('FailoverRateLimitStore (design D14)', () => {
     // Arrange
     const warn = jest.spyOn(Logger.prototype, 'warn');
     const redisHit = jest.fn().mockRejectedValue(new Error('down'));
-    const store = new FailoverRateLimitStore(buildRedis(redisHit), new InMemoryRateLimitStore());
+    const store = new FailoverRateLimitStore(
+      buildRedis(redisHit),
+      new InMemoryRateLimitStore(),
+      new NoopMetricsAdapter(),
+    );
 
     // Act
     await store.hit('client-a', 60_000);
@@ -79,7 +96,11 @@ describe('FailoverRateLimitStore (design D14)', () => {
       .fn()
       .mockRejectedValueOnce(new Error('down'))
       .mockResolvedValue({ totalHits: 12, timeToExpireMs: 5_000 });
-    const store = new FailoverRateLimitStore(buildRedis(redisHit), new InMemoryRateLimitStore());
+    const store = new FailoverRateLimitStore(
+      buildRedis(redisHit),
+      new InMemoryRateLimitStore(),
+      new NoopMetricsAdapter(),
+    );
 
     // Act
     await store.hit('client-a', 60_000);
@@ -88,5 +109,39 @@ describe('FailoverRateLimitStore (design D14)', () => {
     // Assert
     expect(recovered.totalHits).toBe(12);
     expect(log).toHaveBeenCalledTimes(1);
+  });
+});
+
+describe('FailoverRateLimitStore — metrics (design D24)', () => {
+  beforeEach(() => {
+    jest.spyOn(Logger.prototype, 'warn').mockImplementation(() => undefined);
+  });
+
+  afterEach(() => {
+    jest.restoreAllMocks();
+  });
+
+  it('counts every degraded hit, not just the transition the log line reports', async () => {
+    // Arrange
+    const metrics = {
+      observeRequest: jest.fn(),
+      recordCacheHit: jest.fn(),
+      recordCacheMiss: jest.fn(),
+      recordRateLimitFailover: jest.fn(),
+    };
+    const redisHit = jest.fn().mockRejectedValue(new Error('redis down'));
+    const store = new FailoverRateLimitStore(
+      buildRedis(redisHit),
+      new InMemoryRateLimitStore(),
+      metrics,
+    );
+
+    // Act
+    await store.hit('ip', 1_000);
+    await store.hit('ip', 1_000);
+
+    // Assert
+    expect(metrics.recordRateLimitFailover).toHaveBeenCalledTimes(2);
+    expect(Logger.prototype.warn).toHaveBeenCalledTimes(1);
   });
 });
