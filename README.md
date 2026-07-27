@@ -338,8 +338,16 @@ curl -sS -D - -o /dev/null localhost:3000/search?q=drill | grep -i x-request-id
 **Metrics.** `GET /metrics` in Prometheus format: request count and duration by route and status, Node process
 metrics, plus two the service could not answer before — cache hits versus misses, and how often the rate-limit
 counter fell over from Redis to memory. It is excluded from the OpenAPI document (an operations endpoint is not
-part of the client contract), it is **not** exempt from the rate limiter, and `METRICS_TOKEN` closes it when
-set.
+part of the client contract) and it is **not** exempt from the rate limiter.
+
+It is **protected in the deployed environment**: `METRICS_TOKEN` is set, so a scraper must send
+`Authorization: Bearer <token>` and anyone else gets a 401. Route names, request volumes, error rates and cache
+behaviour are useful to an operator and equally useful to someone probing the service, which is why the token
+stops being optional the moment the API has real users.
+
+```bash
+curl -H "Authorization: Bearer $METRICS_TOKEN" https://advanced-search-api-chet.onrender.com/metrics
+```
 
 **Tracing.** OpenTelemetry over OTLP, covering the HTTP request, the Redis calls and — through the
 Elasticsearch client's own instrumentation — the search itself. Entirely optional:

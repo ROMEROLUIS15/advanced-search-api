@@ -205,6 +205,42 @@ cheaper shape hash — is therefore **not** needed, and that is a measurement, n
 | Trace auth | `curl` against the Grafana OTLP gateway | **200** decoded, **401** percent-encoded |
 | Trace export | booted build + local OTLP collector | `POST /v1/traces`, 6454 bytes, header decoded |
 
+## Operating decisions, and when to revisit them
+
+The service is at the start of real use, not a demo, so these are settings with a trigger rather than
+preferences.
+
+**Sampling stays at 1.0 for now.** Probes are dropped at the sampler, so what remains is genuine traffic, and
+it is measured in tens of requests a day. Head-based sampling at 10 % would mean that nine times out of ten the
+slow request someone asks about was never recorded — the opposite of why tracing exists.
+
+**When to lower it, computed rather than guessed.** One trace of this service measures **2751 bytes** of
+uncompressed OTLP JSON (measured: a 5501-byte export carrying two `/search` traces, each a server span plus its
+Elasticsearch and Redis children). Against Grafana Cloud's free 50 GB/month that is:
+
+| | |
+|---|---|
+| Traces within the free tier | ~19.5 million/month |
+| At ratio 1.0 | **~650,000 requests/day** |
+| Sustained rate | **~7.5 req/s** |
+
+So 1.0 holds until traffic approaches roughly 7 req/s sustained. It is an environment variable, so changing it
+costs a redeploy and no code.
+
+**What to do instead of just lowering it.** A head-based ratio discards errors and slow requests at exactly the
+same rate as boring ones, which is backwards. The production-grade move at that point is **tail sampling** —
+keep 100 % of errors and anything over a latency threshold, sample the rest — which needs an OpenTelemetry
+Collector between the service and Grafana. The exporter already speaks OTLP, so that is a change of endpoint,
+not of code.
+
+**Not measured yet:** the CPU cost of 100 % sampling under load. The k6 battery in §6 ran at the 0.1 default
+*and* with the broken header, so no span left the process during it. Before this service takes real volume,
+re-run the battery with tracing genuinely on.
+
+**`/metrics` is closed.** It is protected by `METRICS_TOKEN`: without the bearer it answers 401. The endpoint
+discloses route names, request volumes, error rates and cache behaviour — fine to leave open on a demo, not on
+a service that is actually used, which is what this became.
+
 ## Deferred, on purpose
 
 - **Log shipping and alerting.** JSON logs are the prerequisite, not the solution. Where the lines go, how long
