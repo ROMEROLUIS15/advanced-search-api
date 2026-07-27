@@ -3,6 +3,7 @@ import { NestFactory } from '@nestjs/core';
 import type { NestExpressApplication } from '@nestjs/platform-express';
 import { AppModule } from './app.module';
 import { APP_CONFIG, type AppConfiguration } from '@config/app-config';
+import { PinoLoggerAdapter } from '@infrastructure/observability/pino-logger.adapter';
 import { configureApp } from './app.setup';
 import { setupOpenApi } from './swagger.setup';
 import { installProcessSafetyNet } from './process-safety-net';
@@ -14,8 +15,11 @@ import { installProcessSafetyNet } from './process-safety-net';
  * failures outside the request cycle are caught by {@link installProcessSafetyNet}.
  */
 async function bootstrap(): Promise<void> {
-  const app = await NestFactory.create<NestExpressApplication>(AppModule);
+  // bufferLogs holds the bootstrap lines until the structured logger exists, so
+  // startup is machine-readable too instead of the first few lines being text.
+  const app = await NestFactory.create<NestExpressApplication>(AppModule, { bufferLogs: true });
   const config = app.get<AppConfiguration>(APP_CONFIG);
+  app.useLogger(new PinoLoggerAdapter(config));
   configureApp(app, config);
   setupOpenApi(app);
   installProcessSafetyNet(app);

@@ -3,6 +3,7 @@ import type { NestExpressApplication } from '@nestjs/platform-express';
 import helmet from 'helmet';
 import type { AppConfiguration } from '@config/app-config';
 import { AllExceptionsFilter } from '@presentation/common/all-exceptions.filter';
+import { correlationIdMiddleware } from '@presentation/common/correlation-id.middleware';
 import { LoggingInterceptor } from '@presentation/common/logging.interceptor';
 
 /**
@@ -14,6 +15,9 @@ export function configureApp(app: INestApplication, config: AppConfiguration): v
   // X-Forwarded-For behind Render, and no further, so a client cannot forge its
   // own address past the rate limiter (design D16). Set before anything reads ip.
   configureProxyTrust(app, config);
+  // First in the chain: everything downstream — including anything Helmet or the
+  // validation pipe rejects — should log under the request's correlation id (D22).
+  app.use(correlationIdMiddleware);
   // Security headers; CSP disabled for a JSON API with no browser-rendered HTML.
   app.use(helmet({ contentSecurityPolicy: false }));
   app.enableCors({ origin: resolveCorsOrigin(config) });

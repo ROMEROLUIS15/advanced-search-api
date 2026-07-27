@@ -7,12 +7,12 @@
 
 ## 2. Structured logging and correlation id
 
-- [ ] 2.1 Add `infrastructure/observability/pino-logger.adapter.ts` implementing Nest's `LoggerService` over pino, JSON in production and pretty in development (design D21)
-- [ ] 2.2 Add a correlation-id store over `AsyncLocalStorage` and the middleware that opens it, honouring an inbound `X-Request-Id` and generating one otherwise (design D22)
-- [ ] 2.3 Stamp the id onto every record from the pino adapter, and echo it in the `X-Request-Id` response header
-- [ ] 2.4 Wire the logger in `main.ts` with `bufferLogs: true`, and the middleware in `app.setup.ts` so e2e boots exercise it
-- [ ] 2.5 Unit-spec the adapter and the store: generated id, inbound id honoured, id present on both the interceptor's success line and the filter's error line
-- [ ] 2.6 e2e: a request returns an `X-Request-Id` header, and an inbound value is echoed back unchanged
+- [x] 2.1 Add `infrastructure/observability/pino-logger.adapter.ts` implementing Nest's `LoggerService` over pino, JSON in production and pretty in development (design D21)
+- [x] 2.2 Add a correlation-id store over `AsyncLocalStorage` and the middleware that opens it, honouring an inbound `X-Request-Id` and generating one otherwise (design D22)
+- [x] 2.3 Stamp the id onto every record from the pino adapter, and echo it in the `X-Request-Id` response header
+- [x] 2.4 Wire the logger in `main.ts` with `bufferLogs: true`, and the middleware in `app.setup.ts` so e2e boots exercise it
+- [x] 2.5 Unit-spec the adapter and the store: generated id, inbound id honoured, id present on both the interceptor's success line and the filter's error line
+- [x] 2.6 e2e: a request returns an `X-Request-Id` header, and an inbound value is echoed back unchanged
 
 ## 3. Metrics
 
