@@ -1,7 +1,7 @@
 import { Global, Module } from '@nestjs/common';
 import { ConfigModule as NestConfigModule } from '@nestjs/config';
-import { APP_CONFIG, buildConfig, type AppConfiguration } from './app-config';
-import { validateEnv } from './env.schema';
+import { APP_CONFIG, type AppConfiguration } from './app-config';
+import { loadConfig } from './load-config';
 
 /**
  * Global configuration module (design D12).
@@ -17,7 +17,7 @@ import { validateEnv } from './env.schema';
   providers: [
     {
       provide: APP_CONFIG,
-      useFactory: (): AppConfiguration => buildConfig(validateEnv(process.env)),
+      useFactory: (): AppConfiguration => loadConfig(),
     },
   ],
   exports: [APP_CONFIG],

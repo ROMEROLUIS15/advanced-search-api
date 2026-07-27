@@ -26,10 +26,10 @@
 
 ## 4. Distributed tracing
 
-- [ ] 4.1 Add `observability/tracing.bootstrap.ts` starting the OTel SDK from the validated env schema, with only the http, ioredis and Elasticsearch instrumentations (design D25)
-- [ ] 4.2 Import it as the first import in `main.ts`, with the comment explaining why ordering matters
-- [ ] 4.3 Make it fully inert when `OTEL_EXPORTER_OTLP_ENDPOINT` is unset — no SDK start, no exporter
-- [ ] 4.4 Unit-spec both paths (inert without an endpoint, started with one) and assert the import ordering in `main.ts`
+- [x] 4.1 Add `observability/tracing.bootstrap.ts` starting the OTel SDK from the validated env schema, with only the http, ioredis and Elasticsearch instrumentations (design D25)
+- [x] 4.2 Import it as the first import in `main.ts`, with the comment explaining why ordering matters
+- [x] 4.3 Make it fully inert when `OTEL_EXPORTER_OTLP_ENDPOINT` is unset — no SDK start, no exporter
+- [x] 4.4 Unit-spec both paths (inert without an endpoint, started with one) and assert the import ordering in `main.ts`
 
 ## 5. Cache hardening
 
