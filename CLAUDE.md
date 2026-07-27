@@ -9,13 +9,13 @@ suggestions) and Redis (fail-open cache), in a strict hexagonal architecture. Re
 index. Endpoints: `GET /`, `GET /search`, `GET /autocomplete`, `GET /suggest`, `GET /health` (contract and env
 table documented in `README.md`).
 
-The system is **implemented and deployed** — all 53 tasks done, live at
-<https://advanced-search-api-chet.onrender.com> (Render, Docker runtime built from `render.yaml`). Code comments
-cite design decisions by ID (`design D4`); the rationale lives in **two** archived changes, not one:
-`openspec/changes/archive/2026-07-22-advanced-search-system/design.md` holds **D1–D13** (the core system) and
-`openspec/changes/archive/2026-07-23-add-request-rate-limiting/design.md` holds **D14–D19** (rate limiting).
-The one exception is **D20** (ES `requestTimeout`/`maxRetries`), which has no `design.md` entry — its rationale
-is in README "Trade-offs" only. The first change's delta specs were synced to
+The system is **implemented and deployed** — all 82 tasks done (53 in the search-system change, 29 in the
+rate-limiting one), live at <https://advanced-search-api-chet.onrender.com> (Render, Docker runtime built from
+`render.yaml`). Code comments cite design decisions by ID (`design D4`); the rationale lives in **two** archived
+changes, not one: `openspec/changes/archive/2026-07-22-advanced-search-system/design.md` holds **D1–D13** (the
+core system) and `openspec/changes/archive/2026-07-23-add-request-rate-limiting/design.md` holds **D14–D19**
+(rate limiting). The one exception is **D20** (ES `requestTimeout`/`maxRetries`), which has no `design.md`
+entry — its rationale is in README "Trade-offs" only. The first change's delta specs were synced to
 `openspec/specs/<capability>/spec.md` (six capabilities) and the second's to
 `openspec/specs/request-rate-limiting/spec.md`; those scenarios are the acceptance criteria. Post-ship reports
 (the 2026-07-23 audit, the load-test run, the 2026-07-25 hardening report) live under `docs/`.
@@ -40,11 +40,20 @@ npm run loadtest:report      # render loadtest/results/*.json into loadtest/resu
 ```
 
 `loadtest/rate-limit.js` is run directly (`k6 run loadtest/rate-limit.js`), not via an npm script — it is the
-correctness run that floods one client and asserts 429 (see the rate-limiting note below).
+correctness run that floods one client and asserts 429 (see the rate-limiting note below). The whole harness is
+plain JS **outside `src/`**: no npm dependency, not in the TS build, and ESLint only globs `{src,test}/**/*.ts`,
+so nothing under `loadtest/` is linted or type-checked — a broken scenario surfaces only when k6 runs it.
 
 Single test: `npx jest src/path/to/file.spec.ts`, or by name `npm test -- -t "excludes its own dimension"`.
 Single e2e: `npx jest --config ./test/jest-e2e.json test/search.e2e-spec.ts`.
 Single integration: `npx jest --config ./test/jest-integration.json test/elasticsearch.integration-spec.ts`.
+
+`npm run lint:ci && npm test && npm run build` is the `quality` CI job reproduced locally — run it before
+calling work done. Green baseline as of 2026-07-26: **48 suites / 188 tests**, ~12 s.
+
+`test:cov` is **not** a gate: `collectCoverageFrom` drops `main.ts`, `**/*.module.ts`, `**/dto/**`,
+`*.client.factory.ts`, `*-client.lifecycle.ts` and `seed/**`, so the headline number covers business logic
+only; there is no `coverageThreshold` and CI never runs it, which means a coverage drop fails nothing.
 
 `npm run format` is redundant — Prettier runs as an ESLint rule (`eslint-plugin-prettier/recommended`) over the
 same file set, so `npm run lint` already formats. Lint is **type-aware** (`recommendedTypeChecked` +
@@ -74,8 +83,8 @@ the rate limiter skips, so the ping costs no client budget. The cron is UTC and 
 (`*/10 0-2,10-23` = 17 h/day, 06:00–23:00 at a UTC-4 local offset): free-tier Render bills 750 instance-hours
 a month per workspace, and a 24/7 ping would consume ~730 of them, so widening the window is a quota decision,
 not a cosmetic one. It checks nothing out and only reads (`permissions: contents: read`) and fails the run on
-a non-200, which makes it a de-facto uptime alarm. GitHub auto-disables scheduled workflows after 60 days of repo inactivity, so a cold
-deployment is a symptom to check there first.
+a non-200, which makes it a de-facto uptime alarm. GitHub auto-disables scheduled workflows after 60 days of
+repo inactivity, so a cold deployment is a symptom to check there first.
 
 **Dependency policy** (SCA-driven): `npm audit` is kept at **0** (dev + prod) via two targeted `overrides` in
 `package.json` — `js-yaml` → `5.2.2` (its DoS advisory reached prod through `@nestjs/swagger`) and
@@ -92,6 +101,10 @@ Serially all suites pass and Jest exits on its own, so neither script needs `--f
 
 Stack up: `docker compose up -d elasticsearch redis` (deps only, then run the API locally), or
 `docker compose up -d --build` (adds the API) plus `docker compose --profile seed run --rm seed` for a one-shot seed.
+
+`api.http` is the no-import twin of `postman/` (VS Code REST Client / JetBrains). Its `@baseUrl` defaults to the
+**deployed** service, not localhost — clicking Send hits production and spends real rate-limit budget; the
+localhost line right below it is commented out.
 
 **e2e/integration are not hermetic.** They boot the real `AppModule` against `localhost:9200` / `localhost:6379`
 and assert on the seeded dataset (e.g. 24 products across three pages, a `Tools` category, hits for `drill`).
@@ -189,7 +202,9 @@ metadata, so it registers a controller and nothing else. `app.module.ts` only as
   source ⇒ fail fast to 503 + `/health` is the right level); the rationale lives in README "Trade-offs".
 - **Error mapping is centralized** in `AllExceptionsFilter`: `ResultWindowExceededError` → **422**,
   domain/application errors → **400**, ES `ResponseError` → **502**, ES `ElasticsearchClientError` → **503**,
-  anything else → 500. Throw typed errors; don't map status codes in controllers or adapters. Body shape:
+  anything else → 500. Throw typed errors; don't map status codes in controllers or adapters. The
+  `HttpException` branch is checked **first**, ahead of every typed branch, so any Nest exception (a validation
+  400, the guard's 429) is rendered from its own status and never falls through. Body shape:
   `{ statusCode, error, message, details?, timestamp, path }`. **The filter is the only place an errored
   request is logged** — `LoggingInterceptor` uses `tap()`, which fires on the success path only. 5xx log as
   `error` with the stack (client still gets a generic message); 4xx log as `warn` with a compact reason
@@ -205,16 +220,21 @@ metadata, so it registers a controller and nothing else. `app.module.ts` only as
   (**422**).
 - **Rate limiting is a global guard, fail-over not fail-open (D14–D19).** `RateLimitGuard` (extends
   `@nestjs/throttler`, registered via `APP_GUARD` in `rate-limit.module.ts`) counts each client-IP per endpoint
-  through `RateLimitStorePort`. The store is `FailoverRateLimitStore`: Redis for a shared count, falling **over**
-  to an in-process counter on a Redis error — it never stops enforcing (fail-open would drop protection exactly
-  when a Redis outage also drops the cache) and never fails a request (fail-closed would make Redis critical,
-  breaking D8/`/health`). The Redis increment is **one atomic Lua eval** (INCR + conditional PEXPIRE + PTTL);
+  through `RateLimitStorePort`. There is **one** throttler with a *resolvable* limit, not several named ones —
+  several would subject every route to all of them; `resolveLimit` picks the per-endpoint budget by path prefix,
+  and the generated key includes controller + handler, so exhausting `/search` cannot exhaust `/autocomplete`.
+  The store is `FailoverRateLimitStore`: Redis for a shared count, falling **over** to an in-process counter on
+  a Redis error — it never stops enforcing (fail-open would drop protection exactly when a Redis outage also
+  drops the cache) and never fails a request (fail-closed would make Redis critical, breaking D8/`/health`).
+  The Redis increment is **one atomic Lua eval** (INCR + conditional PEXPIRE + PTTL);
   splitting it reintroduces an off-by-one under concurrency. `GET /health` is exempt (Render polls it) and
   `RATE_LIMIT_ENABLED=false` is a full pass-through — both live in the options `skipIf`. Over-budget ⇒ **429**
-  mapped in `AllExceptionsFilter` with `RateLimit-*` headers. Client IP comes from `req.ip`, which needs
-  Express `trust proxy` set from `TRUST_PROXY_HOPS` in `app.setup.ts` — without it every client shares one
-  bucket. The capacity load test runs with enforcement **off**; `loadtest/rate-limit.js` is the correctness run
-  that floods one client and asserts 429.
+  thrown by the guard as a typed `HttpException` (not `ThrottlerException`) so `AllExceptionsFilter` renders the
+  standard body, and the headers read `RateLimit-*` because the guard overrides `headerPrefix` — the library's
+  own default is `X-RateLimit-*`. Client IP comes from `req.ip`, which needs Express `trust proxy` set from
+  `TRUST_PROXY_HOPS` in `app.setup.ts` — without it every client shares one bucket. The capacity load test runs
+  with enforcement **off**; `loadtest/rate-limit.js` is the correctness run that floods one client and asserts
+  429.
 - **Suggestions inside `/search` appear only on low recall** (`total <= SEARCH_SUGGEST_MAX_HITS`);
   `GET /suggest` always returns them. The threshold is applied in `product-search.adapter.ts`, **not** in
   `SearchProductsUseCase` — that is the first place one looks and it is not there.
@@ -247,6 +267,11 @@ Implementation is driven by the skills/commands under `.claude/` rather than ad-
 creates a change, `/opsx:apply <name>` (or the `openspec-apply-change` skill) works its `tasks.md` in order,
 and `/opsx:archive <name>` retires it — syncing delta specs into `openspec/specs/` on the way out. Precedence
 when artifacts disagree: **spec scenarios → design.md → tasks.md → proposal.md**.
+
+**Not all work goes through OpenSpec.** The two archives cover the feature work; post-ship maintenance — the
+security workflows, the dependency policy, the 4xx logging / process safety net / OpenAPI hardening, the
+keep-alive cron — landed as direct conventional commits with a write-up under `docs/`, no change folder. A new
+capability gets a change; CI, dependency, ops and docs work does not.
 
 Always check `openspec list` first — it reported no active changes as of the 2026-07-23 rate-limiting archive
 (two changes are now archived), and while it stays empty new work needs a new change rather than tasks appended
