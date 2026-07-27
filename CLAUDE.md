@@ -49,7 +49,9 @@ Single e2e: `npx jest --config ./test/jest-e2e.json test/search.e2e-spec.ts`.
 Single integration: `npx jest --config ./test/jest-integration.json test/elasticsearch.integration-spec.ts`.
 
 `npm run lint:ci && npm test && npm run build` is the `quality` CI job reproduced locally — run it before
-calling work done. Green baseline as of 2026-07-26: **48 suites / 188 tests**, ~12 s.
+calling work done. Green baseline as of 2026-07-26: **48 suites / 188 tests** in ~12 s locally, and `main` at
+`093a520` green across all three workflows — CI (both jobs, real ES + Redis), CodeQL, and Security including
+the blocking DAST. That commit is the known-good anchor to bisect against.
 
 `test:cov` is **not** a gate: `collectCoverageFrom` drops `main.ts`, `**/*.module.ts`, `**/dto/**`,
 `*.client.factory.ts`, `*-client.lifecycle.ts` and `seed/**`, so the headline number covers business logic
@@ -153,7 +155,10 @@ metadata, so it registers a controller and nothing else. `app.module.ts` only as
   and `setupOpenApi` (`src/swagger.setup.ts`) — neither is part of the security edge the e2e suites must
   exercise, and a per-boot listener/doc route in every e2e app would be waste. OpenAPI is published at `/docs`
   (UI) and `/docs-json` (the spec the DAST job feeds ZAP); the `@nestjs/swagger` CLI plugin in `nest-cli.json`
-  derives the param schema from the `class-validator` DTOs, so there is no per-field `@ApiProperty`. The plugin
+  derives the **query** param schema from the `class-validator` DTOs, so those carry no `@ApiProperty`.
+  **Response** DTOs are the opposite: they are classes with explicit `@ApiProperty` (the plugin only ever
+  emitted `type: object` for them), and every endpoint declares its statuses — `@ApiOkResponse` plus
+  `ApiErrorResponses(...)`, which renders the shared `ErrorResponseDto`. The plugin
   runs during `nest build`, **not** under `start:dev`'s `--transpile-only`, so the full spec exists in `dist/`
   but not in watch mode.
 - **Path aliases** `@domain/* @application/* @infrastructure/* @presentation/* @config/* @shared/*` are declared
@@ -201,8 +206,9 @@ metadata, so it registers a controller and nothing else. `app.module.ts` only as
   avoid amplifying load on a single ailing node. A circuit breaker is deliberately **not** added (single data
   source ⇒ fail fast to 503 + `/health` is the right level); the rationale lives in README "Trade-offs".
 - **Error mapping is centralized** in `AllExceptionsFilter`: `ResultWindowExceededError` → **422**,
-  domain/application errors → **400**, ES `ResponseError` → **502**, ES `ElasticsearchClientError` → **503**,
-  anything else → 500. Throw typed errors; don't map status codes in controllers or adapters. The
+  domain/application errors → **400**, ES `ResponseError` → **400 when the engine itself answered 400** (a
+  query built from bad input, not a broken cluster) and **502** otherwise, ES `ElasticsearchClientError` →
+  **503**, anything else → 500. Throw typed errors; don't map status codes in controllers or adapters. The
   `HttpException` branch is checked **first**, ahead of every typed branch, so any Nest exception (a validation
   400, the guard's 429) is rendered from its own status and never falls through. Body shape:
   `{ statusCode, error, message, details?, timestamp, path }`. **The filter is the only place an errored
@@ -215,9 +221,11 @@ metadata, so it registers a controller and nothing else. `app.module.ts` only as
   restart a clean process. Deliberately **not** in `configureApp`: that runs per e2e boot and would stack a
   listener each. This does not threaten the Redis fail-open — the ioredis client has its own `'error'` listener
   and cache ops are wrapped in `cacheAside`, so a Redis outage never reaches these process-level handlers.
-- **Two different guards, two different codes**: `pageSize` above `SEARCH_MAX_PAGE_SIZE` is rejected in
-  `SearchController` (**400**); `from+size` beyond `SEARCH_MAX_RESULT_WINDOW` is rejected in the ES adapter
-  (**422**).
+- **Three input guards, three places**: free-text length caps are declared once in
+  `presentation/common/input-limits.ts` and applied by the DTOs (**400**); `pageSize` above
+  `SEARCH_MAX_PAGE_SIZE` is rejected in `SearchController` (**400**); `from+size` beyond
+  `SEARCH_MAX_RESULT_WINDOW` is rejected in the ES adapter (**422**). The caps are not cosmetic — an unbounded
+  `q` reached Lucene's fuzzy automaton and came back as a **502** (measured: 2000 chars fine, 3000 not).
 - **Rate limiting is a global guard, fail-over not fail-open (D14–D19).** `RateLimitGuard` (extends
   `@nestjs/throttler`, registered via `APP_GUARD` in `rate-limit.module.ts`) counts each client-IP per endpoint
   through `RateLimitStorePort`. There is **one** throttler with a *resolvable* limit, not several named ones —
