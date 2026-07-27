@@ -1,10 +1,10 @@
 import { Module } from '@nestjs/common';
 import { RedisModule } from '@infrastructure/redis/redis.module';
 import { RATE_LIMIT_STORE } from '@application/ports/rate-limit-store.port';
-import { ThrottlerStoreAdapter } from '@presentation/rate-limit/throttler-store.adapter';
 import { InMemoryRateLimitStore } from './in-memory-rate-limit.store';
 import { RedisRateLimitStore } from './redis-rate-limit.store';
 import { FailoverRateLimitStore } from './failover-rate-limit.store';
+import { ThrottlerStoreAdapter } from './throttler-store.adapter';
 
 /**
  * Wires the counter store chain (design D14) and the throttler bridge, exporting

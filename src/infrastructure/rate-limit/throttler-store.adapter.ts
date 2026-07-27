@@ -11,6 +11,11 @@ import {
  * (design D15), so the counting substrate stays ours — Redis with an in-process
  * fallback — while the guard semantics come from the official package.
  *
+ * It lives in `infrastructure/` and not next to the guard because it is a driven
+ * adapter: it implements a third-party contract over an application port and
+ * holds no HTTP concern. Keeping it here is also what stops `infrastructure/`
+ * from having to import `presentation/`, which the dependency rule forbids.
+ *
  * Unit conventions are the library's, and they differ on either side of the call:
  * `ttl` and `blockDuration` arrive in **milliseconds**, while `timeToExpire` and
  * `timeToBlockExpire` are reported back in **seconds**.
