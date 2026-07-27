@@ -141,6 +141,12 @@ export function buildConfig(env: Env): AppConfiguration {
  * Parses the OTLP `key=value,key=value` header convention. A pair without `=` is
  * skipped rather than producing an empty header name, and only the first `=` is
  * treated as the separator so a base64 credential keeps its padding.
+ *
+ * Values are **percent-decoded**, as the OpenTelemetry environment-variable
+ * specification requires. This is not academic: Grafana Cloud hands you
+ * `Authorization=Basic%20<base64>`, and sending that literally is a 401 —
+ * measured against their OTLP gateway, which answers 200 for the decoded form
+ * and 401 for the encoded one.
  */
 function parseOtlpHeaders(raw: string | undefined): Record<string, string> {
   if (!raw) {
@@ -152,13 +158,22 @@ function parseOtlpHeaders(raw: string | undefined): Record<string, string> {
     if (separator <= 0) {
       continue;
     }
-    const key = pair.slice(0, separator).trim();
-    const value = pair.slice(separator + 1).trim();
+    const key = percentDecode(pair.slice(0, separator).trim());
+    const value = percentDecode(pair.slice(separator + 1).trim());
     if (key.length > 0 && value.length > 0) {
       headers[key] = value;
     }
   }
   return headers;
+}
+
+/** A malformed escape is kept as-is rather than failing the whole boot over one header. */
+function percentDecode(value: string): string {
+  try {
+    return decodeURIComponent(value);
+  } catch {
+    return value;
+  }
 }
 
 function parseOrigins(raw: string | undefined): string[] {

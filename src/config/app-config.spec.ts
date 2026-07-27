@@ -136,3 +136,35 @@ describe('buildConfig — observability', () => {
     expect(config.observability.otlpEndpoint).toBeUndefined();
   });
 });
+
+describe('buildConfig — OTLP header encoding', () => {
+  const base = {
+    ELASTICSEARCH_NODE: 'http://localhost:9200',
+    REDIS_URL: 'redis://localhost:6379',
+  };
+
+  it('percent-decodes the header value, which is what the OTel spec requires', () => {
+    // Arrange: exactly what Grafana Cloud's UI gives you. Sent literally it is a
+    // 401 — measured against their gateway, 200 once decoded.
+    const env = validateEnv({
+      ...base,
+      OTEL_EXPORTER_OTLP_HEADERS: 'Authorization=Basic%20MTczODM2MTpnbGNfdG9rZW4%3D',
+    });
+
+    // Act
+    const config = buildConfig(env);
+
+    // Assert
+    expect(config.observability.otlpHeaders).toEqual({
+      Authorization: 'Basic MTczODM2MTpnbGNfdG9rZW4=',
+    });
+  });
+
+  it('keeps a malformed escape rather than failing the boot over one header', () => {
+    // Arrange
+    const env = validateEnv({ ...base, OTEL_EXPORTER_OTLP_HEADERS: 'X-Scope=100%stake' });
+
+    // Act & Assert
+    expect(buildConfig(env).observability.otlpHeaders).toEqual({ 'X-Scope': '100%stake' });
+  });
+});

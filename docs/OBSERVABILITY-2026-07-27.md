@@ -94,8 +94,34 @@ exporter, no spans, no overhead — which is what lets CI, the e2e suites and a 
 in sight. The bootstrap runs before the DI container exists, so `config/load-config.ts` now holds the single
 `process.env` read that both it and the `APP_CONFIG` provider share; D12 stays literally true.
 
-**Measured against a real backend.** Exporting to Grafana Cloud throughout a 314k-request run: **no exporter
-error, no retry warning, nothing but `info` in the log**.
+**A correction worth recording.** The first version of this report claimed tracing "exported cleanly" during
+the load test because the application log showed no exporter error. That was not evidence: OpenTelemetry's
+diagnostic logger is off by default, so a rejected export is silent. Checked properly against Grafana Cloud's
+OTLP gateway, the header we were sending was **401**:
+
+```
+POST /otlp/v1/traces  Authorization: Basic%20<base64>   -> 401
+POST /otlp/v1/traces  Authorization: Basic <base64>     -> 200
+```
+
+Grafana's console hands you `Authorization=Basic%20…`, and the OpenTelemetry environment-variable
+specification says header values are percent-encoded and must be decoded. `parseOtlpHeaders` was not decoding
+them, so no span ever reached the backend during that run.
+
+**Fixed and verified end to end.** With decoding in place, a local OTLP collector receives what the process
+actually sends:
+
+```json
+{"method":"POST","url":"/v1/traces","auth":"Basic MTczOD…",
+ "authHasLiteralPercent":false,"contentType":"application/json","bytes":6454}
+```
+
+Both halves are now proven separately: the gateway accepts the decoded credential (200), and the exporter
+emits the decoded credential (no literal `%` in the header it sends).
+
+**Known limitation.** Spans are flushed on a ~5 s batch schedule and on `SIGTERM` via `sdk.shutdown()`. The
+shutdown flush is asynchronous and races the process exit, so a redeploy can drop the last few seconds of
+traces. Acceptable for this service; worth knowing before anyone debugs a gap around a deploy.
 
 ## 4 · Cache, rate limiter and the remaining QA findings (`eebd0e4`, `ef99201`, `cc71978`)
 
@@ -164,7 +190,8 @@ cheaper shape hash — is therefore **not** needed, and that is a measurement, n
 | Dependency vulns | `npm audit` | **0 total**, after adding pino, prom-client and the OTel SDK |
 | Capacity | `npm run loadtest` | 314,761 requests, 0 failures, every SLO met |
 | Log format | booted build | 314,794 lines, all JSON, all `info` |
-| Trace export | booted build + Grafana Cloud | no exporter error across the whole run |
+| Trace auth | `curl` against the Grafana OTLP gateway | **200** decoded, **401** percent-encoded |
+| Trace export | booted build + local OTLP collector | `POST /v1/traces`, 6454 bytes, header decoded |
 
 ## Deferred, on purpose
 
