@@ -233,9 +233,22 @@ keep 100 % of errors and anything over a latency threshold, sample the rest — 
 Collector between the service and Grafana. The exporter already speaks OTLP, so that is a change of endpoint,
 not of code.
 
-**Not measured yet:** the CPU cost of 100 % sampling under load. The k6 battery in §6 ran at the 0.1 default
-*and* with the broken header, so no span left the process during it. Before this service takes real volume,
-re-run the battery with tracing genuinely on.
+**Now measured: full sampling costs nothing detectable.** The battery was run twice against the same stack,
+once at the 0.1 default and once at 1.0, with the SDK loaded and exporting in both, reading
+`process_cpu_seconds_total` from `/metrics` before and after each run:
+
+| | ratio 0.1 | ratio 1.0 |
+|---|---|---|
+| CPU seconds consumed | 199.95 | **199.36** |
+| Requests served | 298,743 | **321,660** |
+| CPU per 1,000 requests | 0.669 s | **0.620 s** |
+| Failed requests | 0.000 % | 0.000 % |
+| p95 spread across the seven scenarios | — | −3.70 ms to +0.35 ms |
+
+The full-sampling run used marginally *less* CPU while serving 8 % more requests, and its p95 came out lower in
+five scenarios of seven. Read honestly, that does not mean tracing everything is free — it means the cost is
+**below what this method can resolve**, with run-to-run variance dominating. The decision it settles is the one
+that mattered: nothing here argues for sampling less than 1.0 at this volume.
 
 **`/metrics` is closed.** It is protected by `METRICS_TOKEN`: without the bearer it answers 401. The endpoint
 discloses route names, request volumes, error rates and cache behaviour — fine to leave open on a demo, not on

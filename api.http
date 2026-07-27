@@ -10,53 +10,72 @@
 # every response carries RateLimit-* headers showing the remaining budget
 # (see request 15).
 
+# The API is private: every request needs a key (design D30). Paste yours
+# here. /health is the only endpoint that answers without one.
+@apiKey = paste-your-api-key-here
+
 @baseUrl = https://advanced-search-api-chet.onrender.com
 # @baseUrl = http://localhost:3000
 
 ### 1. Service Index
 GET {{baseUrl}}/
+X-API-Key: {{apiKey}}
 
 ### 2. Search — Basic (q=drill)
 GET {{baseUrl}}/search?q=drill
+X-API-Key: {{apiKey}}
 
 ### 3. Search — Filters + Facets
 GET {{baseUrl}}/search?q=drill&category=Tools&minPrice=50&maxPrice=500&sort=relevance&order=desc&page=1&pageSize=10
+X-API-Key: {{apiKey}}
 
 ### 4. Search — Browse Mode (by popularity)
 GET {{baseUrl}}/search?sort=popularity&order=desc&pageSize=5
+X-API-Key: {{apiKey}}
 
 ### 5. Search — Exclude-own-dimension facet
 GET {{baseUrl}}/search?category=Tools
+X-API-Key: {{apiKey}}
 
 ### 6. Search — Typo (low-recall suggestions)
 GET {{baseUrl}}/search?q=driil
+X-API-Key: {{apiKey}}
 
 ### 7. Search — Subcategories (ANY-of)
 GET {{baseUrl}}/search?subcategory=Drills&subcategory=Power%20Tools
+X-API-Key: {{apiKey}}
 
 ### 8. Search — By Location
 GET {{baseUrl}}/search?location=Berlin
+X-API-Key: {{apiKey}}
 
 ### 9. Search — Sort by created_at
 GET {{baseUrl}}/search?sort=created_at&order=desc&pageSize=5
+X-API-Key: {{apiKey}}
 
 ### 10. Search — Pagination (page 2)
 GET {{baseUrl}}/search?page=2&pageSize=10
+X-API-Key: {{apiKey}}
 
 ### 11. Search — Validation Error (400)
 GET {{baseUrl}}/search?q=drill&pageSize=500
+X-API-Key: {{apiKey}}
 
 ### 12. Autocomplete (q=cord)
 GET {{baseUrl}}/autocomplete?q=cord&limit=5
+X-API-Key: {{apiKey}}
 
 ### 13. Suggest — Did You Mean (q=driil)
 GET {{baseUrl}}/suggest?q=driil
+X-API-Key: {{apiKey}}
 
 ### 14. Health Check
 GET {{baseUrl}}/health
+X-API-Key: {{apiKey}}
 
 ### 15. Search — Rate limit (inspect headers, or trip the 429)
 # Look at the response headers: RateLimit-Limit / RateLimit-Remaining / RateLimit-Reset.
 # Send this ~61 times within a minute (or lower RATE_LIMIT_SEARCH locally) and it
 # flips to 429 with a typed body and a Retry-After header. GET /health is exempt.
 GET {{baseUrl}}/search?q=drill
+X-API-Key: {{apiKey}}

@@ -9,6 +9,12 @@
       "key": "baseUrl",
       "value": "https://advanced-search-api-chet.onrender.com",
       "type": "string"
+    },
+    {
+      "key": "apiKey",
+      "value": "",
+      "type": "string",
+      "description": "Sent as X-API-Key. Required on every endpoint except /health."
     }
   ],
   "item": [
@@ -979,5 +985,25 @@
         }
       ]
     }
-  ]
+  ],
+  "auth": {
+    "type": "apikey",
+    "apikey": [
+      {
+        "key": "key",
+        "value": "X-API-Key",
+        "type": "string"
+      },
+      {
+        "key": "value",
+        "value": "{{apiKey}}",
+        "type": "string"
+      },
+      {
+        "key": "in",
+        "value": "header",
+        "type": "string"
+      }
+    ]
+  }
 }

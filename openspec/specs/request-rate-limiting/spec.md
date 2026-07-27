@@ -6,9 +6,7 @@ Per-client, per-endpoint request rate limiting at the HTTP edge, so the public r
 driven without bound against metered Elasticsearch and Redis. The counter is shared in Redis and falls over
 to an in-process counter on a Redis outage, so protection survives the outage and Redis stays non-critical
 (design D14). `GET /health` is exempt because the platform polls it as its readiness probe.
-
 ## Requirements
-
 ### Requirement: Per-endpoint request rate limiting
 The system SHALL limit the number of requests a single client may make to each public endpoint within a
 configurable time window. Each endpoint SHALL have its own independent budget, configurable by environment,
@@ -60,9 +58,11 @@ MUST additionally carry `Retry-After` indicating when the client may retry.
 - **THEN** the response carries `Retry-After`
 
 ### Requirement: Client identification behind a proxy
-The system SHALL identify a client by its source address, resolved through a configurable number of trusted
-proxy hops. When no proxy hop is trusted, a client-supplied forwarding header MUST NOT influence
-identification, so a client cannot evade or impersonate a budget by forging it.
+The system SHALL identify a client by its **API key when the request carries one**, and by its source address
+otherwise — resolved through a configurable number of trusted proxy hops. When no proxy hop is trusted, a
+client-supplied forwarding header MUST NOT influence identification, so a client cannot evade or impersonate a
+budget by forging it. The key itself MUST NOT be used as the storage key; a derived, non-reversible identifier
+is used instead, so a credential never reaches the counter store.
 
 #### Scenario: Distinct clients hold distinct budgets behind a trusted proxy
 - **WHEN** the service runs behind one trusted proxy hop
@@ -74,6 +74,14 @@ identification, so a client cannot evade or impersonate a budget by forging it.
 - **WHEN** no proxy hop is trusted
 - **AND** a client sends a forwarding header claiming a different address on every request
 - **THEN** all those requests count against the same budget
+
+#### Scenario: Two consumers sharing one address
+- **WHEN** two clients presenting different API keys call from the same network address
+- **THEN** each consumes its own budget, rather than sharing the address's
+
+#### Scenario: The credential does not reach the store
+- **WHEN** a request identified by an API key is counted
+- **THEN** the counter is keyed by a derived identifier, and the key itself appears nowhere in the store
 
 ### Requirement: Counter store resilience
 The counter SHALL be kept in Redis so that a limit is shared across instances. When Redis is unavailable the
@@ -108,3 +116,4 @@ settings, and the service MUST NOT assume any particular deployment environment.
 #### Scenario: Invalid limit configuration fails fast at boot
 - **WHEN** the service starts with a non-numeric or negative rate limit value
 - **THEN** startup fails with a readable configuration error
+

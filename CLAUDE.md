@@ -19,7 +19,7 @@ entry — its rationale is in README "Trade-offs" only. The first change's delta
 `openspec/specs/<capability>/spec.md` (six capabilities) and the second's to
 `openspec/specs/request-rate-limiting/spec.md`; those scenarios are the acceptance criteria. Post-ship reports
 (the 2026-07-23 audit, the load-test run, the 2026-07-25 hardening report, the 2026-07-26 QA review and the
-2026-07-27 observability report) live under `docs/`. The QA review is the one to read first after a change:
+2026-07-27 observability report, the 2026-07-27 auth rollout) live under `docs/`. The QA review is the one to read first after a change:
 it records what is still open and why.
 
 ## Commands
@@ -319,7 +319,7 @@ keep-alive cron — landed as direct conventional commits with a write-up under 
 capability gets a change; CI, dependency, ops and docs work does not.
 
 Always check `openspec list` first — it reported no active changes as of the 2026-07-23 rate-limiting archive
-(two changes are now archived), and while it stays empty new work needs a new change rather than tasks appended
+(four changes are now archived), and while it stays empty new work needs a new change rather than tasks appended
 to an existing one. Note the flags are not uniform:
 `openspec status --change <name> --json` takes `--change`, while validation does not — it is
 `openspec validate <name> --strict` for a change and `openspec validate --specs --strict` for the

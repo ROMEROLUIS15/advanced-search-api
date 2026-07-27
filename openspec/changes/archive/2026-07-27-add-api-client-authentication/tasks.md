@@ -22,7 +22,7 @@
 
 - [x] 4.1 Declare the security scheme in the OpenAPI document so `/docs` shows the header and its "Authorize" box
 - [x] 4.2 Document authentication in `README.md`: the header, obtaining a key, rotation, and that `/health` is the only open endpoint
-- [ ] 4.3 Update `postman/` and `api.http` to send the header from a variable
+- [x] 4.3 Update `postman/` and `api.http` to send the header from a variable
 - [x] 4.4 Add `API_AUTH_ENABLED` and `API_KEYS` to `render.yaml` (`sync: false` for the keys)
 - [x] 4.5 Record the non-obvious parts in `CLAUDE.md` — on by default, the single exemption, and that DAST and the e2e suites disable it deliberately
 
@@ -39,7 +39,7 @@
 
 ## 7. Verification and rollout
 
-- [ ] 7.1 Run the full local gate: `lint:ci`, `test:cov`, `build`, plus e2e and integration against the live stack
-- [ ] 7.2 Deploy, then generate a key and set `API_KEYS` on the service before authentication takes effect
-- [ ] 7.3 Verify against production: `/health` 200 with no key, `/search` and `/docs-json` 401 without, 200 with
-- [ ] 7.4 Write the rollout note into `docs/`, including the key handover and the rollback switch
+- [x] 7.1 Run the full local gate: `lint:ci`, `test:cov`, `build`, plus e2e and integration against the live stack
+- [x] 7.2 Deploy, then generate a key and set `API_KEYS` on the service before authentication takes effect
+- [x] 7.3 Verify against production: `/health` 200 with no key, `/search` and `/docs-json` 401 without, 200 with
+- [x] 7.4 Write the rollout note into `docs/`, including the key handover and the rollback switch
