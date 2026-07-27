@@ -1,4 +1,10 @@
-import { BadRequestException, HttpException, HttpStatus, Logger } from '@nestjs/common';
+import {
+  BadRequestException,
+  HttpException,
+  HttpStatus,
+  Logger,
+  NotFoundException,
+} from '@nestjs/common';
 import { errors as esErrors } from '@elastic/elasticsearch';
 import { AllExceptionsFilter } from './all-exceptions.filter';
 import {
@@ -219,5 +225,72 @@ describe('AllExceptionsFilter — upstream contract errors', () => {
     // Assert
     expect(status).toBe(502);
     expect(body.message).toBe('Search engine error');
+  });
+});
+
+describe('AllExceptionsFilter — method not allowed', () => {
+  function runWith(
+    config: any,
+    request: { method: string; url: string; headers?: Record<string, unknown> },
+  ): { status: number; body: any; headers: Record<string, string> } {
+    const headers: Record<string, string> = {};
+    let status = 0;
+    let body: any;
+    const response = {
+      setHeader: (name: string, value: string) => (headers[name] = value),
+      status: (code: number) => {
+        status = code;
+        return { json: (payload: any) => (body = payload) };
+      },
+    };
+    const host: any = {
+      switchToHttp: () => ({
+        getResponse: () => response,
+        getRequest: () => ({ headers: {}, ...request }),
+      }),
+    };
+    new AllExceptionsFilter(config).catch(new NotFoundException('Cannot POST /search'), host);
+    return { status, body, headers };
+  }
+
+  const open = { apiAuth: { enabled: false, keys: [] } };
+  const closed = { apiAuth: { enabled: true, keys: ['key-one'] } };
+
+  it('upgrades a wrong verb on a known path to 405 with an Allow header', () => {
+    const { status, body, headers } = runWith(open, { method: 'POST', url: '/search' });
+
+    expect(status).toBe(405);
+    expect(body.error).toBe('Method Not Allowed');
+    expect(headers.Allow).toBe('GET, HEAD, OPTIONS');
+  });
+
+  it('leaves an unknown path as a 404 — there is no verb that would work', () => {
+    const { status } = runWith(open, { method: 'POST', url: '/nope' });
+
+    expect(status).toBe(404);
+  });
+
+  it('hides the route from an unauthenticated caller: 404, not 405', () => {
+    // 405 would confirm /search exists to someone who cannot call it.
+    const { status, headers } = runWith(closed, { method: 'POST', url: '/search' });
+
+    expect(status).toBe(404);
+    expect(headers.Allow).toBeUndefined();
+  });
+
+  it('gives an authenticated caller the accurate 405', () => {
+    const { status } = runWith(closed, {
+      method: 'POST',
+      url: '/search',
+      headers: { 'x-api-key': 'key-one' },
+    });
+
+    expect(status).toBe(405);
+  });
+
+  it('does not touch a genuine 404 from a GET', () => {
+    const { status } = runWith(open, { method: 'GET', url: '/nope' });
+
+    expect(status).toBe(404);
   });
 });

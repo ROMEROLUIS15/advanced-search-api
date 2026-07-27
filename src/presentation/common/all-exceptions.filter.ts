@@ -14,6 +14,13 @@ import {
   UpstreamResponseError,
 } from '@application/errors/application.error';
 import { DomainError } from '@domain/errors/domain.error';
+import type { AppConfiguration } from '@config/app-config';
+import {
+  API_KEY_HEADER,
+  type KeyIdentifier,
+  createKeyIdentifier,
+} from '@presentation/auth/api-key.identity';
+import { ALLOW_HEADER_VALUE, isAllowedMethod, isApiPath } from './api-routes';
 
 interface ResolvedError {
   statusCode: number;
@@ -39,17 +46,63 @@ interface ErrorBody extends ResolvedError {
 @Catch()
 export class AllExceptionsFilter implements ExceptionFilter {
   private readonly logger = new Logger(AllExceptionsFilter.name);
+  private readonly identify: KeyIdentifier;
+  private readonly authEnabled: boolean;
+
+  /**
+   * `config` is optional so a spec can construct the filter bare; without it the
+   * method-not-allowed upgrade simply never fires, which is the safe direction.
+   */
+  constructor(config?: AppConfiguration) {
+    this.authEnabled = config?.apiAuth.enabled ?? false;
+    this.identify = createKeyIdentifier(config?.apiAuth.keys ?? []);
+  }
 
   catch(exception: unknown, host: ArgumentsHost): void {
     const ctx = host.switchToHttp();
     const response = ctx.getResponse<Response>();
     const request = ctx.getRequest<Request>();
-    const resolved = resolveError(exception);
+    const resolved = this.upgradeMethodNotAllowed(request, response, resolveError(exception));
 
     this.logException(request, resolved, exception);
 
     const body: ErrorBody = { ...resolved, timestamp: new Date().toISOString(), path: request.url };
     response.status(resolved.statusCode).json(body);
+  }
+
+  /**
+   * Nest answers **404** when a known path is called with an unsupported verb,
+   * because Express finds no handler for it. `POST /search` deserves a **405**
+   * with an `Allow` header — but only for a caller who has already proved it may
+   * know the route exists.
+   *
+   * To an unauthenticated stranger, 405 and 404 are different answers: one
+   * confirms `/search` is real. On a private API that is disclosure, so the
+   * upgrade applies only when authentication is off or the request carries a
+   * valid key.
+   */
+  private upgradeMethodNotAllowed(
+    request: Request,
+    response: Response,
+    resolved: ResolvedError,
+  ): ResolvedError {
+    // Plain numeric literal, like logException below: statusCode is a number and
+    // comparing it against the enum trips no-unsafe-enum-comparison.
+    if (resolved.statusCode !== 404) {
+      return resolved;
+    }
+    if (!isApiPath(request.url) || isAllowedMethod(request.method)) {
+      return resolved;
+    }
+    if (this.authEnabled && this.identify(presentedKey(request)) === undefined) {
+      return resolved;
+    }
+    response.setHeader('Allow', ALLOW_HEADER_VALUE);
+    return {
+      statusCode: HttpStatus.METHOD_NOT_ALLOWED,
+      error: 'Method Not Allowed',
+      message: `${request.method} is not supported on this endpoint; use ${ALLOW_HEADER_VALUE}`,
+    };
   }
 
   private logException(request: Request, resolved: ResolvedError, exception: unknown): void {
@@ -64,6 +117,11 @@ export class AllExceptionsFilter implements ExceptionFilter {
       this.logger.warn(`${line} ${messageSummary(resolved)}`);
     }
   }
+}
+
+function presentedKey(request: Request): string | undefined {
+  const header = request.headers[API_KEY_HEADER];
+  return Array.isArray(header) ? header[0] : header;
 }
 
 function resolveError(exception: unknown): ResolvedError {

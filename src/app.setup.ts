@@ -25,7 +25,7 @@ export function configureApp(app: INestApplication, config: AppConfiguration): v
     new ValidationPipe({ whitelist: true, forbidNonWhitelisted: true, transform: true }),
   );
   app.useGlobalInterceptors(new LoggingInterceptor());
-  app.useGlobalFilters(new AllExceptionsFilter());
+  app.useGlobalFilters(new AllExceptionsFilter(config));
   app.enableShutdownHooks();
 }
 
