@@ -27,9 +27,12 @@ export function configureApp(app: INestApplication, config: AppConfiguration): v
 
 /**
  * Applies the proxy-trust hop count to the underlying Express instance (design
- * D16). A count of 0 trusts nothing, correct for a direct local connection; on
- * Render, 1 trusts only the platform proxy. Skipped when the HTTP adapter is not
- * Express (e.g. a test harness), where there is no proxy to resolve.
+ * D16). The value is how many proxies sit in front of the app, counted from the
+ * right of `X-Forwarded-For`: 0 trusts nothing, correct for a direct local
+ * connection; on Render it is 3 — the platform's internal load balancer,
+ * Cloudflare and the edge, confirmed against the live header (see the
+ * `TRUST_PROXY_HOPS` comment in `render.yaml`). Skipped when the HTTP adapter is
+ * not Express (e.g. a test harness), where there is no proxy to resolve.
  */
 export function configureProxyTrust(app: INestApplication, config: AppConfiguration): void {
   const expressApp = app as NestExpressApplication;

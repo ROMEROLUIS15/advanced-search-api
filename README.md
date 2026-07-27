@@ -232,7 +232,7 @@ Environment is validated at boot (Zod) — the app fails fast on missing/invalid
 | `RATE_LIMIT_SEARCH` / `RATE_LIMIT_SUGGEST` | `60` / `60` | requests per window |
 | `RATE_LIMIT_AUTOCOMPLETE` | `300` | higher — fires on nearly every keystroke |
 | `RATE_LIMIT_DEFAULT` | `120` | any other limited route (`GET /`) |
-| `TRUST_PROXY_HOPS` | `0` | proxy hops to trust for the client IP; `1` behind Render |
+| `TRUST_PROXY_HOPS` | `0` | proxy hops to trust for the client IP; `3` behind Render |
 
 ## Testing
 
