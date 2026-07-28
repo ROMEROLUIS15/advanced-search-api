@@ -41,7 +41,7 @@ export function buildTracingConfig(
     }),
     instrumentations: [
       new HttpInstrumentation({ requestHook: redactIncomingQuery }),
-      new IORedisInstrumentation(),
+      new IORedisInstrumentation({ dbStatementSerializer: commandNameOnly }),
     ],
     // Traces only, and it has to be said out loud. Left unset, `NodeSDK` falls
     // back to reading the environment, where the default metrics exporter is
@@ -104,6 +104,30 @@ export async function stopTracing(): Promise<void> {
  * Query values are client-controlled search data. Keep the fact that a query
  * existed without exporting its contents to the trace backend.
  */
+/**
+ * The Redis command name, without its arguments (`db.query.text`).
+ *
+ * The default serializer writes the whole command, arguments included. Observed
+ * in production the moment Redis started being traced at all: a rate-limit span
+ * carried `evalsha <sha> 1 ratelimit:v1:default:<digest> 60000`. The rate
+ * limiter's own key is only a digest, but the *cache* path runs
+ * `SET search:v1:<scope>:<hash> <the entire serialized response>` — so every
+ * cache miss would have shipped a full result set to the trace backend. That is
+ * product data in Tempo, and a span two orders of magnitude past the ~2.7 kB
+ * the free-tier budget was computed from.
+ *
+ * The operation is the part worth tracing; a span already carries its duration,
+ * its parent and the server it talked to, and none of that needs the payload.
+ *
+ * Declared with one parameter on purpose. The serializer is called with
+ * `(name, args)` and JavaScript discards the extra argument, so the arguments
+ * are not merely unused here — they are unreachable, which is a stronger
+ * guarantee than a variable someone could later decide to interpolate.
+ */
+export function commandNameOnly(commandName: string): string {
+  return commandName;
+}
+
 export function redactIncomingQuery(span: Span, request: ClientRequest | IncomingMessage): void {
   if ('url' in request && typeof request.url === 'string' && request.url.includes('?')) {
     span.setAttribute('url.query', '[REDACTED]');

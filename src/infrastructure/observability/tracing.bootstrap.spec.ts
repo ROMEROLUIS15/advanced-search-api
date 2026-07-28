@@ -5,6 +5,7 @@ import { NodeSDK } from '@opentelemetry/sdk-node';
 import { type ObservabilityConfig } from '@config/app-config';
 import {
   buildTracingConfig,
+  commandNameOnly,
   redactIncomingQuery,
   startTracing,
   stopTracing,
@@ -26,6 +27,45 @@ const OBSERVABILITY: ObservabilityConfig = {
   metricsExportEnabled: false,
   metricExportIntervalMs: 60000,
 };
+
+describe('commandNameOnly', () => {
+  /** As the instrumentation calls it: `(name, args)`, the extra one discarded. */
+  const asSerializer = commandNameOnly as unknown as (name: string, args: unknown[]) => string;
+
+  it('keeps the operation and drops every argument', () => {
+    // Arrange & Act & Assert: the default serializer writes the whole command,
+    // which on the cache path is `SET <key> <the entire serialized response>`.
+    expect(asSerializer('get', ['search:v1:abc:def'])).toBe('get');
+    expect(asSerializer('set', ['search:v1:abc:def', '{"items":[…]}', 'EX', '300'])).toBe('set');
+  });
+
+  it('does not leak a cached payload or key into the span', () => {
+    // Arrange
+    const payload = JSON.stringify({ items: [{ name: 'cordless drill', price: 89 }] });
+
+    // Act
+    const statement = asSerializer('set', ['search:v1:abc:def', payload, 'EX', '300']);
+
+    // Assert
+    expect(statement).not.toContain('cordless drill');
+    expect(statement).not.toContain('search:v1');
+  });
+
+  it('is the serializer the Redis instrumentation is actually built with', () => {
+    // Arrange & Act: wiring it and never attaching it would look identical here
+    // otherwise — the production span is what proved the default leaks.
+    const config = buildTracingConfig({
+      ...OBSERVABILITY,
+      otlpEndpoint: 'https://otlp.example.com',
+    });
+    const ioredis: any = config?.instrumentations?.find((instrumentation: any) =>
+      instrumentation.instrumentationName?.includes('ioredis'),
+    );
+
+    // Assert
+    expect(ioredis.getConfig().dbStatementSerializer).toBe(commandNameOnly);
+  });
+});
 
 describe('buildTracingConfig', () => {
   it('declares an empty reader list so the SDK cannot start a metrics pipeline too', () => {
