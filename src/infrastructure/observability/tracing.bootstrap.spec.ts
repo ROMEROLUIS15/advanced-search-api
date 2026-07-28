@@ -1,13 +1,44 @@
 import { readFileSync } from 'node:fs';
 import { join } from 'node:path';
 import { NodeSDK } from '@opentelemetry/sdk-node';
-import { startTracing, stopTracing } from './tracing.bootstrap';
+import { type ObservabilityConfig } from '@config/app-config';
+import { buildTracingConfig, startTracing, stopTracing } from './tracing.bootstrap';
 
 const BASE_ENV = {
   ELASTICSEARCH_NODE: 'http://localhost:9200',
   API_AUTH_ENABLED: 'false',
   REDIS_URL: 'redis://localhost:6379',
 };
+
+const OBSERVABILITY: ObservabilityConfig = {
+  logLevel: 'info',
+  logPretty: false,
+  metricsEnabled: true,
+  otlpHeaders: {},
+  serviceName: 'advanced-search-api',
+  tracesSamplerRatio: 1,
+};
+
+describe('buildTracingConfig', () => {
+  it('declares an empty reader list so the SDK cannot start a metrics pipeline too', () => {
+    // Arrange & Act
+    const config = buildTracingConfig({
+      ...OBSERVABILITY,
+      otlpEndpoint: 'https://otlp.example.com',
+    });
+
+    // Assert: leaving this unset makes NodeSDK read OTEL_METRICS_EXPORTER,
+    // which defaults to otlp — an OTLP endpoint set for *tracing* then also
+    // ships the HTTP instrumentation's histograms, as it did in production
+    // until 2026-07-27. Present-and-empty is what skips the MeterProvider.
+    expect(config?.metricReaders).toEqual([]);
+  });
+
+  it('builds nothing at all without an endpoint, so no exporter is ever constructed', () => {
+    // Arrange & Act & Assert
+    expect(buildTracingConfig(OBSERVABILITY)).toBeUndefined();
+  });
+});
 
 describe('startTracing (design D25)', () => {
   const original = process.env;

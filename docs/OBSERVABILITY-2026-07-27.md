@@ -263,6 +263,48 @@ nothing: it runs on `tap`, so it only ever saw successes, and a failing probe st
 Verified on the deployment: in the window after the deploy went live, the only application log line is the one
 real `/search` request, with `/health` polls and a manual `/health` producing none.
 
+## Post-deploy check against the live backend
+
+Everything above was verified against a local collector. This section is the same questions asked of Grafana
+Cloud (stack `lankycliff422`) once the service had been running on Render for a few hours.
+
+**Three things confirmed in production.** Traces arrive under `service.name=advanced-search-api` with the full
+resource (`process.command=/app/dist/main.js`, node 26.5.0). Elasticsearch needs no instrumentation package, as
+claimed: in trace `015ce976…` the child span comes from scope `@elastic/transport 8.10.2`, carrying
+`db.system=elasticsearch` and `db.operation.name=ping`, parented to the HTTP server span. And the probe sampler
+works — **zero** `/health` or `/metrics` traces between 17:00Z and 23:45Z, a complete Tempo query over the
+6 h 45 since `c52e25d` was deployed. The pre-fix traces are still in the store for contrast: the one at
+15:29:24Z is `url.path=/health`, `user_agent.original=Render/1.0`, 68.96 ms, server span plus the probe's own
+Elasticsearch ping — exactly the shape the sampler was written against.
+
+**One defect: an OTLP metrics pipeline nobody declared.** Grafana Cloud's Prometheus held a
+`job="advanced-search-api"` with seven series names — `http_server_request_duration_seconds_{bucket,count,sum}`,
+the `http_client_*` equivalents, and `target_info`. None of them come from `/metrics`: no `process_*`, no
+`nodejs_*`, and none of the two counters this service actually cares about. They came from the tracing
+bootstrap. `NodeSDK` only reads `metricReaders` from the caller if the option is present; left unset it falls
+back to `getMetricReadersFromEnv()`, whose exporter defaults to **otlp** when `OTEL_METRICS_EXPORTER` is empty
+(`@opentelemetry/sdk-node/build/src/sdk.js:27-54,147`). Setting `OTEL_EXPORTER_OTLP_ENDPOINT` for *tracing*
+therefore started a second pipeline as a side effect.
+
+The measurement that proves it is not trace-derived: over one hour,
+`increase(http_server_request_duration_seconds_count[1h])` reported **213.9 requests, all status 200**, in a
+window where Tempo held **no client traces at all**. Those 213 are the probes — dropped from traces at the
+sampler, still counted by the HTTP instrumentation's histogram. Had the metrics been generated from spans, the
+number would have been zero.
+
+It was harmless but wrong on three counts: it spends Grafana Cloud series on a free tier, it contradicts the
+rule that metrics leave through `METRICS_PORT`, and the data is not even usable — with no Express
+instrumentation there is no `http_route` label, so it cannot answer anything per endpoint.
+
+**Fixed by declaring the opt-out.** `buildTracingConfig` now passes `metricReaders: []`. Present-and-empty is
+not the same as unset: the SDK skips constructing the `MeterProvider` entirely when the reader list is empty
+(`sdk.js:182-184`), so there is no global meter provider and no exporter. The config is built by a function
+apart from the SDK so a spec asserts the empty list directly, which is what stops this from silently coming
+back on an SDK upgrade.
+
+**Also confirmed, and already deferred below**: no logs reach Loki (`service_name` has no values over 24 h) and
+nothing scrapes `/metrics`. Both remain infrastructure decisions, not defects.
+
 ## Deferred, on purpose
 
 - **Log shipping and alerting.** JSON logs are the prerequisite, not the solution. Where the lines go, how long

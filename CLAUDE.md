@@ -54,7 +54,7 @@ Single e2e: `npx jest --config ./test/jest-e2e.json test/search.e2e-spec.ts`.
 Single integration: `npx jest --config ./test/jest-integration.json test/elasticsearch.integration-spec.ts`.
 
 `npm run lint:ci && npm run test:cov && npm run build` is the `quality` CI job reproduced locally — run it
-before calling work done. Green baseline as of 2026-07-27: **60 suites / 304 tests**, plus 8 e2e suites
+before calling work done. Green baseline as of 2026-07-27: **65 suites / 393 tests**, plus 8 e2e suites
 (34 tests) and 5 integration tests against the real stack.
 
 `test:cov` **is** the gate: `coverageThreshold` sits just under the measured baseline (98 % statements, 92 %
@@ -272,7 +272,11 @@ metadata, so it registers a controller and nothing else. `app.module.ts` only as
   `OTEL_EXPORTER_OTLP_ENDPOINT` unset the SDK is never constructed, which is what keeps CI and the e2e suites
   collector-free, and `/health` and `/metrics` are dropped at the **sampler** so the platform's polling does
   not bury real traffic — a hook would suppress the server span and orphan the probe's own ES/Redis spans.
-  Elasticsearch needs no instrumentation package: `@elastic/transport` emits its own spans.
+  Elasticsearch needs no instrumentation package: `@elastic/transport` emits its own spans. The SDK options are
+  built by `buildTracingConfig` (separately, so a spec can assert them) and include **`metricReaders: []`**:
+  left unset, `NodeSDK` reads the env, where the metrics exporter defaults to OTLP, so an endpoint set for
+  *tracing* also ships the HTTP instrumentation's histograms — it did exactly that in production until
+  2026-07-27. Present-and-empty is what makes the SDK skip the `MeterProvider`; it is not the same as unset.
 - **Metrics cross the boundary through a port, never `prom-client` directly.** `METRICS_PORT` (recording, used
   by `cacheAside` and the fail-over store) and `METRICS_EXPORTER` (rendering, used only by `MetricsController`)
   are two tokens bound to **one** adapter instance in `infrastructure/observability/observability.module.ts`,
