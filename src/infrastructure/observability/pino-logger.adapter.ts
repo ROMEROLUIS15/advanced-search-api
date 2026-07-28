@@ -24,11 +24,26 @@ export class PinoLoggerAdapter implements LoggerService {
     const { logLevel, logPretty, serviceName, lokiUrl } = config.observability;
     const pretty = logPretty && config.app.nodeEnv !== 'production';
     const shipping = lokiUrl !== undefined && destination === undefined;
+    // When a line crosses the worker boundary, its wire format must stay
+    // numeric — both readable variants kill a pipeline *silently*, measured the
+    // day shipping was switched on, each one breaking a different half:
+    // - a string `level` ("info"): the multi-target worker routes each line by
+    //   numeric level, a string matches no target's threshold, and every line
+    //   is dropped whole — stdout included, no error raised;
+    // - a string `time` (ISO): pino-loki pads `log.time` arithmetically to
+    //   nanoseconds, an ISO string multiplies to NaN, and Loki rejects the
+    //   batch — which `silenceErrors` then swallows.
+    // The readable label and ISO timestamp apply only when no worker is
+    // involved, where they cost nothing.
     const options: pino.LoggerOptions = {
       level: logLevel,
       base: { service: serviceName },
-      timestamp: pino.stdTimeFunctions.isoTime,
-      formatters: { level: (label) => ({ level: label }) },
+      ...(shipping
+        ? {}
+        : {
+            timestamp: pino.stdTimeFunctions.isoTime,
+            formatters: { level: (label) => ({ level: label }) },
+          }),
       ...(pretty && destination === undefined && !shipping
         ? { transport: { target: 'pino-pretty', options: { translateTime: 'SYS:standard' } } }
         : {}),

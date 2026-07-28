@@ -239,6 +239,23 @@ describe('PinoLoggerAdapter — log shipping (design D36)', () => {
     expect(lokiOf(1).basicAuth).toEqual({ username: '12345', password: 'glc_token' });
   });
 
+  it('ships numeric level and time: either one as a string silently kills a pipeline', () => {
+    // Arrange: a string level makes the worker route the line to no target
+    // (stdout dies too); a string time multiplies to NaN inside pino-loki and
+    // Loki rejects the batch. Both were found in production, not by a test.
+    const { stream } = stubTransport();
+
+    new PinoLoggerAdapter(configWith({ lokiUrl: 'https://logs.example.com' })).log(
+      'shipped',
+      'Ctx',
+    );
+
+    const line = JSON.parse(String((stream.write as jest.Mock).mock.calls[0][0]));
+    expect(line.level).toBe(30);
+    expect(typeof line.time).toBe('number');
+    expect(line.msg).toBe('shipped');
+  });
+
   it('still carries the correlation id as a field, which is how a trace is pivoted to its logs', () => {
     // Arrange: the injected destination path is what the other suites use, and
     // it must keep working — shipping is additive, not a replacement.
