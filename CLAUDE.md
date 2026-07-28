@@ -9,21 +9,26 @@ suggestions) and Redis (fail-open cache), in a strict hexagonal architecture. Re
 index. Endpoints: `GET /`, `GET /search`, `GET /autocomplete`, `GET /suggest`, `GET /health` (contract and env
 table documented in `README.md`).
 
-The system is **implemented and deployed** — all 82 tasks done (53 in the search-system change, 29 in the
-rate-limiting one), live at <https://advanced-search-api-chet.onrender.com> (Render, Docker runtime built from
-`render.yaml`). **The API is private**: every endpoint except `/health` requires an `X-API-Key` header.
+The system is **implemented and deployed**, live at <https://advanced-search-api-chet.onrender.com> (Render,
+Docker runtime built from `render.yaml`). **The API is private**: every endpoint except `/health` requires an
+`X-API-Key` header (`/metrics` takes its own bearer token instead). One OpenSpec change is currently **open**
+— see the workflow section at the bottom.
 
 Code comments cite design decisions by ID (`design D4`); the rationale is spread across **four** archived
 changes under `openspec/changes/archive/`, not one — `2026-07-22-advanced-search-system` holds **D1–D13** (the
 core system), `2026-07-23-add-request-rate-limiting` **D14–D19**, `2026-07-27-add-service-observability`
-**D21–D29**, and `2026-07-27-add-api-client-authentication` **D30–D34**. The one exception is **D20** (ES
-`requestTimeout`/`maxRetries`), which has no `design.md` entry — its rationale is in README "Trade-offs" only.
-Each change's delta specs were synced into `openspec/specs/` on archiving, **nine capabilities** in total, and
-those scenarios are the acceptance criteria.
+**D21–D29**, and `2026-07-27-add-api-client-authentication` **D30–D34**. Two exceptions: **D20** (ES
+`requestTimeout`/`maxRetries`) has no `design.md` entry — its rationale is in README "Trade-offs" only — and
+**D35–D38** (telemetry shipping) live in the still-active change
+`openspec/changes/ship-metrics-and-logs-to-grafana/design.md`, moving to the archive when it closes.
+Each archived change's delta specs were synced into `openspec/specs/` on archiving, **nine capabilities** so
+far (the open change adds `telemetry-shipping` as the tenth), and those scenarios are the acceptance criteria.
 
 Post-ship reports live under `docs/`: the 2026-07-23 audit, the load-test run, the 2026-07-25 hardening report,
-the 2026-07-26 QA review, the 2026-07-27 observability report and the 2026-07-27 auth rollout. The QA review is
-the one to read first after a change — it records what is still open and why.
+the 2026-07-26 QA review, the 2026-07-27 observability report, the 2026-07-27 auth rollout — and
+**`PENDING-2026-07-28.md`, the one to read first**: a verified handoff of everything still open (credential
+rotation, the metrics blind spot, the open change, known doc drift) with a recommended order and the
+measurement traps already fallen into once.
 
 ## Commands
 
@@ -54,8 +59,8 @@ Single e2e: `npx jest --config ./test/jest-e2e.json test/search.e2e-spec.ts`.
 Single integration: `npx jest --config ./test/jest-integration.json test/elasticsearch.integration-spec.ts`.
 
 `npm run lint:ci && npm run test:cov && npm run build` is the `quality` CI job reproduced locally — run it
-before calling work done. Green baseline as of 2026-07-27: **65 suites / 393 tests**, plus 8 e2e suites
-(34 tests) and 5 integration tests against the real stack.
+before calling work done. Green baseline as of 2026-07-28: **70 suites / 461 tests**, plus 9 e2e suites
+(44 tests) and 5 integration tests against the real stack.
 
 `test:cov` **is** the gate: `coverageThreshold` sits just under the measured baseline (98 % statements, 92 %
 branches, 97 % functions) and CI's `quality` job runs `test:cov` instead of `npm test` — same suite, one more
@@ -203,8 +208,12 @@ metadata, so it registers a controller and nothing else. `app.module.ts` only as
   composed by `search-query.builder.ts`. Keep new query concerns in their own builder.
 - **Cache is strictly cache-aside and fail-open (D8).** All of it lives in `application/caching/cache-aside.ts`:
   a cache error is logged and treated as a miss; only `load()` errors propagate. Reuse that helper rather than
-  touching `CachePort` from a use-case. Keys are namespaced+versioned (`search:v1:<sha1>`) over *normalized*
-  criteria — bump the namespace on a reindex/alias flip. Three things happen there that surprise people
+  touching `CachePort` from a use-case. Keys are `search:v1:<scope>:<sha1>` over *normalized* criteria — the
+  `scope` segment (`cache-scope.ts`) digests the index name **plus** the relevance config, so a reindex or a
+  ranking tune misses naturally instead of serving the previous deployment's results; bump `v1` by hand only
+  when the payload *shape* changes. Autocomplete keys are `ac:v1:<scope>:<sha1(prefix)>:<limit>` — the user's
+  prefix is hashed, never stored in clear, and that scope deliberately digests the index only (relevance does
+  not shape prefix hits, so a tune must not flush the whole prefix cache). Three things happen there that surprise people
   (D26/D27): concurrent misses for one key **share a single `load()`**, the stored TTL carries **±10 % jitter**,
   and a hit is **parsed against a zod schema** (`cached-payload.schema.ts`) — so a cache hit is a validated
   *copy*, not the object that was stored, and a payload of the wrong shape is treated as a miss.
@@ -221,7 +230,10 @@ metadata, so it registers a controller and nothing else. `app.module.ts` only as
   query built from bad input, not a broken cluster) and **502** otherwise, ES `ElasticsearchClientError` →
   **503**, anything else → 500. Throw typed errors; don't map status codes in controllers or adapters. The
   `HttpException` branch is checked **first**, ahead of every typed branch, so any Nest exception (a validation
-  400, the guard's 429) is rendered from its own status and never falls through. Body shape:
+  400, the guard's 429) is rendered from its own status and never falls through. The filter also upgrades a
+  wrong verb on a known route from Express's 404 to a **405** with an `Allow` header — but only for a caller
+  who passed the API-key check; an unauthenticated caller keeps the 404, so the route's existence is never
+  confirmed to someone who cannot call it (`upgradeMethodNotAllowed`). Body shape:
   `{ statusCode, error, message, details?, timestamp, path }`. **The filter is the only place an errored
   request is logged** — `LoggingInterceptor` uses `tap()`, which fires on the success path only. 5xx log as
   `error` with the stack (client still gets a generic message); 4xx log as `warn` with a compact reason
@@ -261,7 +273,11 @@ metadata, so it registers a controller and nothing else. `app.module.ts` only as
   namespaced `AppConfiguration` behind `APP_CONFIG`. Adapters read that token — **never `process.env`**.
   Nothing may assume `localhost`; the ES client factory picks API-key vs. basic auth and TLS from env, so the
   same code path runs locally and against Elastic Cloud + Upstash.
-- **Health**: Elasticsearch is critical (down ⇒ 503), Redis is non-critical (reported, still 200).
+- **Health**: Elasticsearch is critical (down ⇒ 503), Redis is non-critical (reported, still 200). The ES
+  probe also reports `down` when the configured **index is missing** (readiness proves the data, not just the
+  socket), and probe failure details are not published to the client. Deploy consequence: against an unseeded
+  Elasticsearch the service never turns healthy and Render fails the deploy — the seed (`npm run seed:prod`)
+  must be guaranteed before boot, and today it is manual.
 - **Observability is three independent pieces (D21–D25), and two of them are load-bearing at import time.**
   Logs are pino installed via `app.useLogger` in `main.ts`, so the ~30 `new Logger(Context)` call sites emit
   JSON untouched; the correlation id lives in `AsyncLocalStorage` (`shared/correlation.store.ts`), opened by a
@@ -281,6 +297,9 @@ metadata, so it registers a controller and nothing else. `app.module.ts` only as
   left unset, `NodeSDK` reads the env, where the metrics exporter defaults to OTLP, so an endpoint set for
   *tracing* also ships the HTTP instrumentation's histograms — it did exactly that in production until
   2026-07-27. Present-and-empty is what makes the SDK skip the `MeterProvider`; it is not the same as unset.
+  Traces redact client input on purpose: a `requestHook` sets `url.query` to `[REDACTED]` on incoming HTTP
+  spans, and the ioredis `dbStatementSerializer` records the command name only — without it a cache `SET`
+  ships the entire serialized response to the trace backend as `db.query.text` (fixed in `f23afe7`).
 - **Metrics cross the boundary through a port, never `prom-client` directly.** `METRICS_PORT` (recording, used
   by `cacheAside` and the fail-over store) and `METRICS_EXPORTER` (rendering, used only by `MetricsController`)
   are two tokens bound to **one** adapter instance in `infrastructure/observability/observability.module.ts`,
@@ -290,7 +309,10 @@ metadata, so it registers a controller and nothing else. `app.module.ts` only as
   on. That flag is separate from the OTLP endpoint on purpose — configuring *tracing* must never start a
   metrics pipeline, which it silently did until `1452e7b`. The composite's `MeterProvider` is **never**
   registered as the global one: instrumentation libraries resolve meters from the global provider, and leaving
-  it unset is what keeps their undeclared histograms out of the backend.
+  it unset is what keeps their undeclared histograms out of the backend. Known gap (`PENDING-2026-07-28.md`
+  B1): `MetricsInterceptor` records the HTTP metrics but runs **after** the guards, so 401s, 429s and
+  unmatched 404s are never counted — the abuse signals are exactly the unmeasured ones, and its docstring's
+  "every request" claim is wrong until that lands.
 - **Log shipping is a pino transport, not a platform feature.** `LOKI_URL` unset means no worker, no timer, no
   socket. Set, `PinoLoggerAdapter` builds a multi-target transport — `pino/file` on fd 1 *and* `pino-loki` —
   so stdout keeps working. Labels are `service` and `env` only: `correlationId` stays a **field**, because a
@@ -300,7 +322,8 @@ metadata, so it registers a controller and nothing else. `app.module.ts` only as
   and is excluded from the OpenAPI document with `@ApiExcludeEndpoint`, so ZAP never fuzzes it.
 - **The API is private, and authentication is on by default (D30–D34).** `ApiKeyGuard` (`APP_GUARD` in
   `api-auth.module.ts`) requires `X-API-Key` on every route; `API_AUTH_ENABLED` defaults to **true** and
-  enabling it without `API_KEYS` is a **startup failure**, so a deployment cannot come up open by omission —
+  enabling it without `API_KEYS` — or with any key shorter than **16 characters** — is a **startup failure**,
+  so a deployment cannot come up open (or guessably keyed) by omission —
   which is why every spec fixture and both CI jobs set `API_AUTH_ENABLED=false` explicitly. `ApiAuthModule` is
   imported **after** `RateLimitModule` on purpose: global guards run in registration order, and the limiter
   must count an unauthenticated flood rather than let it be rejected for free. The exemptions are the operator
@@ -342,9 +365,10 @@ security workflows, the dependency policy, the 4xx logging / process safety net 
 keep-alive cron — landed as direct conventional commits with a write-up under `docs/`, no change folder. A new
 capability gets a change; CI, dependency, ops and docs work does not.
 
-Always check `openspec list` first — it reported no active changes as of the 2026-07-23 rate-limiting archive
-(four changes are now archived), and while it stays empty new work needs a new change rather than tasks appended
-to an existing one. Note the flags are not uniform:
+Always check `openspec list` first — as of 2026-07-28 it reports **one active change**,
+`ship-metrics-and-logs-to-grafana` at 25/28 tasks. The last three need log shipping switched on in Render and
+the free-tier usage measured (`docs/PENDING-2026-07-28.md` §C spells them out); finish and `/opsx:archive` it
+rather than appending unrelated tasks to it — new work gets a new change. Note the flags are not uniform:
 `openspec status --change <name> --json` takes `--change`, while validation does not — it is
 `openspec validate <name> --strict` for a change and `openspec validate --specs --strict` for the
 capability specs.
