@@ -17,9 +17,17 @@ services:
     region: ohio
     branch: main
     autoDeploy: true
-    # Render waits for this to return 200 before routing traffic; it reports 503
-    # while Elasticsearch (the critical dependency) is unreachable.
-    healthCheckPath: /health
+    # Render waits for this to return 200 before routing traffic, and reports 503
+    # while Elasticsearch is unreachable or its configured index is missing — so
+    # a deploy against an unseeded cluster fails instead of serving errors.
+    #
+    # `/health/ready`, not `/health`: this is polled every ~4.3 s (measured), and
+    # the full report also pings Redis, whose result can never change the verdict
+    # because it is non-critical. That discarded ping was ~605k Upstash commands
+    # a month against a 500k free tier. Readiness runs the critical probes only
+    # (design D39). `/health` still reports everything for humans and the uptime
+    # monitor.
+    healthCheckPath: /health/ready
     envVars:
       - key: NODE_ENV
         value: production

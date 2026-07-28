@@ -64,6 +64,15 @@ describe('isExempt', () => {
     expect(isExempt('/health')).toBe(true);
   });
 
+  it.each(['/health/ready', '/health/live', '/health/ready?probe=1'])(
+    'exempts %s too, as a sub-path of the health family (design D40)',
+    (path) => {
+      // The platform polls readiness several times a minute; counting it would
+      // exhaust a budget on traffic no client sent.
+      expect(isExempt(path)).toBe(true);
+    },
+  );
+
   it.each(['/search', '/autocomplete', '/suggest', '/', '/healthy-products'])(
     'does not exempt %s',
     (path) => {

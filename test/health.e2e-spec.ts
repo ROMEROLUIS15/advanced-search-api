@@ -44,4 +44,28 @@ describe('GET /health (e2e)', () => {
     expect(res.body.info.elasticsearch.status).toBe('up');
     expect(res.body.info.redis.status).toBe('up');
   });
+
+  it('readiness reports the critical dependency only — what the platform polls', async () => {
+    const res = await request(app.getHttpServer()).get('/health/ready').expect(200);
+
+    expect(res.body.status).toBe('ok');
+    expect(res.body.info.elasticsearch.status).toBe('up');
+    // Redis is absent by design: its state cannot change this verdict, so
+    // polling it several times a minute would buy nothing (design D39).
+    expect(res.body.info.redis).toBeUndefined();
+  });
+
+  it('liveness answers without naming any dependency', async () => {
+    const res = await request(app.getHttpServer()).get('/health/live').expect(200);
+
+    expect(res.body.status).toBe('ok');
+    expect(res.body.info).toEqual({});
+  });
+
+  it('keeps all three out of the browser and proxy caches', async () => {
+    for (const path of ['/health', '/health/ready', '/health/live']) {
+      const res = await request(app.getHttpServer()).get(path).expect(200);
+      expect(res.headers['cache-control']).toBe('no-store');
+    }
+  });
 });

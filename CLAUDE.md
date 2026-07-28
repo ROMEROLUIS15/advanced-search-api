@@ -274,11 +274,18 @@ metadata, so it registers a controller and nothing else. `app.module.ts` only as
   namespaced `AppConfiguration` behind `APP_CONFIG`. Adapters read that token — **never `process.env`**.
   Nothing may assume `localhost`; the ES client factory picks API-key vs. basic auth and TLS from env, so the
   same code path runs locally and against Elastic Cloud + Upstash.
-- **Health**: Elasticsearch is critical (down ⇒ 503), Redis is non-critical (reported, still 200). The ES
-  probe also reports `down` when the configured **index is missing** (readiness proves the data, not just the
-  socket), and probe failure details are not published to the client. Deploy consequence: against an unseeded
-  Elasticsearch the service never turns healthy and Render fails the deploy — the seed (`npm run seed:prod`)
-  must be guaranteed before boot, and today it is manual.
+- **Health is three endpoints, and which one the platform polls is load-bearing (D39–D41).** Elasticsearch is
+  critical (down ⇒ 503), Redis is non-critical (reported, still 200); the ES probe also reports `down` when
+  the configured **index is missing** (readiness proves the data, not just the socket), and probe failure
+  details are not published. `GET /health` is the full report — humans and the uptime monitor.
+  **`GET /health/ready` is what `render.yaml` points at**: critical probes only, selected by the `critical`
+  flag rather than by name, because Render polls it every **~4.3 s** (measured, not configurable) and a
+  non-critical probe there spends a command per poll on a verdict it cannot change — that was ~605 k Upstash
+  commands a month against a 500 k tier. `GET /health/live` calls nothing. Deploy consequence: against an
+  unseeded Elasticsearch readiness never turns healthy and Render fails the deploy — the seed
+  (`npm run seed:prod`) must be guaranteed before boot, and today it is manual. Adding an endpoint under
+  `/health/` is free of exemption work: `matchesPath` matches sub-paths, so the API-key guard, the rate
+  limiter, the trace sampler and the request logger all cover it the day it exists.
 - **Observability is three independent pieces (D21–D25), and two of them are load-bearing at import time.**
   Logs are pino installed via `app.useLogger` in `main.ts`, so the ~30 `new Logger(Context)` call sites emit
   JSON untouched; the correlation id lives in `AsyncLocalStorage` (`shared/correlation.store.ts`), opened by a

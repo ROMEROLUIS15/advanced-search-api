@@ -100,8 +100,9 @@ valid one the response is `401` in the standard error envelope.
 curl -H "X-API-Key: $API_KEY" "https://advanced-search-api-chet.onrender.com/search?q=drill"
 ```
 
-Two endpoints sit outside the scheme, and neither is open: `GET /health` needs no credential because the
-platform's readiness probe cannot send one and a 401 there would be read as an unhealthy instance, and
+Two groups sit outside the scheme, and neither is open: the health family (`GET /health`, `/health/ready`,
+`/health/live`) needs no credential because the platform's readiness probe cannot send one and a 401 there
+would be read as an unhealthy instance, and
 `GET /metrics` carries its own bearer token instead, so a monitoring agent never needs an application key. The
 published contract at `/docs` and `/docs-json` **is** protected — gating the data while serving its blueprint
 would be pointless.
@@ -178,13 +179,28 @@ engine's.
 ### `GET /health`
 
 `200` when Elasticsearch is up; `503` when it is down. Redis is non-critical (reported but still `200`).
-Never rate limited — the platform polls it as its readiness probe. Elasticsearch counts as *up* only when
-the configured index actually exists behind the alias: readiness proves the data, not just the socket, so an
-unseeded cluster reports `503` and the response never includes probe failure details.
+Never rate limited. Elasticsearch counts as *up* only when the configured index actually exists behind the
+alias: readiness proves the data, not just the socket, so an unseeded cluster reports `503` and the response
+never includes probe failure details.
 
 ```json
 { "status": "ok", "info": { "elasticsearch": { "status": "up" }, "redis": { "status": "up" } } }
 ```
+
+### `GET /health/ready` and `GET /health/live`
+
+Two narrower views for machines, same body shape, same `no-store`, also open and never rate limited.
+
+`GET /health/ready` is **what Render polls** (`healthCheckPath`), several times a minute. It evaluates the
+*critical* dependencies only — today Elasticsearch and its index — and deliberately does not probe Redis:
+a non-critical outage can never change this verdict, so asking would spend a command per poll on a result
+that is discarded. It answers `503` under the same rules as `/health`, which is what makes a deploy against
+an unseeded cluster fail rather than serve errors.
+
+`GET /health/live` answers `200` whenever the process is running, calling nothing at all. It is what
+separates "the service is dead" from "a dependency is down".
+
+Read `/health` when you want the whole picture, Redis included — that is what the uptime monitor polls.
 
 ### Rate limiting
 
@@ -409,7 +425,7 @@ auto-deploying from `main`); the steps below are what it took, and reproduce it 
      `number_of_shards`/`number_of_replicas`.)
    - **Redis**: an *Upstash* database → capture its `rediss://` URL.
 2. **Create the service from the blueprint** — in Render, *New → Blueprint Instance* pointed at this repo.
-   [`render.yaml`](render.yaml) declares a Docker web service with `healthCheckPath: /health` and
+   [`render.yaml`](render.yaml) declares a Docker web service with `healthCheckPath: /health/ready` and
    `autoDeploy` on `main`. Use the blueprint rather than creating a web service by hand: a dashboard-created
    **Node** service sets `NODE_ENV=production`, so `npm install` skips the devDependencies and the build dies
    with `sh: 1: nest: not found`. The Dockerfile's builder stage runs a full `npm ci`, so it is unaffected.
@@ -434,8 +450,8 @@ auto-deploying from `main`); the steps below are what it took, and reproduce it 
    60 days without repo activity** — re-enable the backstop from the Actions tab if it goes quiet.
 4. **Seed once** against the managed cluster via a one-off job/shell: `npm run seed:prod`
    (`node dist/seed/seed.command.js`). Idempotent by document id. **Order matters on the very first
-   deploy**: readiness requires the seeded index to exist, so until this step has run `GET /health` answers
-   `503` and Render will fail the deploy rather than route traffic to it. That is the intended failure mode —
+   deploy**: readiness requires the seeded index to exist, so until this step has run `GET /health/ready`
+   answers `503` and Render will fail the deploy rather than route traffic to it. That is the intended mode —
    an unseeded deployment must never serve errors — but the seed is a manual step today, so run it (against
    the managed cluster, from any shell with the prod env) and then let Render retry.
 5. **Verify**: `GET /health` is green and `GET /search?q=drill` returns hits online.

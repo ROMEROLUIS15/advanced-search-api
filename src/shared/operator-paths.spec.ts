@@ -4,8 +4,13 @@ describe('matchesPath', () => {
   it.each([
     ['/health', true],
     ['/metrics', true],
+    // The health family: readiness and liveness are exempt because they are
+    // sub-paths, which is what lets them be added without touching this list
+    // or any of its consumers (design D40).
     ['/health/ready', true],
+    ['/health/live', true],
     ['/health?probe=1', true],
+    ['/health/ready?probe=1', true],
     ['/metrics?format=text', true],
     ['/search', false],
     ['/', false],
@@ -22,7 +27,9 @@ describe('matchesPath', () => {
     expect(matchesPath('/metrics', ['/health'])).toBe(false);
   });
 
-  it('lists both operator endpoints, which three call sites depend on', () => {
+  it('lists both operator endpoints, which four call sites depend on', () => {
+    // The API-key guard, the request logger and the trace sampler read this
+    // list; the rate limiter keeps its own narrower one over the same matcher.
     expect([...OPERATOR_PATHS]).toEqual(['/health', '/metrics']);
   });
 

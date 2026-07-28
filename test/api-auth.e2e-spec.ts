@@ -80,6 +80,17 @@ describe('API key authentication (e2e)', () => {
     expect(res.body.status).toBe('ok');
   });
 
+  it.each(['/health/ready', '/health/live'])(
+    'leaves %s open too: a 401 on the polled path would fail every deploy',
+    async (path) => {
+      // Render polls readiness with no credential and reads any non-200 as an
+      // unhealthy instance, so this is a deployment guarantee, not a nicety.
+      const res = await request(app.getHttpServer()).get(path).expect(200);
+
+      expect(res.body.status).toBe('ok');
+    },
+  );
+
   it('does not mount the contract in an e2e boot', async () => {
     // /docs is Express middleware mounted by setupOpenApi, which e2e boots do
     // not call — the protection is asserted in swagger.setup.spec.ts instead.
