@@ -13,8 +13,9 @@ table should be read with this as the chosen option.
 - [x] 1.4 `tracing.preload.spec.ts` proves the ordering without a live Redis
 - [x] 1.5 Gate green (`lint:ci`, `test:cov`, `build`). Verified at runtime that the order is what matters:
       preload first ⇒ `Redis.prototype.sendCommand` is patched; ioredis first ⇒ it is not
-- [ ] 1.6 **Still outstanding, needs a deploy**: confirm in Tempo that a `/search` trace carries a
-      `db.system=redis` span — the check that returned zero results on 2026-07-27
+- [x] 1.6 Verified in production 2026-07-28: a `/search` trace carries an `evalsha` child from
+      `@opentelemetry/instrumentation-ioredis`, `db.system.name=redis`. Note the attribute is `db.system.name`
+      (new semconv), not `db.system`, and TraceQL needs it quoted: `span."db.system.name"="redis"` — the check that returned zero results on 2026-07-27
 
 ## 2. Configuration for both pipelines (design D38)
 
@@ -44,8 +45,9 @@ own was worth the extra indirection.
 - [x] 3.4 `GET /metrics`, its token and its OpenAPI exclusion untouched; the no-op adapter still branches nowhere
 - [x] 3.5 Specs: both registries per call; nothing constructed when unconfigured; an OTLP endpoint alone does
       **not** start export; recording against an unreachable backend neither throws nor rejects
-- [ ] 3.6 **Needs a deploy**: verify against Grafana Cloud that the four declared series arrive and that no
-      `http_server_request_duration_seconds` reappears
+- [x] 3.6 Verified in production 2026-07-28: `http_requests_total`, `http_request_duration_seconds_*` and
+      `rate_limit_failover_total` are in Grafana Cloud, and no `http_server_request_duration_seconds`
+      reappeared. `search_cache_events_total` awaits the first authenticated search that reaches the use-case
 
 ## 4. Log shipping (design D36)
 
