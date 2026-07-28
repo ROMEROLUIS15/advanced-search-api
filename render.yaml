@@ -16,7 +16,19 @@ services:
     # Closest free region to the Elastic Cloud project (us-central1).
     region: ohio
     branch: main
-    autoDeploy: true
+    # Deploy only once the commit's CI checks are green, rather than racing
+    # them. Observed 2026-07-28 under the old `autoDeploy: true`: deploys
+    # started on push and finished before the checks did — twice, and both
+    # times they happened to pass, which is luck rather than a gate.
+    #
+    # `autoDeployTrigger` supersedes the deprecated boolean `autoDeploy`, and
+    # takes precedence if both appear. Render skips the deploy if any check
+    # fails **and also if no checks exist at all**, so this only gates a repo
+    # that actually reports checks — this one runs CI, CodeQL and Security on
+    # every push to main. The cost is latency: the Security job's ZAP scan
+    # takes ~3 minutes, so a deploy now lands minutes after the push instead
+    # of seconds. That is the trade being bought.
+    autoDeployTrigger: checksPass
     # Render waits for this to return 200 before routing traffic, and reports 503
     # while Elasticsearch is unreachable or its configured index is missing — so
     # a deploy against an unseeded cluster fails instead of serving errors.

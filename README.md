@@ -426,7 +426,10 @@ auto-deploying from `main`); the steps below are what it took, and reproduce it 
    - **Redis**: an *Upstash* database → capture its `rediss://` URL.
 2. **Create the service from the blueprint** — in Render, *New → Blueprint Instance* pointed at this repo.
    [`render.yaml`](render.yaml) declares a Docker web service with `healthCheckPath: /health/ready` and
-   `autoDeploy` on `main`. Use the blueprint rather than creating a web service by hand: a dashboard-created
+   `autoDeployTrigger: checksPass` on `main` — deploys wait for the commit's CI checks instead of racing
+   them, at the cost of landing minutes after the push rather than seconds. Note Render skips the deploy if
+   *no* checks exist at all, so the gate is only as real as the repo's workflows.
+   Use the blueprint rather than creating a web service by hand: a dashboard-created
    **Node** service sets `NODE_ENV=production`, so `npm install` skips the devDependencies and the build dies
    with `sh: 1: nest: not found`. The Dockerfile's builder stage runs a full `npm ci`, so it is unaffected.
    Render prompts for the four secrets (they are never stored in the repo):
