@@ -120,9 +120,11 @@ Both halves are now proven separately: the gateway accepts the decoded credentia
 emits the decoded credential (no literal `%` in the header it sends).
 
 **Probes are dropped at the sampler.** Within minutes of the exporter going live, Grafana showed the trace list
-filling with 62–74 ms `GET` spans every 5–30 seconds: Render's readiness polling of `/health` plus the
-container's own 30 s `HEALTHCHECK`, all sampled at 100 %. Thousands of identical traces a day, burying the
-handful of real searches. `IgnoredPathsSampler` returns `NOT_RECORD` for server spans on `/health` and
+filling with 62–74 ms `GET` spans a few seconds apart: Render's probing of `/health` plus the container's own
+30 s `HEALTHCHECK`, all sampled at 100 %, drowning the handful of real searches in the window around a deploy.
+(This paragraph first read "every 5–30 seconds … thousands of identical traces a day". That extrapolation was
+wrong — see the correction under "Post-deploy check against the live backend".)
+`IgnoredPathsSampler` returns `NOT_RECORD` for server spans on `/health` and
 `/metrics`, and because the decision is taken at the **root**, `ParentBasedSampler` drops the child spans with
 it. An `ignoreIncomingRequestHook` would not have done: it suppresses only the server span, and the health
 probe's own Elasticsearch and Redis calls would then have been exported as parentless orphans — one useless
@@ -254,9 +256,12 @@ that mattered: nothing here argues for sampling less than 1.0 at this volume.
 discloses route names, request volumes, error rates and cache behaviour — fine to leave open on a demo, not on
 a service that is actually used, which is what this became.
 
-**Probe log lines are skipped too, and the volume is larger than it looks.** The deployed log shows Render
-polling `/health` **every 5 seconds** — 17,280 lines a day, before counting the keep-alive's 102. Every one of
-them says `GET /health 200 6xms`. `LoggingInterceptor` now skips successful operator paths, which costs
+**Probe log lines are skipped too.** The deployed log fills with `GET /health 200 6xms` around a deploy, at a
+few seconds apart, and the keep-alive adds its own on a 10-minute tick for as long as the service runs. Every
+one of them says the same thing. (This paragraph first claimed Render polls every 5 seconds, "17,280 lines a
+day". It does not — see the correction under "Post-deploy check against the live backend". The decision below
+is unaffected: a line per poll saying "still fine" is noise at any of these volumes.)
+`LoggingInterceptor` now skips successful operator paths, which costs
 nothing: it runs on `tap`, so it only ever saw successes, and a failing probe still goes through
 `AllExceptionsFilter` — a 503 from `/health` or a 401 from `/metrics` is logged exactly as before.
 
@@ -304,6 +309,29 @@ back on an SDK upgrade.
 
 **Also confirmed, and already deferred below**: no logs reach Loki (`service_name` has no values over 24 h) and
 nothing scrapes `/metrics`. Both remain infrastructure decisions, not defects.
+
+### Correction: Render does not poll `/health` every 5 seconds
+
+Two paragraphs above stated that Render polls `/health` every 5 seconds — 17,280 requests a day. **That is
+wrong by more than two orders of magnitude**, and the arithmetic built on it (that the readiness probe alone
+would exhaust Upstash's 500,000 commands a month) was wrong with it.
+
+Measured on the Upstash console, 2026-07-28: the database served **3,100 commands this month** against the
+500,000 free-tier allowance. Every `/health` costs exactly one Redis `PING`
+(`redis.health-probe.ts`), and that 3,100 also covers every cache read and write from real search
+traffic — so `/health` cannot have been called more than ~3,100 times in the month, around 115 a day. At a
+5-second poll it would have been ~518,000.
+
+The error was in reading the evidence, not in the arithmetic. Both the log lines and the Tempo traces showing
+probes a few seconds apart were **clustered in short windows around deploys**; extrapolating that spacing
+across 24 hours produced a number 170× too large. Render's health check is concentrated on deployment, not a
+continuous liveness poll. What actually calls `/health` around the clock is the keep-alive cron, six times an
+hour, which on its own accounts for very nearly the whole measured figure.
+
+Nothing built on top of the wrong number needs undoing: dropping probe traces at the sampler and skipping
+probe log lines are right at any of these volumes. What does change is a conclusion drawn later — that the
+unauthenticated, unthrottled `/health` was actively burning the Redis quota. It is not. It remains an endpoint
+worth hardening on its own merits, and nothing more urgent than that.
 
 ## Deferred, on purpose
 

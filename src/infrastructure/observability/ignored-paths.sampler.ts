@@ -16,10 +16,15 @@ const PATH_ATTRIBUTES = ['url.path', 'http.route', 'http.target'];
  * A sampling decision of `NOT_RECORD` on the root propagates: children consult
  * the parent through {@link ParentBasedSampler} and are dropped with it.
  *
- * Why it matters here: Render polls `/health` continuously and the container has
- * its own 30 s `HEALTHCHECK`, so at full sampling the probes produced thousands
- * of identical 68 ms traces a day and buried the handful of real searches —
- * observed in Grafana within minutes of enabling the exporter.
+ * Why it matters here: around a deploy Render probes `/health` every few seconds
+ * and the container runs its own 30 s `HEALTHCHECK`, so at full sampling the
+ * trace list filled with identical 68 ms traces and buried the handful of real
+ * searches — observed in Grafana within minutes of enabling the exporter. The
+ * keep-alive then keeps calling it six times an hour for as long as the service
+ * runs. (An earlier version of this comment said "thousands a day"; measured
+ * against Upstash on 2026-07-28 the real figure is ~115 — see
+ * `docs/OBSERVABILITY-2026-07-27.md`. The volume was never the point: a trace
+ * saying "still fine" carries no information at any rate.)
  */
 export class IgnoredPathsSampler implements Sampler {
   constructor(private readonly delegate: Sampler) {}
