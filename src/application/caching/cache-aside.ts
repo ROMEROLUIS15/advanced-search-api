@@ -35,6 +35,14 @@ const JITTER = 0.1;
 export async function cacheAside<T>(params: CacheAsideParams<T>): Promise<T> {
   const { cache, key, ttlSeconds, load, logger, metrics, schema } = params;
 
+  // Zero is the explicit "cache disabled" value accepted by configuration. Do
+  // not send `EX 0` to Redis: it rejects that expiry. Single-flight still keeps
+  // simultaneous requests for the same key from stampeding Elasticsearch.
+  if (ttlSeconds <= 0) {
+    metrics.recordCacheMiss();
+    return singleFlight(key, load);
+  }
+
   const cached = await readThrough<T>(cache, key, logger, schema);
   if (cached !== null) {
     metrics.recordCacheHit();
@@ -104,7 +112,16 @@ async function writeThrough<T>(
   }
 }
 
-/** Never below 1 s: a zero TTL in Redis would mean "no expiry at all". */
+/**
+ * Spreads a TTL by ±10 %, floored at 1 s so rounding can never turn a positive
+ * TTL into a non-positive one.
+ *
+ * Zero passes through unchanged, as the "cache disabled" marker `cacheAside`
+ * checks before it ever reaches Redis. That guard is what matters: `SET … EX 0`
+ * is not "no expiry", it is an error — measured, `ERR invalid expire time in
+ * 'set' command` — so a zero arriving here would have been written and rejected
+ * once per miss.
+ */
 export function withJitter(ttlSeconds: number): number {
   if (ttlSeconds <= 0) {
     return ttlSeconds;

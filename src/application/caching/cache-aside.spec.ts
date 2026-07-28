@@ -84,6 +84,20 @@ describe('cacheAside', () => {
       cacheAside({ cache, key: 'k', ttlSeconds: 60, load, logger, metrics, schema: z.string() }),
     ).resolves.toBe('fresh');
   });
+
+  it('bypasses Redis when a zero TTL disables caching', async () => {
+    const cache = makeCache();
+    const load = jest.fn().mockResolvedValue('fresh');
+
+    await expect(
+      cacheAside({ cache, key: 'k', ttlSeconds: 0, load, logger, metrics, schema: z.string() }),
+    ).resolves.toBe('fresh');
+
+    expect(cache.get).not.toHaveBeenCalled();
+    expect(cache.set).not.toHaveBeenCalled();
+    expect(load).toHaveBeenCalledTimes(1);
+    expect(metrics.recordCacheMiss).toHaveBeenCalledTimes(1);
+  });
 });
 
 describe('cacheAside — metrics (design D24)', () => {
@@ -224,7 +238,7 @@ describe('cacheAside — stampede and payload safety (D26, D27)', () => {
     expect(new Set(values).size).toBeGreaterThan(1);
   });
 
-  it('never returns a TTL below one second, which Redis would read as no expiry', () => {
+  it('keeps positive TTLs valid and preserves zero as the disabled-cache marker', () => {
     // Arrange & Act & Assert
     expect(withJitter(1)).toBeGreaterThanOrEqual(1);
     expect(withJitter(0)).toBe(0);
