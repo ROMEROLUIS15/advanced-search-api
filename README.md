@@ -178,7 +178,9 @@ engine's.
 ### `GET /health`
 
 `200` when Elasticsearch is up; `503` when it is down. Redis is non-critical (reported but still `200`).
-Never rate limited — the platform polls it as its readiness probe.
+Never rate limited — the platform polls it as its readiness probe. Elasticsearch counts as *up* only when
+the configured index actually exists behind the alias: readiness proves the data, not just the socket, so an
+unseeded cluster reports `503` and the response never includes probe failure details.
 
 ```json
 { "status": "ok", "info": { "elasticsearch": { "status": "up" }, "redis": { "status": "up" } } }
@@ -429,7 +431,11 @@ auto-deploying from `main`); the steps below are what it took, and reproduce it 
    quota gets services suspended; and scheduled workflows are **auto-disabled after 60 days without repo
    activity** — re-enable it from the Actions tab if the deployment starts going cold again.
 4. **Seed once** against the managed cluster via a one-off job/shell: `npm run seed:prod`
-   (`node dist/seed/seed.command.js`). Idempotent by document id.
+   (`node dist/seed/seed.command.js`). Idempotent by document id. **Order matters on the very first
+   deploy**: readiness requires the seeded index to exist, so until this step has run `GET /health` answers
+   `503` and Render will fail the deploy rather than route traffic to it. That is the intended failure mode —
+   an unseeded deployment must never serve errors — but the seed is a manual step today, so run it (against
+   the managed cluster, from any shell with the prod env) and then let Render retry.
 5. **Verify**: `GET /health` is green and `GET /search?q=drill` returns hits online.
 
 Rollback: config is externalized, so reverting to a previous image needs no code change; for mapping changes,

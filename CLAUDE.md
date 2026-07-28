@@ -11,24 +11,21 @@ table documented in `README.md`).
 
 The system is **implemented and deployed**, live at <https://advanced-search-api-chet.onrender.com> (Render,
 Docker runtime built from `render.yaml`). **The API is private**: every endpoint except `/health` requires an
-`X-API-Key` header (`/metrics` takes its own bearer token instead). One OpenSpec change is currently **open**
-— see the workflow section at the bottom.
+`X-API-Key` header (`/metrics` takes its own bearer token instead).
 
-Code comments cite design decisions by ID (`design D4`); the rationale is spread across **four** archived
+Code comments cite design decisions by ID (`design D4`); the rationale is spread across **five** archived
 changes under `openspec/changes/archive/`, not one — `2026-07-22-advanced-search-system` holds **D1–D13** (the
 core system), `2026-07-23-add-request-rate-limiting` **D14–D19**, `2026-07-27-add-service-observability`
-**D21–D29**, and `2026-07-27-add-api-client-authentication` **D30–D34**. Two exceptions: **D20** (ES
-`requestTimeout`/`maxRetries`) has no `design.md` entry — its rationale is in README "Trade-offs" only — and
-**D35–D38** (telemetry shipping) live in the still-active change
-`openspec/changes/ship-metrics-and-logs-to-grafana/design.md`, moving to the archive when it closes.
-Each archived change's delta specs were synced into `openspec/specs/` on archiving, **nine capabilities** so
-far (the open change adds `telemetry-shipping` as the tenth), and those scenarios are the acceptance criteria.
+**D21–D29**, `2026-07-27-add-api-client-authentication` **D30–D34**, and
+`2026-07-28-ship-metrics-and-logs-to-grafana` **D35–D38** (telemetry shipping). The one exception is **D20**
+(ES `requestTimeout`/`maxRetries`), which has no `design.md` entry — its rationale is in README "Trade-offs"
+only. Each change's delta specs were synced into `openspec/specs/` on archiving, **ten capabilities** in
+total, and those scenarios are the acceptance criteria.
 
 Post-ship reports live under `docs/`: the 2026-07-23 audit, the load-test run, the 2026-07-25 hardening report,
 the 2026-07-26 QA review, the 2026-07-27 observability report, the 2026-07-27 auth rollout — and
-**`PENDING-2026-07-28.md`, the one to read first**: a verified handoff of everything still open (credential
-rotation, the metrics blind spot, the open change, known doc drift) with a recommended order and the
-measurement traps already fallen into once.
+**`PENDING-2026-07-28.md`, the one to read first**: a verified handoff of everything still open, with a
+recommended order and the measurement traps already fallen into once.
 
 ## Commands
 
@@ -59,7 +56,7 @@ Single e2e: `npx jest --config ./test/jest-e2e.json test/search.e2e-spec.ts`.
 Single integration: `npx jest --config ./test/jest-integration.json test/elasticsearch.integration-spec.ts`.
 
 `npm run lint:ci && npm run test:cov && npm run build` is the `quality` CI job reproduced locally — run it
-before calling work done. Green baseline as of 2026-07-28: **70 suites / 461 tests**, plus 9 e2e suites
+before calling work done. Green baseline as of 2026-07-28: **70 suites / 462 tests**, plus 9 e2e suites
 (44 tests) and 5 integration tests against the real stack.
 
 `test:cov` **is** the gate: `coverageThreshold` sits just under the measured baseline (98 % statements, 92 %
@@ -318,7 +315,11 @@ metadata, so it registers a controller and nothing else. `app.module.ts` only as
   so stdout keeps working. Labels are `service` and `env` only: `correlationId` stays a **field**, because a
   Loki stream is its label set and a per-request label mints a stream per request. Errors are silenced *and*
   an `error` listener is attached, because an unhandled one reaches `installProcessSafetyNet`, which exits the
-  process — a log backend going down must not restart the API. `GET /metrics` is **not** exempt from the rate limiter (unlike `/health`)
+  process — a log backend going down must not restart the API. **A shipped line must keep pino's numeric
+  `level` and `time`** — the readable variants each silently killed a pipeline half on first activation (a
+  string level routes to no worker target, dropping every line *including stdout*; an ISO time multiplies to
+  NaN inside pino-loki and the batch is rejected under `silenceErrors`), so the ISO timestamp and level-label
+  formatters apply only on the inline path (`7ee3757`, measured in production 2026-07-28). `GET /metrics` is **not** exempt from the rate limiter (unlike `/health`)
   and is excluded from the OpenAPI document with `@ApiExcludeEndpoint`, so ZAP never fuzzes it.
 - **The API is private, and authentication is on by default (D30–D34).** `ApiKeyGuard` (`APP_GUARD` in
   `api-auth.module.ts`) requires `X-API-Key` on every route; `API_AUTH_ENABLED` defaults to **true** and
@@ -360,15 +361,14 @@ creates a change, `/opsx:apply <name>` (or the `openspec-apply-change` skill) wo
 and `/opsx:archive <name>` retires it — syncing delta specs into `openspec/specs/` on the way out. Precedence
 when artifacts disagree: **spec scenarios → design.md → tasks.md → proposal.md**.
 
-**Not all work goes through OpenSpec.** The four archives cover the feature work; post-ship maintenance — the
+**Not all work goes through OpenSpec.** The five archives cover the feature work; post-ship maintenance — the
 security workflows, the dependency policy, the 4xx logging / process safety net / OpenAPI hardening, the
 keep-alive cron — landed as direct conventional commits with a write-up under `docs/`, no change folder. A new
 capability gets a change; CI, dependency, ops and docs work does not.
 
-Always check `openspec list` first — as of 2026-07-28 it reports **one active change**,
-`ship-metrics-and-logs-to-grafana` at 25/28 tasks. The last three need log shipping switched on in Render and
-the free-tier usage measured (`docs/PENDING-2026-07-28.md` §C spells them out); finish and `/opsx:archive` it
-rather than appending unrelated tasks to it — new work gets a new change. Note the flags are not uniform:
+Always check `openspec list` first — it reports **no active changes** as of the 2026-07-28
+telemetry-shipping archive (five changes are now archived), and while it stays empty new work needs a new
+change rather than tasks appended to an existing one. Note the flags are not uniform:
 `openspec status --change <name> --json` takes `--change`, while validation does not — it is
 `openspec validate <name> --strict` for a change and `openspec validate --specs --strict` for the
 capability specs.
