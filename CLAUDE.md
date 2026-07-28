@@ -86,16 +86,20 @@ against `q` & co.). `RATE_LIMIT_ENABLED=false` so ZAP doesn't scan its own 429s;
 container uses `--network host` + `localhost`; on Docker Desktop (local)
 it's `host.docker.internal` instead.
 
-A fifth workflow, `keep-alive.yml`, is **not** CI: it pings the deployed `/health` every 10 minutes so
-Render's free instance never idles out into a ~20 s cold start. `/health` on purpose — it is the one endpoint
-the rate limiter skips *and* the one the API-key guard leaves open, so the ping needs no credential and costs
-no client budget. The cron runs **round the clock** (`*/10 * * * *`) since the API gained real consumers; it
-ran 17 h/day before that. This is a **quota decision, not a cosmetic one**: free-tier Render bills 750
-instance-hours a month *across the workspace* and staying awake costs ~730, so the schedule and a second free
-service cannot coexist — adding one puts the workspace over quota and Render suspends services when that
-happens. It checks nothing out and only reads (`permissions: contents: read`) and fails the run on
-a non-200, which makes it a de-facto uptime alarm. GitHub auto-disables scheduled workflows after 60 days of
-repo inactivity, so a cold deployment is a symptom to check there first.
+A fifth workflow, `keep-alive.yml`, is **not** CI — and since 2026-07-28 it is **not the keep-alive either,
+only a backstop**. Measured over its full run history: GitHub honours its `*/10` schedule roughly once an
+hour with gaps up to 8h48, and the ticks are never created (no queued or cancelled runs), so the instance was
+napping ten times a day while every run stayed green — the job's curl rides out the very cold start it was
+meant to prevent. What actually keeps the free instance awake is an **external UptimeRobot monitor** on
+`/health` every 5 minutes, which also owns the uptime-alarm role (email on non-200). **`/health` and nothing
+else** — it is the one endpoint the rate limiter skips *and* the API-key guard leaves open. Aimed at `/`
+instead (the mistake made on day one) every check answers **401**, so the monitor reports a permanent
+outage and emails about it, while still keeping the instance awake — a 401 is inbound traffic like any
+other, which is what makes the misconfiguration survivable and therefore easy to leave in place. The quota decision stands: free-tier Render bills 750 instance-hours a month *across the
+workspace* and staying awake costs ~730, so the monitor's cadence and a second free service cannot coexist —
+over quota, Render suspends services. The workflow stays as an hourly-ish independent probe (`permissions:
+contents: read`, fails on non-200); GitHub auto-disables schedules after 60 days of repo inactivity, so
+check the Actions tab if the backstop goes quiet.
 
 **Dependency policy** (SCA-driven): `npm audit` is kept at **0** (dev + prod) via two targeted `overrides` in
 `package.json` — `js-yaml` → `5.2.2` (its DoS advisory reached prod through `@nestjs/swagger`) and

@@ -1,30 +1,30 @@
 name: Keep alive
 on:
   schedule:
-    # Why this workflow exists: Render's free instance type spins down after
-    # ~15 minutes without inbound traffic, and the cold start that follows costs
-    # ~20-25s on the first request (measured 22.5s). Pinging the deployment often
-    # enough keeps the live URL in the README answering in ~0.5s at any time.
-    # It doubles as a poor-man's uptime monitor: the job fails loudly if the
-    # deployment stops answering, which is a signal worth having.
+    # THIS WORKFLOW IS A BACKSTOP, NOT THE KEEP-ALIVE. Measured 2026-07-28 over
+    # the full run history: GitHub honours this */10 schedule roughly once an
+    # hour, with gaps up to 8h48 — the ticks are never created (zero queued or
+    # cancelled runs), so no concurrency or workflow setting can fix it. A
+    # schedule this frequent is simply not something GitHub delivers reliably.
     #
-    # Every 10 minutes, not every 15: GitHub's scheduled runs are best-effort and
-    # are routinely delayed several minutes under load, so the interval needs
-    # headroom against the 15-minute spin-down window.
+    # What actually keeps Render's free instance awake since 2026-07-28 is an
+    # external UptimeRobot monitor hitting /health every 5 minutes — well
+    # inside the ~15-minute spin-down window — which also alerts by email on a
+    # non-200, taking over the uptime-alarm role this job can no longer claim
+    # (its runs stayed green while the instance napped ten times a day: the
+    # curl below simply rides out the ~20-25s cold start it exists to prevent).
     #
-    # Round the clock since 2026-07-27, when the API gained real consumers.
-    # Before that it ran 17 h/day (06:00-23:00 at a UTC-4 offset, ~525 h/month)
-    # and the instance was allowed to sleep overnight, which meant whoever
-    # called first in the morning paid a ~20 s cold start. With consumers on the
-    # other end that is no longer an acceptable trade.
+    # Kept at */10 anyway: whatever GitHub does deliver acts as an independent
+    # hourly-ish probe from a second network, and it costs nothing. If it looks
+    # dead for a day, remember GitHub auto-disables schedules after 60 days of
+    # repo inactivity — check the Actions tab before the cron syntax.
     #
-    # The quota arithmetic, which is the reason this line is a decision and not
-    # a preference: Render's free tier bills **750 instance-hours per month
-    # across the whole workspace**, and staying awake 24/7 costs ~730 of them.
-    # That fits — with ~20 h of margin, and only while this is the ONLY free
-    # service in the workspace. Adding a second one would put the workspace over
-    # its quota and Render suspends services when that happens, so a new free
-    # service and this schedule cannot coexist: one of them has to give.
+    # The quota arithmetic still decides things: Render's free tier bills
+    # **750 instance-hours per month across the whole workspace**, and staying
+    # awake 24/7 — now actually delivered by the 5-minute monitor — costs ~730
+    # of them. That fits, with ~20 h of margin, and only while this is the ONLY
+    # free service in the workspace: a second one would put the workspace over
+    # quota, and Render suspends services when that happens.
     - cron: '*/10 * * * *'
   workflow_dispatch:
 

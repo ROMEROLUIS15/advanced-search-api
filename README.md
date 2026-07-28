@@ -422,14 +422,16 @@ auto-deploying from `main`); the steps below are what it took, and reproduce it 
    ```
 3. **Deploy** — Render builds the `Dockerfile` and routes traffic once `GET /health` returns `200`; the app
    validates its environment at boot and fails fast if anything is missing. The free instance type spins down
-   after ~15 minutes idle, so [`.github/workflows/keep-alive.yml`](.github/workflows/keep-alive.yml) pings
-   `/health` on a 10-minute cron to keep it warm — point it elsewhere by editing its `TARGET_URL`, or delete
-   the workflow on a paid instance type that never idles. Three things shape that
-   schedule: GitHub's scheduler is best-effort (hence 10 minutes against a 15-minute window, not 15 against
-   15); the cron runs **round the clock**, which spends ~730 of the 750 instance-hours the free tier allows
-   *per workspace* each month, so this schedule and a second free service cannot both exist — going over the
-   quota gets services suspended; and scheduled workflows are **auto-disabled after 60 days without repo
-   activity** — re-enable it from the Actions tab if the deployment starts going cold again.
+   after ~15 minutes idle, so an **external uptime monitor** (UptimeRobot, free tier) hits `/health` every
+   5 minutes to keep it warm and emails on a non-200. Point it at `/health` specifically: every other route
+   requires `X-API-Key`, so a monitor aimed at the root reports a permanent 401 outage. A GitHub cron was tried first and measured wanting:
+   GitHub delivers a `*/10` schedule roughly once an hour, with multi-hour gaps —
+   [`.github/workflows/keep-alive.yml`](.github/workflows/keep-alive.yml) stays only as an hourly-ish backstop
+   probe (its comments carry the measurement). Two constraints shape the cadence: staying awake 24/7 spends
+   ~730 of the 750 instance-hours the free tier allows *per workspace* each month, so the monitor and a second
+   free service cannot both exist — going over the quota gets services suspended; on a paid instance type that
+   never idles, delete both the monitor and the workflow. Scheduled workflows are also **auto-disabled after
+   60 days without repo activity** — re-enable the backstop from the Actions tab if it goes quiet.
 4. **Seed once** against the managed cluster via a one-off job/shell: `npm run seed:prod`
    (`node dist/seed/seed.command.js`). Idempotent by document id. **Order matters on the very first
    deploy**: readiness requires the seeded index to exist, so until this step has run `GET /health` answers
