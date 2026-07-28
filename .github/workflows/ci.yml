@@ -103,8 +103,13 @@ jobs:
     # That gap has a price on record: log shipping was switched on in production
     # and silenced the service, because no job had ever started the pino
     # transport worker (7ee3757).
+    # NODE_ENV is deliberately NOT here: at job level it also reaches `npm ci`,
+    # which then omits the devDependencies, and `nest` lives in one — the build
+    # dies with `sh: 1: nest: not found` (exit 127). That is the same trap the
+    # README warns about for dashboard-created Render services, and this job
+    # walked into it on its first run. It is set on the API step alone, which is
+    # the only process that should see it.
     env:
-      NODE_ENV: production
       PORT: '3000'
       ELASTICSEARCH_NODE: http://localhost:9200
       ELASTICSEARCH_INDEX: products
@@ -151,6 +156,8 @@ jobs:
       # stdout is captured to a file because one half of what this job checks is
       # that the process still writes there once a transport is attached.
       - name: Start the API the way Render does
+        env:
+          NODE_ENV: production
         run: |
           node dist/main.js > api-stdout.log 2>&1 &
           echo "$!" > api.pid
