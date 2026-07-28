@@ -412,6 +412,29 @@ Real request: `GET /search?q=drill` with `X-Request-Id: claude-46-pivot`, answer
   first time that metric has ever been observed in Grafana Cloud (`hit=1`, `miss=2` after the burst),
   confirming the note left in `PENDING-2026-07-28.md` §C.
 
+### Measured after the readiness split (2026-07-28)
+
+`split-health-liveness-and-readiness` moved `healthCheckPath` to `/health/ready`. Measured on the deployed
+service once the deploy burst had passed — the rate, not the totals, because probe traffic clusters around
+deploys and that has already produced one withdrawn finding:
+
+| Series, `increase(...[5m])` | Before | After |
+|---|---|---|
+| `route="/health"` (platform) | ~70 / 5 min | **0** |
+| `route="/health/ready"` | — | **71.25 / 5 min** (one every 4.2 s) |
+| `route="/health"` (monitor, `HEAD`) | — | 0 in the window; 5-minute cadence |
+
+So the platform's polling moved wholesale, and readiness makes **no Redis call at all**. Health-driven Upstash
+traffic drops from ~605,000 commands a month to the uptime monitor's ~8,600 — a 70× reduction, and the
+free-tier breach that was ~25 days out is gone rather than deferred.
+
+**A trap found while measuring this.** Immediately after the deploy the totals read `/health` = 538 against
+`/health/ready` = 43, which looks like the platform ignoring the new path. It was two processes: OTLP push
+carries no `instance` label, so during the overlap window the outgoing and incoming instances write the
+**same label set**, and a query returns whichever sample landed last. A minute later the old instance was
+gone and the same query read `/health` = 1 (a manual curl) against `/health/ready` climbing. Counter totals
+across a deploy are not trustworthy for this service; rates over a window that starts after the deploy are.
+
 ### New finding: the keep-alive cron is being throttled to ~1 run every 2.5 h
 
 The workflow schedules `*/10 * * * *`, but the measured runs on 2026-07-28 landed at 03:19, 06:07, 09:04,

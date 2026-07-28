@@ -41,11 +41,14 @@
 ## 6. Verify against the running service
 
 - [x] 6.1 Full gate green: `lint:ci`, `test:cov`, `build`, plus integration and e2e against the local stack
-- [ ] 6.2 After deploy: `GET /health/ready` and `GET /health/live` answer 200 without credentials in
-      production, and `/health` still reports both dependencies
-- [ ] 6.3 Confirm Render is polling the new path — the `route="/health/ready"` series climbs at the platform
-      rate while `route="/health"` drops to the monitor's cadence
-- [ ] 6.4 Record the resulting Redis command rate against the ~605k/month projection, in
-      `docs/OBSERVABILITY-2026-07-27.md` alongside the other measured numbers
+- [x] 6.2 Verified in production 2026-07-28: `/health/ready` answers 200 with Elasticsearch only,
+      `/health/live` 200 with an empty `info`, `/health` 200 with both dependencies — all three with no
+      credential, which is what keeps deploys passing
+- [x] 6.3 Confirmed: `increase(...[5m])` reads **71.25** on `route="/health/ready"` (one every 4.2 s, the
+      platform cadence) against **0** on `route="/health"`. Measured as a rate over a window starting after
+      the deploy, because the totals during the overlap read backwards — see the trap recorded in
+      `docs/OBSERVABILITY-2026-07-27.md`
+- [x] 6.4 Recorded: health-driven Redis traffic falls from ~605k commands/month to the monitor's ~8.6k, a
+      70× reduction, since readiness issues no Redis call at all
 - [ ] 6.5 Measure what ~20k/day of `indices.exists` costs on the Elastic Cloud console and record it; if it
       registers meaningfully, open a follow-up rather than improvising a fix here (design "Open Questions")
