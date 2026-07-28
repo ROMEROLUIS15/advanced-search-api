@@ -41,6 +41,7 @@ npm run lint:ci              # same rules WITHOUT --fix — what CI runs (see be
 npm test                     # unit specs (src/**/*.spec.ts) — mocked ports, NO infrastructure needed
 npm run test:e2e             # test/*.e2e-spec.ts — REQUIRES the stack up AND seeded
 npm run test:integration     # test/*.integration-spec.ts — REQUIRES a real Elasticsearch
+npm run test:smoke           # test/*.smoke-spec.ts — hits a RUNNING server over HTTP; set SMOKE_BASE_URL + SMOKE_API_KEY
 npm run test:cov             # unit specs with coverage (writes coverage/)
 npm run loadtest             # k6 capacity battery (loadtest/battery.js) — enforcement OFF; needs k6 installed
 npm run loadtest:smoke       # k6 smoke run (loadtest/smoke.js)
@@ -72,8 +73,22 @@ same file set, so `npm run lint` already formats. Lint is **type-aware** (`recom
 **Never point CI at `npm run lint`** — it carries `--fix`, so an auto-fixable violation gets repaired in the
 runner's working copy and the job reports success while the offending code stays in the repo (measured: a
 badly formatted file exits 0 under `lint`, 1 under `lint:ci`). `.github/workflows/ci.yml` runs `lint:ci`, and
-splits into two independent jobs — `quality` (lint, unit, build) and `integration` (compose up ES + Redis,
-seed, then `test:integration` and `test:e2e`) — so a lint failure cannot mask an e2e failure.
+splits into three independent jobs so one failure cannot mask another — `quality` (lint, unit, build),
+`integration` (compose up ES + Redis, seed, then `test:integration` and `test:e2e`), and
+**`production-shape`**.
+
+That third job exists because the other two, and the DAST job, all boot the app in a shape production never
+uses: `quality` mocks its ports, `integration` calls `configureApp` with the gate **off**, and DAST turns
+auth and the limiter off so ZAP can reach the surface. Nothing ran the real `dist/main.js` the way Render
+does — and the bill came due when log shipping was switched on and silenced the service, because no job had
+ever started the pino transport worker. `production-shape` boots `dist/main.js` with `API_AUTH_ENABLED=true`,
+the limiter on with a deliberately tiny `/search` budget, Swagger mounted and `LOKI_URL` pointed at
+`scripts/loki-sink.mjs` (a throwaway HTTP recorder — no Loki needed). It then checks the two halves a broken
+wire format breaks separately: **stdout still carries JSON lines** while a transport is attached, and the
+sink **received a batch** whose labels are the expected ones. The HTTP assertions live in
+`test/production.smoke-spec.ts` (`npm run test:smoke`, config `test/jest-smoke.json`) rather than in workflow
+bash, so they are linted and type-checked like the rest; point them anywhere with `SMOKE_BASE_URL` and
+`SMOKE_API_KEY`.
 
 **Security scanning** rides alongside CI in four layers (all free, public-repo): `codeql.yml` — SAST over the
 TS; `dependabot.yml` — SCA (npm + github-actions + docker); `security.yml` — `secrets` (gitleaks over full
@@ -324,8 +339,10 @@ metadata, so it registers a controller and nothing else. `app.module.ts` only as
   "every request" claim is wrong until that lands.
 - **Log shipping is a pino transport, not a platform feature.** `LOKI_URL` unset means no worker, no timer, no
   socket. Set, `PinoLoggerAdapter` builds a multi-target transport — `pino/file` on fd 1 *and* `pino-loki` —
-  so stdout keeps working. Labels are `service` and `env` only: `correlationId` stays a **field**, because a
-  Loki stream is its label set and a per-request label mints a stream per request. Errors are silenced *and*
+  so stdout keeps working. The labels this code sets are `service` and `env`; measured against a real
+  transport, pino-loki adds `level` of its own, which is harmless because its cardinality is bounded at six.
+  What matters is that `correlationId` stays a **field**, because a Loki stream is its label set and a
+  per-request label mints a stream per request. Errors are silenced *and*
   an `error` listener is attached, because an unhandled one reaches `installProcessSafetyNet`, which exits the
   process — a log backend going down must not restart the API. **A shipped line must keep pino's numeric
   `level` and `time`** — the readable variants each silently killed a pipeline half on first activation (a

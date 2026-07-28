@@ -92,3 +92,129 @@ jobs:
       - name: Container logs (on failure)
         if: failure()
         run: docker compose logs --tail=100 elasticsearch redis
+
+  production-shape:
+    name: Production-shape boot (auth + limiter + docs + log shipping)
+    runs-on: ubuntu-latest
+    # The gap the other two jobs leave. `quality` mocks its ports, `integration`
+    # boots configureApp with the gate off, and the DAST job turns auth and the
+    # limiter off so ZAP can reach the application surface. All three are right
+    # on their own; none of them runs the real dist/main.js the way Render does.
+    # That gap has a price on record: log shipping was switched on in production
+    # and silenced the service, because no job had ever started the pino
+    # transport worker (7ee3757).
+    env:
+      NODE_ENV: production
+      PORT: '3000'
+      ELASTICSEARCH_NODE: http://localhost:9200
+      ELASTICSEARCH_INDEX: products
+      REDIS_URL: redis://localhost:6379
+      # On, unlike everywhere else — that is the entire point of this job.
+      API_AUTH_ENABLED: 'true'
+      # Throwaway, and >= the 16-character minimum the schema enforces at boot.
+      API_KEYS: ci-smoke-primary-key-0001,ci-smoke-secondary-key-0002
+      RATE_LIMIT_ENABLED: 'true'
+      # Small budget so a short burst provokes the 429 deterministically instead
+      # of the suite firing 60 requests to reach the real limit.
+      RATE_LIMIT_SEARCH: '5'
+      METRICS_TOKEN: ci-smoke-metrics-token-0003
+      # Log shipping configured against a local sink, so the transport worker
+      # actually runs. No Loki needed to prove the wire format survives it.
+      LOKI_URL: http://localhost:3100
+      LOKI_USERNAME: ci-smoke
+      LOKI_PASSWORD: ci-smoke-password
+    steps:
+      - uses: actions/checkout@v7
+
+      - uses: actions/setup-node@v7
+        with:
+          node-version: ${{ env.NODE_VERSION }}
+          cache: npm
+
+      - run: npm ci
+
+      - name: Start Elasticsearch and Redis
+        run: docker compose up -d --wait elasticsearch redis
+
+      - name: Build
+        run: npm run build
+
+      # seed:prod runs from dist/, the only form that works in the container.
+      - name: Seed the index
+        run: npm run seed:prod
+
+      - name: Start the log sink
+        run: |
+          node scripts/loki-sink.mjs loki-received.jsonl 3100 &
+          echo "$!" > sink.pid
+
+      # stdout is captured to a file because one half of what this job checks is
+      # that the process still writes there once a transport is attached.
+      - name: Start the API the way Render does
+        run: |
+          node dist/main.js > api-stdout.log 2>&1 &
+          echo "$!" > api.pid
+
+      - name: Wait for readiness
+        run: |
+          for i in $(seq 1 30); do
+            if curl -sf http://localhost:3000/health/ready >/dev/null; then
+              echo "ready after ~$((i * 2))s"; exit 0
+            fi
+            sleep 2
+          done
+          echo "::error::the API never became ready"; cat api-stdout.log; exit 1
+
+      # The check that would have caught the production incident: with a
+      # transport attached, a broken wire format drops every line, stdout
+      # included, and raises nothing.
+      - name: Standard output survives log shipping
+        run: |
+          if ! grep -q '"msg"' api-stdout.log; then
+            echo "::error::stdout carries no JSON log lines while LOKI_URL is set"
+            cat api-stdout.log; exit 1
+          fi
+          echo "stdout lines: $(wc -l < api-stdout.log)"
+
+      - name: Production-shape assertions
+        env:
+          SMOKE_BASE_URL: http://localhost:3000
+          SMOKE_API_KEY: ci-smoke-primary-key-0001
+        run: npm run test:smoke
+
+      # The other half: the batch has to be accepted, not merely attempted. A
+      # timestamp the backend rejects fails here while everything above passes.
+      - name: The sink received a shipped batch
+        run: |
+          # pino-loki batches on an interval; give it room to flush.
+          for i in $(seq 1 15); do
+            [ -s loki-received.jsonl ] && break
+            sleep 2
+          done
+          if [ ! -s loki-received.jsonl ]; then
+            echo "::error::no batch reached the log sink"; exit 1
+          fi
+          node -e "
+            const lines = require('node:fs').readFileSync('loki-received.jsonl','utf8').trim().split('\n');
+            const streams = lines.flatMap((l) => JSON.parse(l).streams ?? []);
+            if (streams.length === 0) throw new Error('batches arrived with no streams');
+            const labels = streams[0].stream ?? {};
+            console.log('labels:', JSON.stringify(labels));
+            if (labels.service !== 'advanced-search-api') throw new Error('unexpected service label');
+            // correlationId must stay a field: a label per request mints a Loki
+            // stream per request and is the classic way off a free tier.
+            if ('correlationId' in labels) throw new Error('correlationId leaked into the labels');
+          "
+
+      - name: Diagnostics (on failure)
+        if: failure()
+        run: |
+          echo '--- api stdout ---'; tail -50 api-stdout.log || true
+          echo '--- sink ---'; tail -5 loki-received.jsonl || true
+          docker compose logs --tail=50 elasticsearch redis || true
+
+      - name: Stop the API and the sink
+        if: always()
+        run: |
+          [ -f api.pid ] && kill "$(cat api.pid)" 2>/dev/null || true
+          [ -f sink.pid ] && kill "$(cat sink.pid)" 2>/dev/null || true
