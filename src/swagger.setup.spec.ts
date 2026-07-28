@@ -1,24 +1,40 @@
 import { type INestApplication } from '@nestjs/common';
 import { SwaggerModule } from '@nestjs/swagger';
+import { RATE_LIMIT_STORE } from '@application/ports/rate-limit-store.port';
 import type { AppConfiguration } from '@config/app-config';
 import { setupOpenApi } from './swagger.setup';
 
 const KEY = 'key-one';
 
-function configWith(enabled: boolean): AppConfiguration {
-  return { apiAuth: { enabled, keys: [KEY] } } as AppConfiguration;
+function configWith(enabled: boolean, rateLimitEnabled = false): AppConfiguration {
+  return {
+    apiAuth: { enabled, keys: [KEY] },
+    rateLimit: { enabled: rateLimitEnabled, windowSeconds: 60, default: 120 },
+  } as AppConfiguration;
 }
 
-function appDouble(): { app: INestApplication; use: jest.Mock } {
+function appDouble(): { app: INestApplication; use: jest.Mock; get: jest.Mock } {
   const use = jest.fn();
-  return { app: { use } as unknown as INestApplication, use };
+  const get = jest.fn(() => ({
+    hit: jest.fn().mockResolvedValue({ totalHits: 1, timeToExpireMs: 60_000 }),
+  }));
+  return { app: { use, get } as unknown as INestApplication, use, get };
 }
 
+/**
+ * The key check is the **last** middleware registered on the docs paths: when
+ * rate limiting is on, the limiter is registered ahead of it on purpose.
+ */
 function runMiddleware(
   use: jest.Mock,
   headers: Record<string, unknown>,
 ): { status?: number; body?: any; nextCalled: boolean } {
-  const middleware = use.mock.calls[0][1] as (req: any, res: any, next: () => void) => void;
+  const registrations = use.mock.calls;
+  const middleware = registrations[registrations.length - 1][1] as (
+    req: any,
+    res: any,
+    next: () => void,
+  ) => void;
   let status: number | undefined;
   let body: any;
   let nextCalled = false;
@@ -97,5 +113,45 @@ describe('setupOpenApi', () => {
 
     expect(nextCalled).toBe(true);
     expect(status).toBeUndefined();
+  });
+});
+
+describe('setupOpenApi — the limiter reaches what the guard cannot', () => {
+  beforeEach(() => {
+    jest.spyOn(SwaggerModule, 'createDocument').mockReturnValue({ openapi: '3.0.0' } as never);
+    jest.spyOn(SwaggerModule, 'setup').mockImplementation(() => undefined);
+  });
+
+  afterEach(() => jest.restoreAllMocks());
+
+  it('registers the limiter BEFORE the key check, so a flood is counted not refused for free', () => {
+    // Same ordering as RateLimitModule before ApiAuthModule. Reversed, key
+    // guessing against the contract would cost the attacker nothing.
+    const { app, use, get } = appDouble();
+
+    setupOpenApi(app, configWith(true, true));
+
+    expect(get).toHaveBeenCalledWith(RATE_LIMIT_STORE);
+    expect(use).toHaveBeenCalledTimes(2);
+    expect(use.mock.calls[0][0]).toEqual(['/docs', '/docs-json']);
+    expect(use.mock.calls[1][0]).toEqual(['/docs', '/docs-json']);
+  });
+
+  it('registers only the key check when rate limiting is off', () => {
+    const { app, use, get } = appDouble();
+
+    setupOpenApi(app, configWith(true, false));
+
+    expect(use).toHaveBeenCalledTimes(1);
+    expect(get).not.toHaveBeenCalled();
+  });
+
+  it('touches neither when authentication is off', () => {
+    const { app, use, get } = appDouble();
+
+    setupOpenApi(app, configWith(false, true));
+
+    expect(use).not.toHaveBeenCalled();
+    expect(get).not.toHaveBeenCalled();
   });
 });

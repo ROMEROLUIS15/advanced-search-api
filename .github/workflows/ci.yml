@@ -122,6 +122,9 @@ jobs:
       # Small budget so a short burst provokes the 429 deterministically instead
       # of the suite firing 60 requests to reach the real limit.
       RATE_LIMIT_SEARCH: '5'
+      # `default` is what the docs paths count against; small for the same
+      # reason, so the unauthenticated burst reaches a 429 in a few requests.
+      RATE_LIMIT_DEFAULT: '5'
       METRICS_TOKEN: ci-smoke-metrics-token-0003
       # Log shipping configured against a local sink, so the transport worker
       # actually runs. No Loki needed to prove the wire format survives it.

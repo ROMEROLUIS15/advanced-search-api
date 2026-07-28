@@ -58,8 +58,8 @@ Single e2e: `npx jest --config ./test/jest-e2e.json test/search.e2e-spec.ts`.
 Single integration: `npx jest --config ./test/jest-integration.json test/elasticsearch.integration-spec.ts`.
 
 `npm run lint:ci && npm run test:cov && npm run build` is the `quality` CI job reproduced locally — run it
-before calling work done. Green baseline as of 2026-07-28: **70 suites / 463 tests**, plus 9 e2e suites
-(45 tests) and 5 integration tests against the real stack.
+before calling work done. Green baseline as of 2026-07-28: **71 suites / 485 tests**, plus 9 e2e suites
+(50 tests), 5 integration tests, and 12 `test:smoke` cases that need a production-shape server running.
 
 `test:cov` **is** the gate: `coverageThreshold` sits just under the measured baseline (98 % statements, 92 %
 branches, 97 % functions) and CI's `quality` job runs `test:cov` instead of `npm test` — same suite, one more
@@ -360,7 +360,12 @@ metadata, so it registers a controller and nothing else. `app.module.ts` only as
   paths and neither is open — `/health` is a public probe, `/metrics` has its own bearer.
   **`/docs` and `/docs-json` are guarded by a middleware in `swagger.setup.ts`, not by the guard**: Swagger
   mounts them straight onto Express, so no Nest guard ever runs for them — an easy way to leave the whole
-  contract public while the data is locked. Keys are compared as SHA-256 digests with `timingSafeEqual`, and
+  contract public while the data is locked. The **rate limiter cannot reach them either**, so it is applied
+  there as a second middleware (`docs-rate-limit.middleware.ts`, counting against the `default` budget in its
+  own `docs:` namespace) and registered **before** the key check, mirroring why `RateLimitModule` is imported
+  before `ApiAuthModule`: an unauthenticated flood has to be counted, not rejected for free. Without it the
+  contract was the one surface offering unlimited key attempts. Both middlewares write their error body by
+  hand — these are not Nest routes, so nothing thrown there would reach `AllExceptionsFilter`. Keys are compared as SHA-256 digests with `timingSafeEqual`, and
   the rate limiter buckets by a truncated digest of a **valid** key (invalid ones fall back to the IP, so
   guessing cannot mint fresh budgets).
 - **`config/load-config.ts` is the only module that reads `process.env`** — both the `APP_CONFIG` provider and

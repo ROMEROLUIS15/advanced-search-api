@@ -66,6 +66,31 @@ describe('production shape — the published contract is guarded', () => {
     // /metrics carries @ApiExcludeEndpoint, so it must not be in the contract.
     expect(res.body.paths['/metrics']).toBeUndefined();
   });
+
+  // Last in this block on purpose: it spends the address's docs budget, and the
+  // 401 case above needs that budget intact to get a 401 rather than a 429.
+  it('meters unauthenticated attempts instead of rejecting them for free', async () => {
+    // Before this, the contract was the one surface where keys could be tried as
+    // fast as the network allowed: SwaggerModule mounts it straight onto
+    // Express, so the global guard never sees it.
+    let throttled: request.Response | undefined;
+    for (let attempt = 0; attempt < 20 && throttled === undefined; attempt += 1) {
+      const res = await api().get('/docs-json');
+      if (res.status === 429) {
+        throttled = res;
+      }
+    }
+
+    expect(throttled).toBeDefined();
+    expect(throttled?.body).toMatchObject({ statusCode: 429, error: 'Too Many Requests' });
+    expect(throttled?.headers['retry-after']).toBeDefined();
+  });
+
+  it('still serves a valid key from an address whose budget is spent', async () => {
+    // Buckets are per-identity: a flood from one address must not lock out a
+    // legitimate key holder behind the same NAT.
+    await api().get('/docs-json').set('X-API-Key', apiKey).expect(200);
+  });
 });
 
 describe('production shape — the limiter is on', () => {

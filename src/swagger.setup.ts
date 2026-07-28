@@ -1,12 +1,17 @@
 import { type INestApplication } from '@nestjs/common';
 import { DocumentBuilder, SwaggerModule } from '@nestjs/swagger';
 import type { NextFunction, Request, Response } from 'express';
+import {
+  RATE_LIMIT_STORE,
+  type RateLimitStorePort,
+} from '@application/ports/rate-limit-store.port';
 import type { AppConfiguration } from '@config/app-config';
 import {
   API_KEY_HEADER,
   type KeyIdentifier,
   createKeyIdentifier,
 } from '@presentation/auth/api-key.identity';
+import { buildDocsRateLimitMiddleware } from '@presentation/common/docs-rate-limit.middleware';
 
 /** Paths SwaggerModule mounts. Listed here because they must be protected before it does. */
 const DOCS_PATHS = ['/docs', '/docs-json'];
@@ -26,10 +31,20 @@ const DOCS_PATHS = ['/docs', '/docs-json'];
  * these paths straight onto Express, so no Nest guard ever runs for them. That
  * is easy to miss and would leave the whole contract public while the data
  * behind it was locked.
+ *
+ * For the same reason the rate limiter cannot reach these paths either, so it is
+ * applied here as a middleware too — **before** the key check, mirroring how
+ * `RateLimitModule` is imported before `ApiAuthModule`: a flood has to be
+ * counted rather than rejected for free.
  */
 export function setupOpenApi(app: INestApplication, config: AppConfiguration): void {
   if (config.apiAuth.enabled) {
-    app.use(DOCS_PATHS, docsKeyMiddleware(createKeyIdentifier(config.apiAuth.keys)));
+    const identify = createKeyIdentifier(config.apiAuth.keys);
+    if (config.rateLimit.enabled) {
+      const store = app.get<RateLimitStorePort>(RATE_LIMIT_STORE);
+      app.use(DOCS_PATHS, buildDocsRateLimitMiddleware(store, config.rateLimit, identify));
+    }
+    app.use(DOCS_PATHS, docsKeyMiddleware(identify));
   }
 
   const builder = new DocumentBuilder()
