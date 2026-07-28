@@ -1,8 +1,10 @@
+import type { Span } from '@opentelemetry/api';
 import { OTLPTraceExporter } from '@opentelemetry/exporter-trace-otlp-http';
 import { HttpInstrumentation } from '@opentelemetry/instrumentation-http';
 import { IORedisInstrumentation } from '@opentelemetry/instrumentation-ioredis';
 import { NodeSDK, type NodeSDKConfiguration } from '@opentelemetry/sdk-node';
 import { ParentBasedSampler, TraceIdRatioBasedSampler } from '@opentelemetry/sdk-trace-base';
+import type { ClientRequest, IncomingMessage } from 'node:http';
 import { type ObservabilityConfig } from '@config/app-config';
 import { loadConfig } from '@config/load-config';
 import { IgnoredPathsSampler } from './ignored-paths.sampler';
@@ -37,7 +39,10 @@ export function buildTracingConfig(
     sampler: new ParentBasedSampler({
       root: new IgnoredPathsSampler(new TraceIdRatioBasedSampler(tracesSamplerRatio)),
     }),
-    instrumentations: [new HttpInstrumentation(), new IORedisInstrumentation()],
+    instrumentations: [
+      new HttpInstrumentation({ requestHook: redactIncomingQuery }),
+      new IORedisInstrumentation(),
+    ],
     // Traces only, and it has to be said out loud. Left unset, `NodeSDK` falls
     // back to reading the environment, where the default metrics exporter is
     // OTLP — so setting `OTEL_EXPORTER_OTLP_ENDPOINT` for tracing quietly
@@ -58,8 +63,8 @@ export function buildTracingConfig(
  *
  * **Ordering is the whole point.** Instrumentation patches modules as they are
  * required, so this has to run before `@nestjs/core`, Express, ioredis or the
- * Elasticsearch client are imported — which is why `main.ts` imports it first
- * and why adding an import above it silently disables tracing.
+ * Elasticsearch client are imported. `tracing.preload.ts` calls this at module
+ * evaluation time; calling it later from `bootstrap()` is already too late.
  *
  * Elasticsearch needs no instrumentation here: `@elastic/transport` depends on
  * `@opentelemetry/api` directly and emits its own spans once a provider exists.
@@ -92,5 +97,15 @@ export async function stopTracing(): Promise<void> {
   sdk = undefined;
   if (running !== undefined) {
     await running.shutdown();
+  }
+}
+
+/**
+ * Query values are client-controlled search data. Keep the fact that a query
+ * existed without exporting its contents to the trace backend.
+ */
+export function redactIncomingQuery(span: Span, request: ClientRequest | IncomingMessage): void {
+  if ('url' in request && typeof request.url === 'string' && request.url.includes('?')) {
+    span.setAttribute('url.query', '[REDACTED]');
   }
 }

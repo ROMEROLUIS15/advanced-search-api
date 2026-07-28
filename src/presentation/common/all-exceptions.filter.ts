@@ -20,6 +20,7 @@ import {
   type KeyIdentifier,
   createKeyIdentifier,
 } from '@presentation/auth/api-key.identity';
+import { pathWithoutQuery } from '@shared/operator-paths';
 import { ALLOW_HEADER_VALUE, isAllowedMethod, isApiPath } from './api-routes';
 
 interface ResolvedError {
@@ -108,7 +109,7 @@ export class AllExceptionsFilter implements ExceptionFilter {
   private logException(request: Request, resolved: ResolvedError, exception: unknown): void {
     // Plain numeric bounds, not HttpStatus members: statusCode is a number and
     // comparing it against the enum trips no-unsafe-enum-comparison.
-    const line = `${request.method} ${request.url} -> ${resolved.statusCode}`;
+    const line = `${request.method} ${pathWithoutQuery(request.url)} -> ${resolved.statusCode}`;
     if (resolved.statusCode >= 500) {
       this.logger.error(line, exception instanceof Error ? exception.stack : String(exception));
       return;

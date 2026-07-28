@@ -1,8 +1,14 @@
 import { readFileSync } from 'node:fs';
 import { join } from 'node:path';
+import type { Span } from '@opentelemetry/api';
 import { NodeSDK } from '@opentelemetry/sdk-node';
 import { type ObservabilityConfig } from '@config/app-config';
-import { buildTracingConfig, startTracing, stopTracing } from './tracing.bootstrap';
+import {
+  buildTracingConfig,
+  redactIncomingQuery,
+  startTracing,
+  stopTracing,
+} from './tracing.bootstrap';
 
 const BASE_ENV = {
   ELASTICSEARCH_NODE: 'http://localhost:9200',
@@ -17,6 +23,8 @@ const OBSERVABILITY: ObservabilityConfig = {
   otlpHeaders: {},
   serviceName: 'advanced-search-api',
   tracesSamplerRatio: 1,
+  metricsExportEnabled: false,
+  metricExportIntervalMs: 60000,
 };
 
 describe('buildTracingConfig', () => {
@@ -37,6 +45,28 @@ describe('buildTracingConfig', () => {
   it('builds nothing at all without an endpoint, so no exporter is ever constructed', () => {
     // Arrange & Act & Assert
     expect(buildTracingConfig(OBSERVABILITY)).toBeUndefined();
+  });
+
+  it('redacts client-controlled query values on incoming HTTP spans', () => {
+    // Arrange
+    const span = { setAttribute: jest.fn() } as unknown as Span;
+
+    // Act
+    redactIncomingQuery(span, { url: '/search?q=private-term&category=secret' } as never);
+
+    // Assert
+    expect(span.setAttribute).toHaveBeenCalledWith('url.query', '[REDACTED]');
+  });
+
+  it('does not add a query attribute when the incoming URL has none', () => {
+    // Arrange
+    const span = { setAttribute: jest.fn() } as unknown as Span;
+
+    // Act
+    redactIncomingQuery(span, { url: '/search' } as never);
+
+    // Assert
+    expect(span.setAttribute).not.toHaveBeenCalled();
   });
 });
 
@@ -100,23 +130,24 @@ describe('startTracing (design D25)', () => {
 });
 
 describe('main.ts import order', () => {
-  it('imports the tracing bootstrap before anything that loads http, Express or a client', () => {
-    // Arrange: asserted on the source rather than by importing main.ts, which
-    // would boot the application. Instrumentation only patches modules required
-    // *after* it registers, so this ordering is load-bearing (design D25).
+  it('imports an eager tracing preload before anything that loads http, Express or a client', () => {
+    // Arrange: importing main.ts would boot the application, so assert both
+    // halves of the contract: early import and eager execution in that module.
     const source = readFileSync(join(__dirname, '..', '..', 'main.ts'), 'utf8');
+    const preload = readFileSync(join(__dirname, 'tracing.preload.ts'), 'utf8');
     const imports = source
       .split('\n')
       .filter((line) => line.startsWith('import '))
       .map((line) => line.trim());
 
     // Act
-    const tracingIndex = imports.findIndex((line) => line.includes('tracing.bootstrap'));
+    const tracingIndex = imports.findIndex((line) => line.includes('tracing.preload'));
     const nestIndex = imports.findIndex((line) => line.includes('@nestjs/core'));
 
     // Assert
     expect(imports[0]).toContain('reflect-metadata');
     expect(tracingIndex).toBe(1);
     expect(tracingIndex).toBeLessThan(nestIndex);
+    expect(preload).toContain('export const tracingStarted = startTracing();');
   });
 });

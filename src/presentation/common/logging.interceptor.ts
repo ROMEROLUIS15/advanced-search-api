@@ -8,7 +8,7 @@ import {
 import type { Request, Response } from 'express';
 import type { Observable } from 'rxjs';
 import { tap } from 'rxjs/operators';
-import { OPERATOR_PATHS, matchesPath } from '@shared/operator-paths';
+import { OPERATOR_PATHS, matchesPath, pathWithoutQuery } from '@shared/operator-paths';
 
 /**
  * Logs each completed request (method, path, status, duration). Errors are
@@ -37,7 +37,9 @@ export class LoggingInterceptor implements NestInterceptor {
         }
         const response = context.switchToHttp().getResponse<Response>();
         this.logger.log(
-          `${request.method} ${request.url} ${response.statusCode} ${Date.now() - startedAt}ms`,
+          `${request.method} ${pathWithoutQuery(request.url)} ${response.statusCode} ${
+            Date.now() - startedAt
+          }ms`,
         );
       }),
     );

@@ -52,7 +52,8 @@ describe('LoggingInterceptor — operator paths', () => {
 
     // Assert
     expect(log).toHaveBeenCalledTimes(1);
-    expect(String(log.mock.calls[0][0])).toContain('/search?q=drill');
+    expect(String(log.mock.calls[0][0])).toContain('GET /search 200');
+    expect(String(log.mock.calls[0][0])).not.toContain('q=drill');
     log.mockRestore();
   });
 });

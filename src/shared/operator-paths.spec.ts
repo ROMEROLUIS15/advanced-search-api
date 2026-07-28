@@ -1,4 +1,4 @@
-import { OPERATOR_PATHS, matchesPath } from './operator-paths';
+import { OPERATOR_PATHS, matchesPath, pathWithoutQuery } from './operator-paths';
 
 describe('matchesPath', () => {
   it.each([
@@ -24,5 +24,10 @@ describe('matchesPath', () => {
 
   it('lists both operator endpoints, which three call sites depend on', () => {
     expect([...OPERATOR_PATHS]).toEqual(['/health', '/metrics']);
+  });
+
+  it('removes query parameters from paths used in logs', () => {
+    expect(pathWithoutQuery('/search?q=private')).toBe('/search');
+    expect(pathWithoutQuery('/search')).toBe('/search');
   });
 });

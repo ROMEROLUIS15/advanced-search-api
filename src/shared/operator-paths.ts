@@ -10,12 +10,18 @@
  */
 export const OPERATOR_PATHS = ['/health', '/metrics'] as const;
 
+/** Removes client-controlled query parameters before a path is matched or logged. */
+export function pathWithoutQuery(path: string): string {
+  const queryStart = path.indexOf('?');
+  return queryStart === -1 ? path : path.slice(0, queryStart);
+}
+
 /**
  * Exact match or sub-path, never a bare `startsWith`: `/healthy-products` is a
  * plausible future route and is not a probe. The query string is ignored.
  */
 export function matchesPath(path: string, prefixes: readonly string[]): boolean {
-  const withoutQuery = path.split('?')[0];
+  const withoutQuery = pathWithoutQuery(path);
   return prefixes.some(
     (prefix) => withoutQuery === prefix || withoutQuery.startsWith(`${prefix}/`),
   );

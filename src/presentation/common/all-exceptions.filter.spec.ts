@@ -13,7 +13,7 @@ import {
 } from '@application/errors/application.error';
 import { InvariantViolationError } from '@domain/errors/domain.error';
 
-function runFilter(exception: unknown): { status: number; body: any } {
+function runFilter(exception: unknown, url = '/search'): { status: number; body: any } {
   let status = 0;
   let body: any;
   const response = {
@@ -29,7 +29,7 @@ function runFilter(exception: unknown): { status: number; body: any } {
   const host: any = {
     switchToHttp: () => ({
       getResponse: () => response,
-      getRequest: () => ({ url: '/search' }),
+      getRequest: () => ({ method: 'GET', url }),
     }),
   };
 
@@ -201,6 +201,15 @@ describe('AllExceptionsFilter — logging', () => {
     );
 
     expect(String(warn.mock.calls[0][0])).toContain('q must be a string');
+  });
+
+  it('does not include query parameters in an error log line', () => {
+    const warn = jest.spyOn(Logger.prototype, 'warn').mockImplementation(() => undefined);
+
+    runFilter(new BadRequestException('invalid query'), '/search?q=private-term');
+
+    expect(String(warn.mock.calls[0][0])).toContain('GET /search -> 400');
+    expect(String(warn.mock.calls[0][0])).not.toContain('private-term');
   });
 
   it('still logs a 5xx as an error, not a warning', () => {
