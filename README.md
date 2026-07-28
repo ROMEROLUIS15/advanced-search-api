@@ -265,7 +265,7 @@ Environment is validated at boot (Zod) — the app fails fast on missing/invalid
 | `RATE_LIMIT_DEFAULT` | `120` | any other limited route (`GET /`) |
 | `TRUST_PROXY_HOPS` | `0` | proxy hops to trust for the client IP; `3` behind Render |
 | `API_AUTH_ENABLED` | **`true`** | on unless disabled; enabling it with no key is a startup failure |
-| `API_KEYS` | — | comma-separated valid keys, sent by clients as `X-API-Key` |
+| `API_KEYS` | — | comma-separated valid keys, sent by clients as `X-API-Key`; each must be ≥ 16 characters |
 | `LOG_LEVEL` / `LOG_PRETTY` | `info` / `false` | JSON logs; pretty is for a terminal and is refused in production |
 | `METRICS_ENABLED` | `true` | `false` binds a no-op recorder and `/metrics` returns empty |
 | `METRICS_TOKEN` | — | when set, `/metrics` requires `Authorization: Bearer <token>` |
@@ -273,6 +273,10 @@ Environment is validated at boot (Zod) — the app fails fast on missing/invalid
 | `OTEL_EXPORTER_OTLP_HEADERS` | — | `key=value,key=value`; only the first `=` separates |
 | `OTEL_SERVICE_NAME` | `advanced-search-api` | service name on exported spans |
 | `OTEL_TRACES_SAMPLER_RATIO` | `0.1` | parent-based: an inbound sampled trace stays sampled |
+| `OTEL_METRICS_EXPORT_ENABLED` | `false` | **opt-in on its own**: an OTLP endpoint set for tracing ships no metrics |
+| `OTEL_METRIC_EXPORT_INTERVAL_MS` | `60000` | flush interval; halving it doubles the samples stored |
+| `LOKI_URL` | — | **unset ⇒ no log transport, worker or timer is constructed** |
+| `LOKI_USERNAME` / `LOKI_PASSWORD` | — | Loki basic auth; set both or neither |
 
 ## Testing
 

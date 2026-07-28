@@ -266,9 +266,13 @@ metadata, so it registers a controller and nothing else. `app.module.ts` only as
   Logs are pino installed via `app.useLogger` in `main.ts`, so the ~30 `new Logger(Context)` call sites emit
   JSON untouched; the correlation id lives in `AsyncLocalStorage` (`shared/correlation.store.ts`), opened by a
   middleware in `app.setup.ts`, which is why a line logged inside a use-case carries it without any plumbing.
-  **`main.ts` imports `tracing.bootstrap` second, right after `reflect-metadata`, and that order is the
+  **`main.ts` imports `tracing.preload` second, right after `reflect-metadata`, and that order is the
   feature**: OpenTelemetry patches modules as they are required, so an import added above it silently leaves
-  http/Express/ioredis untraced — a spec asserts the order against `main.ts`'s source. With
+  http/Express/ioredis untraced — a spec asserts the order against `main.ts`'s source. The preload module
+  starts the SDK **as a side effect of being required**, which is the whole point: calling `startTracing()`
+  from inside `bootstrap()` runs *after* every static import has been evaluated, and ioredis loaded by then
+  stays unpatched forever (measured — Redis emitted zero spans in production for a full day while
+  Elasticsearch's were fine, because `@elastic/transport` instruments itself and does not depend on the hook). With
   `OTEL_EXPORTER_OTLP_ENDPOINT` unset the SDK is never constructed, which is what keeps CI and the e2e suites
   collector-free, and `/health` and `/metrics` are dropped at the **sampler** so the platform's polling does
   not bury real traffic — a hook would suppress the server span and orphan the probe's own ES/Redis spans.
@@ -281,7 +285,18 @@ metadata, so it registers a controller and nothing else. `app.module.ts` only as
   by `cacheAside` and the fail-over store) and `METRICS_EXPORTER` (rendering, used only by `MetricsController`)
   are two tokens bound to **one** adapter instance in `infrastructure/observability/observability.module.ts`,
   which is `@Global` — the third and last global module after config. `METRICS_ENABLED=false` swaps in a no-op
-  adapter so no call site branches. `GET /metrics` is **not** exempt from the rate limiter (unlike `/health`)
+  adapter so no call site branches. `buildMetricsAdapter` picks between **three** shapes: no-op, Prometheus
+  only, or `CompositeMetricsAdapter` (Prometheus **plus** an OTLP push) when `OTEL_METRICS_EXPORT_ENABLED` is
+  on. That flag is separate from the OTLP endpoint on purpose — configuring *tracing* must never start a
+  metrics pipeline, which it silently did until `1452e7b`. The composite's `MeterProvider` is **never**
+  registered as the global one: instrumentation libraries resolve meters from the global provider, and leaving
+  it unset is what keeps their undeclared histograms out of the backend.
+- **Log shipping is a pino transport, not a platform feature.** `LOKI_URL` unset means no worker, no timer, no
+  socket. Set, `PinoLoggerAdapter` builds a multi-target transport — `pino/file` on fd 1 *and* `pino-loki` —
+  so stdout keeps working. Labels are `service` and `env` only: `correlationId` stays a **field**, because a
+  Loki stream is its label set and a per-request label mints a stream per request. Errors are silenced *and*
+  an `error` listener is attached, because an unhandled one reaches `installProcessSafetyNet`, which exits the
+  process — a log backend going down must not restart the API. `GET /metrics` is **not** exempt from the rate limiter (unlike `/health`)
   and is excluded from the OpenAPI document with `@ApiExcludeEndpoint`, so ZAP never fuzzes it.
 - **The API is private, and authentication is on by default (D30–D34).** `ApiKeyGuard` (`APP_GUARD` in
   `api-auth.module.ts`) requires `X-API-Key` on every route; `API_AUTH_ENABLED` defaults to **true** and

@@ -335,9 +335,16 @@ worth hardening on its own merits, and nothing more urgent than that.
 
 ## Deferred, on purpose
 
-- **Log shipping and alerting.** JSON logs are the prerequisite, not the solution. Where the lines go, how long
-  they are kept and what pages someone at 3 a.m. are deployment and cost decisions.
-- **A scraper for `/metrics`.** The endpoint is real; running Prometheus or a Grafana agent against it is
-  infrastructure this repo does not own.
+**Two of these stopped being deferred.** Log shipping and getting the metrics off the box were both listed
+here, and both are implemented by the `ship-metrics-and-logs-to-grafana` change — see its `design.md` for why
+the answer is push-from-the-process rather than the agent this section assumed. The two constraints that
+decided it were not known when this was written: a second always-on free service breaks Render's 750-hour
+workspace quota, and Render log streaming needs a Pro workspace and does not list Loki as a destination.
+
+- **Alerting.** Still deferred, and deliberately separated from shipping: what pages someone at 3 a.m. is a
+  decision that needs the data to exist first. It does now.
+- ~~**A scraper for `/metrics`.**~~ Resolved by inverting it. Nothing scrapes; the process pushes its own
+  registry over the OTLP gateway it already holds a credential for. `/metrics` stays exactly as it was, for
+  the load test, the DAST job and local debugging.
 - **The remaining minor findings** from the QA review's §5 that were not in scope here: `POST /search`
   answering 404 rather than 405.

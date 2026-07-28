@@ -68,8 +68,13 @@ are consistent, not contradictory: nothing exports *by accident*; this exports *
 | Scrape `/metrics` from the keep-alive GitHub Actions cron and `remote_write` | Free and needs no service, but 10-minute resolution and CI as a data path. **Kept as the fallback** if OTLP metrics turn out to cost more than the free tier allows. |
 | Drop prom-client, serve `/metrics` from OTel's `PrometheusSerializer` | Single source of truth, but renames every series (unit suffixes, `_total`, `target_info`) and breaks the load-test report, the docs and the DAST expectations to fix something nobody is suffering from. |
 
-Recording twice inside one adapter is the cost of this decision, and it is deliberate: it is four lines in one
-file, invisible through the port, and reversible.
+Recording twice is the cost of this decision, and it is deliberate: invisible through the port, and reversible.
+
+**As built, it is a composite rather than one adapter holding both libraries.** `OtlpMetricsAdapter` owns the
+`MeterProvider` and its instruments, `CompositeMetricsAdapter` fans a single port call out to both, and
+`PrometheusMetricsAdapter` is untouched — so the endpoint the load test and the DAST job read is byte for byte
+what it was. The guarantee this decision is about (one `MetricsPort` call reaches both, and no call site
+learns of either) is unchanged; only the shape is.
 
 ### D36 — Logs ship from the process with a pino transport, because the platform cannot
 
@@ -98,15 +103,21 @@ must therefore swallow its own errors, and a spec has to prove it.
 on `require`, and nothing requires `ioredis` a second time, so `Redis.prototype.sendCommand` is never wrapped.
 HTTP survives only by luck: `http` is required again later by Express and Nest, after the patch is in place.
 
-The fix is to keep `startTracing()` first and load the application **dynamically** afterwards:
-`await import('./app.bootstrap')`. Nothing that touches a client is a static import of `main.ts` any more.
+**As built**: a preload module, `tracing.preload.ts`, whose *evaluation* calls `startTracing()`. `main.ts`
+imports it directly below `reflect-metadata`, and CommonJS evaluates every `require` in order, so the SDK is
+registered before the `AppModule` import on the next line can pull in ioredis. No dynamic import and no
+`app.bootstrap.ts`; `main.ts` keeps ordinary static imports and the rule stays expressible as "this import
+comes second".
 
-The existing spec that asserts `main.ts`'s static import order has to be replaced, not extended: it currently
-encodes the broken shape and would fail the fix. The replacement asserts that no application module is
-statically imported above the tracing bootstrap and that the app is reached through a dynamic import.
+Verified at runtime rather than by reading: with the preload first, `Redis.prototype.sendCommand` carries
+OpenTelemetry's wrapper; with ioredis required first and `startTracing()` called afterwards, it does not.
+
+The existing spec that asserts `main.ts`'s static import order had to be replaced, not extended: it encoded the
+broken shape and would have passed the bug.
 
 | Alternative | Why not |
 |---|---|
+| `await import('./app.bootstrap')` (the original plan) | Works, but splits the entry point in two to express an ordering that a preload states directly. |
 | `node --require ./dist/tracing.preload.js` in the Dockerfile | Works, but moves a load-bearing detail into the container command, where `npm start` locally silently differs from production. |
 | Accept it and document it | The trace would keep omitting the cache lookup that decides whether Elasticsearch is queried at all — a trace that lies by omission is worse than no trace. |
 
@@ -152,7 +163,9 @@ being a code change; it is a revert of one commit and carries no data or schema 
 
 ## Open Questions
 
-- Does Grafana Cloud's free tier accept OTLP **metrics** on the same gateway as traces with the same token,
-  or does it need a separate endpoint? Step 3 answers it before anything depends on it.
+- ~~Does Grafana Cloud accept OTLP **metrics** on the same gateway as traces with the same token?~~
+  **Answered from the documentation before wiring anything**: yes — one gateway, one credential, and the SDK
+  appends the signal path, so metrics go to `<endpoint>/v1/metrics` exactly as traces go to `/v1/traces`. The
+  exporter is built the same way the trace exporter already was.
 - Should `GET /metrics` remain once the data is in Grafana? Keeping it costs nothing and the load test reads
   it, so the assumption is yes — revisit only if it becomes a second thing to secure rather than one.

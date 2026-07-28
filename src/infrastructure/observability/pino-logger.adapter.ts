@@ -21,17 +21,23 @@ export class PinoLoggerAdapter implements LoggerService {
 
   /** `destination` exists so specs can read what was written; production passes nothing. */
   constructor(config: AppConfiguration, destination?: pino.DestinationStream) {
-    const { logLevel, logPretty, serviceName } = config.observability;
+    const { logLevel, logPretty, serviceName, lokiUrl } = config.observability;
     const pretty = logPretty && config.app.nodeEnv !== 'production';
+    const shipping = lokiUrl !== undefined && destination === undefined;
     const options: pino.LoggerOptions = {
       level: logLevel,
       base: { service: serviceName },
       timestamp: pino.stdTimeFunctions.isoTime,
       formatters: { level: (label) => ({ level: label }) },
-      ...(pretty && destination === undefined
+      ...(pretty && destination === undefined && !shipping
         ? { transport: { target: 'pino-pretty', options: { translateTime: 'SYS:standard' } } }
         : {}),
     };
+
+    if (shipping) {
+      this.logger = pino(options, shippingTransport(config, pretty));
+      return;
+    }
     this.logger = destination === undefined ? pino(options) : pino(options, destination);
   }
 
@@ -79,6 +85,53 @@ export class PinoLoggerAdapter implements LoggerService {
       toMessage(message),
     );
   }
+}
+
+/**
+ * Two destinations, one logger (design D36): the same JSON keeps going to
+ * standard output so the platform's log view stays populated, and a copy goes to
+ * Loki. Both run in worker threads, so batching and HTTP never touch the event
+ * loop that is serving requests.
+ *
+ * **Labels are `service` and `env`, and nothing else.** A Loki stream is the
+ * combination of its labels; `correlationId` is unique per request, so promoting
+ * it would mint a stream per request and be throttled off a free tier within the
+ * hour. It stays a *field* — `| json | correlationId="…"` finds it, at query time
+ * rather than at ingest time. `propsToLabels` is the option that would undo
+ * this; it is left alone deliberately.
+ *
+ * Shipping is best-effort twice over: `silenceErrors` keeps pino-loki from
+ * throwing on a failed batch, and the stream gets an `error` listener because an
+ * unhandled one would reach `installProcessSafetyNet`, which answers by exiting
+ * the process. A log backend going down must not restart the API.
+ */
+function shippingTransport(config: AppConfiguration, pretty: boolean): pino.DestinationStream {
+  const { lokiUrl, lokiUsername, lokiPassword, serviceName } = config.observability;
+  const transport = pino.transport({
+    targets: [
+      pretty
+        ? { target: 'pino-pretty', options: { translateTime: 'SYS:standard' } }
+        : { target: 'pino/file', options: { destination: 1 } },
+      {
+        target: 'pino-loki',
+        options: {
+          host: lokiUrl,
+          silenceErrors: true,
+          batching: true,
+          interval: 5,
+          labels: { service: serviceName, env: config.app.nodeEnv },
+          ...(lokiUsername !== undefined && lokiPassword !== undefined
+            ? { basicAuth: { username: lokiUsername, password: lokiPassword } }
+            : {}),
+        },
+      },
+    ],
+  });
+  transport.on('error', () => {
+    // Best-effort by contract. There is nowhere to report this that would not
+    // itself be a log line, and the request path must not care.
+  });
+  return transport;
 }
 
 function toMessage(message: unknown): string {

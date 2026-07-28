@@ -1,4 +1,5 @@
 import { Writable } from 'node:stream';
+import pino from 'pino';
 import type { AppConfiguration } from '@config/app-config';
 import { runWithCorrelationId } from '@shared/correlation.store';
 import { PinoLoggerAdapter } from './pino-logger.adapter';
@@ -155,5 +156,101 @@ describe('PinoLoggerAdapter — message shapes', () => {
     new PinoLoggerAdapter(config, stream).log('still json', 'Ctx');
 
     expect(records()[0]).toMatchObject({ msg: 'still json', context: 'Ctx' });
+  });
+});
+
+describe('PinoLoggerAdapter — log shipping (design D36)', () => {
+  /**
+   * `pino.transport` is stubbed rather than exercised: the real one spawns worker
+   * threads, and what is worth asserting here is the *configuration* — which
+   * targets, which labels, which failure behaviour — not that pino can start a
+   * thread.
+   */
+  function stubTransport(): { calls: any[]; stream: any } {
+    const calls: any[] = [];
+    const stream: any = { write: jest.fn(), on: jest.fn(), end: jest.fn() };
+    jest.spyOn(pino, 'transport').mockImplementation((options: any) => {
+      calls.push(options);
+      return stream;
+    });
+    return { calls, stream };
+  }
+
+  afterEach(() => jest.restoreAllMocks());
+
+  it('constructs no transport at all when Loki is not configured', () => {
+    const { calls } = stubTransport();
+
+    new PinoLoggerAdapter(configWith());
+
+    expect(calls).toHaveLength(0);
+  });
+
+  it('keeps writing to standard output alongside Loki', () => {
+    const { calls } = stubTransport();
+
+    new PinoLoggerAdapter(configWith({ lokiUrl: 'https://logs.example.com' }));
+
+    const targets = calls[0].targets.map((t: any) => t.target);
+    expect(targets).toContain('pino/file');
+    expect(targets).toContain('pino-loki');
+  });
+
+  it('labels streams by service and env only, never by correlation id', () => {
+    const { calls } = stubTransport();
+
+    new PinoLoggerAdapter(configWith({ lokiUrl: 'https://logs.example.com' }));
+
+    // Assert: a label per request would mint a Loki stream per request.
+    const loki = calls[0].targets.find((t: any) => t.target === 'pino-loki');
+    expect(Object.keys(loki.options.labels).sort()).toEqual(['env', 'service']);
+    expect(loki.options.propsToLabels).toBeUndefined();
+  });
+
+  it('silences batch errors and attaches an error listener to the stream', () => {
+    const { calls, stream } = stubTransport();
+
+    new PinoLoggerAdapter(configWith({ lokiUrl: 'https://logs.example.com' }));
+
+    // Assert: an unhandled 'error' here reaches installProcessSafetyNet, which
+    // exits the process — a log backend going down must not restart the API.
+    const loki = calls[0].targets.find((t: any) => t.target === 'pino-loki');
+    expect(loki.options.silenceErrors).toBe(true);
+    expect(stream.on).toHaveBeenCalledWith('error', expect.any(Function));
+    const handler = stream.on.mock.calls.find(([event]: [string]) => event === 'error')[1];
+    expect(() => handler(new Error('loki is down'))).not.toThrow();
+  });
+
+  it('sends basic auth only when both halves are configured', () => {
+    const { calls } = stubTransport();
+
+    new PinoLoggerAdapter(configWith({ lokiUrl: 'https://logs.example.com' }));
+    new PinoLoggerAdapter(
+      configWith({
+        lokiUrl: 'https://logs.example.com',
+        lokiUsername: '12345',
+        lokiPassword: 'glc_token',
+      }),
+    );
+
+    const lokiOf = (index: number): any =>
+      calls[index].targets.find((t: any) => t.target === 'pino-loki').options;
+    expect(lokiOf(0).basicAuth).toBeUndefined();
+    expect(lokiOf(1).basicAuth).toEqual({ username: '12345', password: 'glc_token' });
+  });
+
+  it('still carries the correlation id as a field, which is how a trace is pivoted to its logs', () => {
+    // Arrange: the injected destination path is what the other suites use, and
+    // it must keep working — shipping is additive, not a replacement.
+    const { stream, records } = collector();
+
+    runWithCorrelationId('corr-42', () => {
+      new PinoLoggerAdapter(configWith({ lokiUrl: 'https://logs.example.com' }), stream).log(
+        'searched',
+        'Ctx',
+      );
+    });
+
+    expect(records()[0]).toMatchObject({ msg: 'searched', correlationId: 'corr-42' });
   });
 });
