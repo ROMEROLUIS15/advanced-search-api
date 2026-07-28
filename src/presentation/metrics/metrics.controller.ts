@@ -39,7 +39,7 @@ export class MetricsController {
     return this.exporter.render();
   }
 
-  /** Open when no token is configured — that choice belongs to the deployment, not the code. */
+  /** Tokenless access is permitted only where validated configuration allows a missing token. */
   private assertAuthorized(authorization: string | undefined): void {
     if (this.token === undefined) {
       return;

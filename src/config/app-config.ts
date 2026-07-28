@@ -74,6 +74,16 @@ export interface ObservabilityConfig {
   otlpHeaders: Record<string, string>;
   serviceName: string;
   tracesSamplerRatio: number;
+  /**
+   * Telemetry shipping (design D35/D36/D38). Both pipelines are independent of
+   * each other *and* of tracing: an OTLP endpoint on its own ships traces only.
+   */
+  metricsExportEnabled: boolean;
+  metricExportIntervalMs: number;
+  /** Absent means no log transport is constructed at all. */
+  lokiUrl?: string;
+  lokiUsername?: string;
+  lokiPassword?: string;
 }
 
 /** Namespaced configuration consumed across the app; adapters read this, never `process.env`. */
@@ -145,6 +155,11 @@ export function buildConfig(env: Env): AppConfiguration {
       otlpHeaders: parseOtlpHeaders(env.OTEL_EXPORTER_OTLP_HEADERS),
       serviceName: env.OTEL_SERVICE_NAME,
       tracesSamplerRatio: env.OTEL_TRACES_SAMPLER_RATIO,
+      metricsExportEnabled: env.OTEL_METRICS_EXPORT_ENABLED,
+      metricExportIntervalMs: env.OTEL_METRIC_EXPORT_INTERVAL_MS,
+      lokiUrl: env.LOKI_URL,
+      lokiUsername: env.LOKI_USERNAME,
+      lokiPassword: env.LOKI_PASSWORD,
     },
   };
 }

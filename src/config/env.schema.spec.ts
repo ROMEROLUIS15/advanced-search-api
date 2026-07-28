@@ -58,6 +58,57 @@ describe('validateEnv', () => {
   });
 });
 
+describe('validateEnv — API client keys (D30–D32)', () => {
+  const authEnv = { ...baseEnv, API_AUTH_ENABLED: 'true' };
+  const strong = 'k7Qz2mB9xR4tL6vP';
+  const alsoStrong = 'W3nD8sF1jH5cY0aE';
+
+  it('accepts a list of keys that all clear the minimum length', () => {
+    // Arrange & Act
+    const env = validateEnv({ ...authEnv, API_KEYS: `${strong}, ${alsoStrong}` });
+
+    // Assert
+    expect(env.API_KEYS).toBe(`${strong}, ${alsoStrong}`);
+  });
+
+  it('refuses a key short enough to have been typed by hand', () => {
+    // Arrange & Act & Assert: this validated cleanly before the length bar existed.
+    expect(() => validateEnv({ ...authEnv, API_KEYS: 'x' })).toThrow(/at least 16 characters/);
+  });
+
+  it('refuses a weak key kept alongside a strong one, as happens mid-rotation', () => {
+    // Arrange & Act & Assert
+    expect(() => validateEnv({ ...authEnv, API_KEYS: `${strong},temp` })).toThrow(
+      /at least 16 characters/,
+    );
+  });
+
+  it('never echoes the offending key in the error', () => {
+    // Arrange & Act
+    const attempt = (): unknown => validateEnv({ ...authEnv, API_KEYS: 'short-secret' });
+
+    // Assert
+    expect(attempt).toThrow(/API_KEYS/);
+    expect(attempt).not.toThrow(/short-secret/);
+  });
+
+  it('ignores the length bar entirely when authentication is off', () => {
+    // Arrange & Act
+    const env = validateEnv({ ...baseEnv, API_AUTH_ENABLED: 'false', API_KEYS: 'x' });
+
+    // Assert
+    expect(env.API_AUTH_ENABLED).toBe(false);
+  });
+
+  it('still reports the missing-keys failure before the length one', () => {
+    // Arrange & Act & Assert: an empty list is a different mistake and reads better
+    // as "list at least one key" than as a complaint about length.
+    expect(() => validateEnv({ ...authEnv, API_KEYS: ' , ' })).toThrow(
+      /must list at least one key/,
+    );
+  });
+});
+
 describe('validateEnv — rate limiting (D14–D19)', () => {
   it('defaults to enforcement on, a one-minute window and per-endpoint budgets', () => {
     // Arrange & Act
@@ -168,6 +219,95 @@ describe('validateEnv — observability (D21–D25)', () => {
     expect(env.OTEL_TRACES_SAMPLER_RATIO).toBe(0.1);
   });
 
+  it('refuses to expose enabled metrics without a token in production', () => {
+    expect(() => validateEnv({ ...baseEnv, NODE_ENV: 'production' })).toThrow(/METRICS_TOKEN/);
+  });
+
+  it('accepts enabled production metrics when a token is configured', () => {
+    const env = validateEnv({
+      ...baseEnv,
+      NODE_ENV: 'production',
+      METRICS_TOKEN: 'metrics-secret',
+    });
+
+    expect(env.METRICS_ENABLED).toBe(true);
+    expect(env.METRICS_TOKEN).toBe('metrics-secret');
+  });
+
+  it('does not require a token when production metrics are disabled', () => {
+    const env = validateEnv({
+      ...baseEnv,
+      NODE_ENV: 'production',
+      METRICS_ENABLED: 'false',
+    });
+
+    expect(env.METRICS_ENABLED).toBe(false);
+    expect(env.METRICS_TOKEN).toBeUndefined();
+  });
+
+  it('leaves both shipping pipelines off by default', () => {
+    // Arrange & Act
+    const env = validateEnv({ ...baseEnv });
+
+    // Assert: this is what keeps CI, the e2e suites and a local run backend-free.
+    expect(env.OTEL_METRICS_EXPORT_ENABLED).toBe(false);
+    expect(env.LOKI_URL).toBeUndefined();
+    expect(env.OTEL_METRIC_EXPORT_INTERVAL_MS).toBe(60000);
+  });
+
+  it('refuses metrics export without somewhere to export to', () => {
+    // Arrange & Act & Assert: a reader that fails every flush, silently.
+    expect(() => validateEnv({ ...baseEnv, OTEL_METRICS_EXPORT_ENABLED: 'true' })).toThrow(
+      /OTEL_EXPORTER_OTLP_ENDPOINT/,
+    );
+  });
+
+  it('accepts metrics export alongside the tracing endpoint they share', () => {
+    // Arrange & Act
+    const env = validateEnv({
+      ...baseEnv,
+      OTEL_EXPORTER_OTLP_ENDPOINT: 'https://otlp.example.com',
+      OTEL_METRICS_EXPORT_ENABLED: 'true',
+    });
+
+    // Assert
+    expect(env.OTEL_METRICS_EXPORT_ENABLED).toBe(true);
+  });
+
+  it('leaves tracing alone when only an endpoint is set, shipping no metrics', () => {
+    // Arrange & Act: the accident this default exists to prevent.
+    const env = validateEnv({
+      ...baseEnv,
+      OTEL_EXPORTER_OTLP_ENDPOINT: 'https://otlp.example.com',
+    });
+
+    // Assert
+    expect(env.OTEL_METRICS_EXPORT_ENABLED).toBe(false);
+  });
+
+  it('refuses half a Loki credential', () => {
+    // Arrange & Act & Assert: Loki would 401 every batch, invisibly.
+    expect(() =>
+      validateEnv({ ...baseEnv, LOKI_URL: 'https://logs.example.com', LOKI_USERNAME: '12345' }),
+    ).toThrow(/LOKI_USERNAME and LOKI_PASSWORD/);
+  });
+
+  it('refuses credentials with no Loki to send them to', () => {
+    // Arrange & Act & Assert
+    expect(() =>
+      validateEnv({ ...baseEnv, LOKI_USERNAME: '12345', LOKI_PASSWORD: 'glc_token' }),
+    ).toThrow(/LOKI_URL/);
+  });
+
+  it('accepts a Loki URL with no credentials, as a local Loki has none', () => {
+    // Arrange & Act
+    const env = validateEnv({ ...baseEnv, LOKI_URL: 'http://localhost:3100' });
+
+    // Assert
+    expect(env.LOKI_URL).toBe('http://localhost:3100');
+    expect(env.LOKI_USERNAME).toBeUndefined();
+  });
+
   it.each([
     ['OTEL_TRACES_SAMPLER_RATIO', '-0.1'],
     ['OTEL_TRACES_SAMPLER_RATIO', '1.5'],
@@ -177,6 +317,11 @@ describe('validateEnv — observability (D21–D25)', () => {
     ['LOG_PRETTY', 'yes'],
     ['METRICS_ENABLED', '1'],
     ['METRICS_TOKEN', ''],
+    ['METRICS_TOKEN', '   '],
+    ['LOKI_URL', 'not-a-url'],
+    ['OTEL_METRICS_EXPORT_ENABLED', 'yes'],
+    ['OTEL_METRIC_EXPORT_INTERVAL_MS', '0'],
+    ['OTEL_METRIC_EXPORT_INTERVAL_MS', 'often'],
   ])('fails fast at boot on an invalid %s of "%s"', (key, value) => {
     // Arrange & Act & Assert
     expect(() => validateEnv({ ...baseEnv, [key]: value })).toThrow(

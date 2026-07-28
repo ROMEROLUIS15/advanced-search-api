@@ -38,7 +38,7 @@ describe('MetricsController', () => {
     expect(headers['Cache-Control']).toBe('no-store');
   });
 
-  it('stays open when no token is configured — the deployment decides, not the code', async () => {
+  it('stays open without a token in environments where validation permits it', async () => {
     // Arrange
     const controller = new MetricsController(exporter, configWith());
     const { response } = buildResponse();

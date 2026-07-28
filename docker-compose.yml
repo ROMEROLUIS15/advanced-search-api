@@ -54,6 +54,7 @@ services:
       # committed to this file would be a credential in the repo — a deployment
       # that should require one sets API_KEYS on the host instead.
       - API_AUTH_ENABLED=false
+      - METRICS_TOKEN=local-dev
     ports:
       # Loopback: with authentication off above, publishing on 0.0.0.0 would put
       # an unauthenticated API on the local network.
@@ -76,6 +77,7 @@ services:
       # The seed boots its own Nest context with no HTTP edge, but it validates
       # the same environment, so the same refusal applies to it.
       - API_AUTH_ENABLED=false
+      - METRICS_ENABLED=false
     command: ['node', 'dist/seed/seed.command.js']
 
 volumes:
