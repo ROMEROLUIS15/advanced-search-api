@@ -1,3 +1,8 @@
+# Local development stack. Every published port is bound to the loopback address
+# on purpose: Elasticsearch runs here with security disabled and Redis with no
+# password, so publishing them on 0.0.0.0 would hand two unauthenticated data
+# stores to anything that can reach this machine on the network. Containers talk
+# to each other over the compose network by service name, which is unaffected.
 services:
   elasticsearch:
     image: docker.elastic.co/elasticsearch/elasticsearch:8.17.0
@@ -7,7 +12,7 @@ services:
       - xpack.security.enabled=false
       - ES_JAVA_OPTS=-Xms512m -Xmx512m
     ports:
-      - '9200:9200'
+      - '127.0.0.1:9200:9200'
     healthcheck:
       test: ['CMD-SHELL', 'curl -s -f http://localhost:9200/_cluster/health || exit 1']
       interval: 10s
@@ -20,7 +25,7 @@ services:
     image: redis:7-alpine
     container_name: search-redis
     ports:
-      - '6379:6379'
+      - '127.0.0.1:6379:6379'
     healthcheck:
       test: ['CMD', 'redis-cli', 'ping']
       interval: 10s
@@ -43,8 +48,16 @@ services:
       - ELASTICSEARCH_NODE=http://elasticsearch:9200
       - ELASTICSEARCH_INDEX=products
       - REDIS_URL=redis://redis:6379
+      # Authentication defaults to ON and refuses to boot without API_KEYS
+      # (design D31), so this has to be stated: without it `docker compose up`
+      # dies at startup. Off rather than a key here because a credential
+      # committed to this file would be a credential in the repo — a deployment
+      # that should require one sets API_KEYS on the host instead.
+      - API_AUTH_ENABLED=false
     ports:
-      - '3000:3000'
+      # Loopback: with authentication off above, publishing on 0.0.0.0 would put
+      # an unauthenticated API on the local network.
+      - '127.0.0.1:3000:3000'
 
   # One-shot seed job: `docker compose --profile seed run --rm seed`
   seed:
@@ -60,6 +73,9 @@ services:
       - ELASTICSEARCH_NODE=http://elasticsearch:9200
       - ELASTICSEARCH_INDEX=products
       - REDIS_URL=redis://redis:6379
+      # The seed boots its own Nest context with no HTTP edge, but it validates
+      # the same environment, so the same refusal applies to it.
+      - API_AUTH_ENABLED=false
     command: ['node', 'dist/seed/seed.command.js']
 
 volumes:

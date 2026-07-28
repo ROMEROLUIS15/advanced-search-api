@@ -119,7 +119,10 @@ describe('GET /search (e2e)', () => {
   it('declares the cache policy it actually applies', async () => {
     const res = await request(app.getHttpServer()).get('/search').query({ q: 'drill' }).expect(200);
 
-    expect(res.headers['cache-control']).toMatch(/^public, max-age=\d+$/);
+    // Never `public`: the endpoint needs an API key, so a shared cache holding
+    // the response would hand it to a caller that never presented one.
+    expect(res.headers['cache-control']).toMatch(/^private, max-age=\d+$/);
+    expect(res.headers['vary']).toBe('x-api-key');
   });
 
   it('paginates without duplicating or skipping documents across pages', async () => {

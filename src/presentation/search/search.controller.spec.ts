@@ -89,6 +89,9 @@ describe('SearchController — cache policy (design D28)', () => {
     await controller.search(query, res);
 
     // Assert
-    expect(headers['Cache-Control']).toBe('public, max-age=300');
+    // `private`, so an intermediary cannot serve one client's authenticated
+    // response to the next, and `Vary` in case one stores it regardless.
+    expect(headers['Cache-Control']).toBe('private, max-age=300');
+    expect(headers['Vary']).toBe('x-api-key');
   });
 });

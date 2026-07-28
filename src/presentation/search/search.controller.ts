@@ -3,6 +3,7 @@ import { ApiOkResponse, ApiOperation, ApiTags } from '@nestjs/swagger';
 import type { Response } from 'express';
 import { APP_CONFIG, type AppConfiguration, type SearchConfig } from '@config/app-config';
 import { SearchProductsUseCase } from '@application/use-cases/search-products.use-case';
+import { API_KEY_HEADER } from '@presentation/auth/api-key.identity';
 import { ApiErrorResponses } from '../common/api-error-responses.decorator';
 import { SearchQueryDto } from './dto/search-query.dto';
 import { SearchResponseDto } from './dto/search-response.dto';
@@ -41,7 +42,15 @@ export class SearchController {
     const outcome = await this.searchProducts.execute(criteria);
     // Say out loud what the service already does internally (design D28): these
     // results sit in Redis for the same window, and the index is read-only.
-    response.setHeader('Cache-Control', `public, max-age=${this.cacheTtlSeconds}`);
+    //
+    // `private`, never `public`: the response is only reachable with a valid
+    // X-API-Key, and a shared cache holding it would serve one client's
+    // authenticated answer to whoever asked next — the guard bypassed by a proxy
+    // rather than by an attacker. `Vary` is the belt to that braces, for any
+    // intermediary that stores the response anyway: it must at least key it by
+    // the credential it was fetched with.
+    response.setHeader('Cache-Control', `private, max-age=${this.cacheTtlSeconds}`);
+    response.setHeader('Vary', API_KEY_HEADER);
     return toSearchResponseDto(outcome, criteria);
   }
 
