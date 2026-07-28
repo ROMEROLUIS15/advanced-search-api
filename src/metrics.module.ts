@@ -1,16 +1,14 @@
 import { Module } from '@nestjs/common';
-import { APP_INTERCEPTOR } from '@nestjs/core';
-import { MetricsInterceptor } from '@presentation/common/metrics.interceptor';
 import { MetricsController } from '@presentation/metrics/metrics.controller';
 
 /**
- * Metrics feature module (design D24). The interceptor is registered through
- * `APP_INTERCEPTOR` rather than `app.useGlobalInterceptors` because it needs the
- * metrics port injected — the same reason the rate-limit guard goes through
- * `APP_GUARD`.
+ * Metrics feature module (design D24). Only the scrape endpoint lives here:
+ * recording happens in an Express middleware registered in `app.setup.ts`,
+ * ahead of the router, because a Nest interceptor runs after the global guards
+ * and never saw the requests they rejected — the 401s, 429s and unmatched 404s
+ * that are precisely the abuse signals worth measuring.
  */
 @Module({
-  providers: [{ provide: APP_INTERCEPTOR, useClass: MetricsInterceptor }],
   controllers: [MetricsController],
 })
 export class MetricsModule {}

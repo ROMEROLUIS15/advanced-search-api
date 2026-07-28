@@ -91,4 +91,15 @@ describe('API key authentication (e2e)', () => {
 
     expect(res.headers['x-request-id']).toBeDefined();
   });
+
+  it('counts the rejected request in the metrics, which the interceptor never saw', async () => {
+    // The recording middleware runs ahead of the guards; a 401 rejected by the
+    // API-key guard must still land in the registry under its matched route.
+    await request(app.getHttpServer()).get('/search').query({ q: 'drill' }).expect(401);
+
+    const res = await request(app.getHttpServer()).get('/metrics').expect(200);
+    expect(res.text).toMatch(
+      /http_requests_total\{method="GET",route="\/search",status="401"\} [1-9]/,
+    );
+  });
 });

@@ -56,8 +56,8 @@ Single e2e: `npx jest --config ./test/jest-e2e.json test/search.e2e-spec.ts`.
 Single integration: `npx jest --config ./test/jest-integration.json test/elasticsearch.integration-spec.ts`.
 
 `npm run lint:ci && npm run test:cov && npm run build` is the `quality` CI job reproduced locally — run it
-before calling work done. Green baseline as of 2026-07-28: **70 suites / 462 tests**, plus 9 e2e suites
-(44 tests) and 5 integration tests against the real stack.
+before calling work done. Green baseline as of 2026-07-28: **70 suites / 463 tests**, plus 9 e2e suites
+(45 tests) and 5 integration tests against the real stack.
 
 `test:cov` **is** the gate: `coverageThreshold` sits just under the measured baseline (98 % statements, 92 %
 branches, 97 % functions) and CI's `quality` job runs `test:cov` instead of `npm test` — same suite, one more

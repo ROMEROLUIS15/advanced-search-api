@@ -1,10 +1,12 @@
 import { type INestApplication, ValidationPipe } from '@nestjs/common';
 import type { NestExpressApplication } from '@nestjs/platform-express';
 import helmet from 'helmet';
+import { METRICS_PORT, type MetricsPort } from '@application/ports/metrics.port';
 import type { AppConfiguration } from '@config/app-config';
 import { AllExceptionsFilter } from '@presentation/common/all-exceptions.filter';
 import { correlationIdMiddleware } from '@presentation/common/correlation-id.middleware';
 import { LoggingInterceptor } from '@presentation/common/logging.interceptor';
+import { buildMetricsMiddleware } from '@presentation/common/metrics.middleware';
 
 /**
  * Global HTTP configuration shared by the running app (main.ts) and the e2e
@@ -18,6 +20,10 @@ export function configureApp(app: INestApplication, config: AppConfiguration): v
   // First in the chain: everything downstream — including anything Helmet or the
   // validation pipe rejects — should log under the request's correlation id (D22).
   app.use(correlationIdMiddleware);
+  // Ahead of the router, so a request the API-key guard or the rate limiter
+  // rejects — or one matching no route at all — is still measured (design D24).
+  // A Nest interceptor runs after the global guards and missed exactly those.
+  app.use(buildMetricsMiddleware(app.get<MetricsPort>(METRICS_PORT)));
   // Security headers; CSP disabled for a JSON API with no browser-rendered HTML.
   app.use(helmet({ contentSecurityPolicy: false }));
   app.enableCors({ origin: resolveCorsOrigin(config) });
