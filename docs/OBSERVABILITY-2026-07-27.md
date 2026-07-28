@@ -348,3 +348,77 @@ workspace quota, and Render log streaming needs a Pro workspace and does not lis
   the load test, the DAST job and local debugging.
 - **The remaining minor findings** from the QA review's §5 that were not in scope here: `POST /search`
   answering 404 rather than 405.
+
+## Measured on 2026-07-28, after switching log shipping on
+
+The change's group 5 promised the estimates would be checked against the real backends before the change was
+called done. Everything below was measured on 2026-07-28, the day `LOKI_URL` was set in production.
+
+### Switching it on silenced the service before it shipped a single line
+
+The first activation produced a service that answered every request while Render's log view and Loki both
+stayed empty. Two independent defects, one per pipeline half, both introduced by the logger's *readable*
+options and both silent by construction:
+
+1. `formatters.level` writes `"level":"info"`. The multi-target worker routes each line by its **numeric**
+   level; a string matches no target's threshold and the line is dropped whole — the stdout target included.
+2. `timestamp: isoTime` writes a string `time`. pino-loki pads `log.time` arithmetically to nanoseconds
+   (`#buildTimestamp`), an ISO string multiplies to `NaN`, and Loki rejects the batch — which `silenceErrors`
+   then swallows, exactly as designed.
+
+Isolated by bisecting the logger options one at a time against the real transport and the real Loki tenant;
+fixed in `7ee3757` by keeping the wire format numeric whenever a line crosses the worker boundary. The
+readable variants still apply on the inline path, where no routing or padding ever sees them. Neither defect
+was reachable by the suites as written — the adapter spec stubs `pino.transport`, and CI, the e2e suites and
+the DAST boot all run with `LOKI_URL` unset — so the first execution of the real worker path was the
+production deploy. That is the "no full-stack test with production configuration" gap
+(`PENDING-2026-07-28.md` D2) biting in practice, and the strongest argument yet recorded for closing it.
+
+### Active series: 94, against the ~400 estimate
+
+`count({job="advanced-search-api"})` the hour shipping went live, with every endpoint exercised at least
+once: **94**, of which 70 are `http_request_duration_seconds_bucket` — the histogram dominates, exactly as
+the estimate assumed. Projected at full route × status coverage the total stays around ~220, two orders of
+magnitude inside the 10,000-series free tier. The fallback named in D35 (scrape from the keep-alive cron and
+`remote_write`) stays unused.
+
+One caveat the estimate missed: series are only *active* while the process exports. The free instance sleeps
+between keep-alive wakes (see below), so `count(...)` outside a wake window returns nothing — an empty
+instant query against this service is evidence about the duty cycle before it is evidence about the pipeline.
+
+### Log volume: ~2 MB/month at current traffic, against the <10 MB/month estimate
+
+First active hour, measured with `query_loki_stats` on `{service="advanced-search-api", env="production"}`:
+**43 entries, 7,054 bytes** — one boot (~36 lines ≈ 6 KB) plus the verification traffic. A boot is the
+dominant cost and the current keep-alive cadence (~every 2.5 h, below) means ~10 boots/day ≈ 60 KB/day ≈
+**~2 MB/month** at today's traffic, against a 50 GB monthly allowance. The estimate holds with three orders
+of margin; `correlationId` stays a field, so the stream count is fixed at one per (service, env).
+
+### The pivot (task 4.6), executed against production
+
+Real request: `GET /search?q=drill` with `X-Request-Id: claude-46-pivot`, answered 200 in 117 ms.
+
+- **Tempo** holds trace `f9016e697abd47e01a45cad023667ce9`: server span `GET` (url.query `[REDACTED]`),
+  children `evalsha` (rate-limit Lua, 14.8 ms) → `get` (cache read, miss) → `search` on `products` via
+  `@elastic/transport` (80.5 ms) → `set` (cache write), every Redis `db.query.text` carrying the command name
+  only. The trace ends at 13:22:56.383Z.
+- **The pivot**: the trace's end instant matches the interceptor line's `time` to the millisecond. Querying
+  Loki at that instant — `{service="advanced-search-api", env="production"} | json` — returns
+  `GET /search 200 117ms` carrying `correlationId="claude-46-pivot"`; filtering by that id returns the
+  request's full log story. The pivot is **temporal**, not attribute-linked: neither the span carries the
+  correlation id nor the log line the trace id. Good enough to close 4.6; linking them explicitly is a
+  possible later refinement, not a defect.
+- A second identical request answered in 19 ms and minted `search_cache_events_total{result="hit"}` — the
+  first time that metric has ever been observed in Grafana Cloud (`hit=1`, `miss=2` after the burst),
+  confirming the note left in `PENDING-2026-07-28.md` §C.
+
+### New finding: the keep-alive cron is being throttled to ~1 run every 2.5 h
+
+The workflow schedules `*/10 * * * *`, but the measured runs on 2026-07-28 landed at 03:19, 06:07, 09:04,
+11:26 — GitHub is honouring roughly one scheduled run in fifteen, far beyond its documented few-minute
+delays. Consequences, in order: the instance sleeps most of the day, every wake is a full boot (cold start
+for whoever causes it), metric series go stale between wakes, and each boot re-emits the ~36-line preamble
+that dominates log volume. The keep-alive's own runs stay green because their curl rides out the cold start,
+so the de-facto uptime alarm reports success while the thing it exists to prevent happens ten times a day.
+Recorded as a new open item in `PENDING-2026-07-28.md`; candidate fixes (an external pinger, or accepting
+the naps) belong to that discussion, not here.

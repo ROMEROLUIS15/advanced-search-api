@@ -62,15 +62,19 @@ own was worth the extra indirection.
 - [x] 4.5 Specs stub `pino.transport` rather than spawning threads, and assert the decisions: no transport when
       unconfigured, stdout kept, labels bounded, errors silenced and handled, basic auth only when whole, and
       the correlation id still emitted as a field
-- [ ] 4.6 **Needs a deploy**: verify in Loki a line from a real request, then pivot from a Tempo trace to its
-      `correlationId`
+- [x] 4.6 **Verified in production 2026-07-28**: `GET /search` with `X-Request-Id: claude-46-pivot` is in Loki
+      (`{service,env} | json | correlationId="claude-46-pivot"`), and Tempo trace
+      `f9016e697abd47e01a45cad023667ce9` pivots to it by its end instant, which matches the interceptor line's
+      `time` to the millisecond. Activation first exposed two silent wire-format defects (string `level` and
+      string `time`), fixed in `7ee3757` — the whole story is in `docs/OBSERVABILITY-2026-07-27.md`
 
 ## 5. Measure what was estimated (design "Risks")
 
-- [ ] 5.1 Record the actual active series count against the ~400 estimate, and the log volume per day against
-      the <10 MB/month estimate
-- [ ] 5.2 If either exceeds the free tier, fall back to the option named in D35 (scrape from the keep-alive
-      cron and `remote_write`) rather than inventing a new one
+- [x] 5.1 Measured 2026-07-28: **94 active series** (70 of them duration-histogram buckets; ~220 projected at
+      full route × status coverage) against the ~400 estimate, and **43 lines / 7,054 bytes** in the first
+      active hour ≈ ~2 MB/month against <10 MB/month. Both appended to `docs/OBSERVABILITY-2026-07-27.md`
+- [x] 5.2 Not needed: both signals sit orders of magnitude inside the free tier, so the D35 fallback (scrape
+      from the keep-alive cron and `remote_write`) stays unused
 
 ## 6. Documentation
 

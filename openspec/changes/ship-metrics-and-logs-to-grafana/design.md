@@ -96,6 +96,14 @@ is concrete: an unhandled rejection from the transport reaches `installProcessSa
 closes the app and calls `process.exit(1)`. A logging backend going down would restart the API. The transport
 must therefore swallow its own errors, and a spec has to prove it.
 
+**As built, one constraint this design missed:** a line that crosses the worker boundary must keep pino's
+numeric wire format. The logger's readable options each silently killed a pipeline half on first activation —
+`formatters.level` writes a string level the worker's routing compares against numeric thresholds (every line
+dropped, stdout included), and `timestamp: isoTime` writes a string time pino-loki pads arithmetically to NaN
+(batch rejected, swallowed by `silenceErrors`). Fixed in `7ee3757`: numeric `level` and `time` whenever the
+transport is in play; the readable variants only on the inline path. Neither was reachable by the specs, which
+stub `pino.transport` — the first run of the real worker was the production deploy.
+
 ### D37 — Redis is untraced because of module load order, and the fix is a dynamic import
 
 `main.ts` imports `AppModule` at module scope. Static imports are evaluated before `bootstrap()` runs, so
