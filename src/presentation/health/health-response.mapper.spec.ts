@@ -2,7 +2,7 @@ import { toHealthResponseDto } from './health-response.mapper';
 import type { HealthReport } from '@application/models/health-report';
 
 describe('toHealthResponseDto', () => {
-  it('maps dependencies into a keyed info object, including details when present', () => {
+  it('maps dependency statuses without exposing internal failure details', () => {
     const report: HealthReport = {
       status: 'ok',
       dependencies: [
@@ -15,7 +15,7 @@ describe('toHealthResponseDto', () => {
       status: 'ok',
       info: {
         elasticsearch: { status: 'up' },
-        redis: { status: 'down', detail: 'timeout' },
+        redis: { status: 'down' },
       },
     });
   });

@@ -1,5 +1,6 @@
 import { Inject, Injectable } from '@nestjs/common';
 import { Client } from '@elastic/elasticsearch';
+import { APP_CONFIG, type AppConfiguration } from '@config/app-config';
 import { errorMessage } from '@shared/error-message';
 import type { DependencyHealth, HealthProbePort } from '@application/ports/health-probe.port';
 import { ELASTICSEARCH_CLIENT } from '../client/elasticsearch.client.factory';
@@ -10,11 +11,27 @@ export class ElasticsearchHealthProbe implements HealthProbePort {
   readonly name = 'elasticsearch';
   readonly critical = true;
 
-  constructor(@Inject(ELASTICSEARCH_CLIENT) private readonly client: Client) {}
+  private readonly index: string;
+
+  constructor(
+    @Inject(ELASTICSEARCH_CLIENT) private readonly client: Client,
+    @Inject(APP_CONFIG) config: AppConfiguration,
+  ) {
+    this.index = config.elasticsearch.index;
+  }
 
   async ping(): Promise<DependencyHealth> {
     try {
-      await this.client.ping();
+      const indexExists = await this.client.indices.exists({ index: this.index });
+      if (!indexExists) {
+        return {
+          name: this.name,
+          status: 'down',
+          critical: this.critical,
+          detail: 'Configured search index is missing',
+        };
+      }
+
       return { name: this.name, status: 'up', critical: this.critical };
     } catch (error) {
       return {

@@ -5,10 +5,7 @@ import type { DependencyStatusDto, HealthResponseDto } from './dto/health-respon
 export function toHealthResponseDto(report: HealthReport): HealthResponseDto {
   const info: Record<string, DependencyStatusDto> = {};
   for (const dependency of report.dependencies) {
-    info[dependency.name] = {
-      status: dependency.status,
-      ...(dependency.detail ? { detail: dependency.detail } : {}),
-    };
+    info[dependency.name] = { status: dependency.status };
   }
   return { status: report.status, info };
 }

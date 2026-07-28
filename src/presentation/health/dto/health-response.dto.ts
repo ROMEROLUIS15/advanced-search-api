@@ -1,12 +1,9 @@
-import { ApiProperty, ApiPropertyOptional, getSchemaPath } from '@nestjs/swagger';
+import { ApiProperty, getSchemaPath } from '@nestjs/swagger';
 
-/** Per-dependency verdict. `detail` carries the reason only when it is down. */
+/** Public per-dependency verdict. Internal failure details stay out of the HTTP response. */
 export class DependencyStatusDto {
   @ApiProperty({ enum: ['up', 'down'], example: 'up' })
   status!: 'up' | 'down';
-
-  @ApiPropertyOptional({ example: 'connect ECONNREFUSED 127.0.0.1:6379' })
-  detail?: string;
 }
 
 /**

@@ -1,3 +1,4 @@
+import { Logger } from '@nestjs/common';
 import { CheckHealthUseCase } from './check-health.use-case';
 import type { DependencyHealth, HealthProbePort } from '../ports/health-probe.port';
 
@@ -25,6 +26,15 @@ const down = (name: string, critical: boolean): DependencyHealth => ({
 });
 
 describe('CheckHealthUseCase', () => {
+  beforeEach(() => {
+    jest.spyOn(Logger.prototype, 'warn').mockImplementation();
+    jest.spyOn(Logger.prototype, 'log').mockImplementation();
+  });
+
+  afterEach(() => {
+    jest.restoreAllMocks();
+  });
+
   it('reports ok when all critical dependencies are up', async () => {
     const useCase = new CheckHealthUseCase([
       probe('elasticsearch', true, up('elasticsearch', true)),
@@ -69,5 +79,35 @@ describe('CheckHealthUseCase', () => {
       status: 'down',
       detail: 'boom',
     });
+  });
+
+  it('logs a failure once and logs its recovery once', async () => {
+    const elasticsearch: HealthProbePort = {
+      name: 'elasticsearch',
+      critical: true,
+      ping: jest
+        .fn()
+        .mockResolvedValueOnce({
+          ...down('elasticsearch', true),
+          detail: 'connection refused',
+        })
+        .mockResolvedValueOnce({
+          ...down('elasticsearch', true),
+          detail: 'connection refused',
+        })
+        .mockResolvedValueOnce(up('elasticsearch', true)),
+    };
+    const useCase = new CheckHealthUseCase([elasticsearch]);
+
+    await useCase.execute();
+    await useCase.execute();
+    await useCase.execute();
+
+    expect(Logger.prototype.warn).toHaveBeenCalledTimes(1);
+    expect(Logger.prototype.warn).toHaveBeenCalledWith(
+      'Dependency elasticsearch is down: connection refused',
+    );
+    expect(Logger.prototype.log).toHaveBeenCalledTimes(1);
+    expect(Logger.prototype.log).toHaveBeenCalledWith('Dependency elasticsearch recovered');
   });
 });
