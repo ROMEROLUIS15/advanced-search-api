@@ -8,6 +8,7 @@ import { METRICS_PORT, type MetricsPort } from '../ports/metrics.port';
 import { cacheAside } from '../caching/cache-aside';
 import { searchOutcomeSchema } from '../caching/cached-payload.schema';
 import { buildSearchCacheKey } from '../caching/search-cache-key';
+import { searchCacheScope } from '../caching/cache-scope';
 
 /**
  * Runs a product search with a fail-open cache-aside layer (design D8). Caching is
@@ -17,6 +18,8 @@ import { buildSearchCacheKey } from '../caching/search-cache-key';
 export class SearchProductsUseCase {
   private readonly logger = new Logger(SearchProductsUseCase.name);
   private readonly ttlSeconds: number;
+  /** Computed once: configuration cannot change without restarting the process. */
+  private readonly cacheScope: string;
 
   constructor(
     @Inject(PRODUCT_SEARCH_PORT) private readonly productSearch: ProductSearchPort,
@@ -25,12 +28,13 @@ export class SearchProductsUseCase {
     @Inject(APP_CONFIG) config: AppConfiguration,
   ) {
     this.ttlSeconds = config.cache.searchTtlSeconds;
+    this.cacheScope = searchCacheScope(config);
   }
 
   execute(criteria: SearchCriteria): Promise<SearchOutcome> {
     return cacheAside({
       cache: this.cache,
-      key: buildSearchCacheKey(criteria),
+      key: buildSearchCacheKey(criteria, this.cacheScope),
       ttlSeconds: this.ttlSeconds,
       load: () => this.productSearch.search(criteria),
       logger: this.logger,
