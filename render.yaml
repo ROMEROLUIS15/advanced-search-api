@@ -89,3 +89,35 @@ services:
       # ~7.5 req/s sustained — see docs/OBSERVABILITY-2026-07-27.md.
       - key: OTEL_TRACES_SAMPLER_RATIO
         value: 1
+      # ── Telemetry shipping (design D35–D38) ────────────────────
+      # Every variable below must be declared here even though the service
+      # already has it. Both pipelines are inert when unconfigured — no
+      # exporter, no worker, no timer, and no complaint — which is what keeps
+      # CI and the e2e suites backend-free (D38) and also what makes an
+      # omission here silent: applying this blueprint to a fresh environment
+      # without them yields a service that ships no logs and no metrics while
+      # looking perfectly healthy. Read the boot line to know which pipelines
+      # are actually live; it names all three.
+      #
+      # Metric export is opt-in on its own flag rather than following the OTLP
+      # endpoint, because configuring *tracing* must never start a metrics
+      # pipeline by accident — it silently did until 1452e7b.
+      - key: OTEL_METRICS_EXPORT_ENABLED
+        value: true
+      # Loki, for log shipping. Prompted rather than committed, matching how
+      # the OTLP endpoint above is handled: these identify the Grafana tenant.
+      # The username is the Loki datasource's numeric user id, which is NOT
+      # the one in the OTLP gateway credential — each signal has its own.
+      # Username and password must be set together or not at all; the schema
+      # rejects half a credential, because Loki would answer 401 to every
+      # batch and shipping is best-effort, so the failure would be invisible.
+      #
+      # LOKI_PASSWORD is the same Grafana Cloud token used inside
+      # OTEL_EXPORTER_OTLP_HEADERS above: rotating it means editing BOTH, or
+      # one pipeline stops shipping in silence.
+      - key: LOKI_URL
+        sync: false
+      - key: LOKI_USERNAME
+        sync: false
+      - key: LOKI_PASSWORD
+        sync: false
