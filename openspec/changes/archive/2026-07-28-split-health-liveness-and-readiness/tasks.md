@@ -50,5 +50,8 @@
       `docs/OBSERVABILITY-2026-07-27.md`
 - [x] 6.4 Recorded: health-driven Redis traffic falls from ~605k commands/month to the monitor's ~8.6k, a
       70× reduction, since readiness issues no Redis call at all
-- [ ] 6.5 Measure what ~20k/day of `indices.exists` costs on the Elastic Cloud console and record it; if it
-      registers meaningfully, open a follow-up rather than improvising a fix here (design "Open Questions")
+- [ ] 6.5 **Deferred deliberately, and carried out of this change rather than closed.** Measuring what
+      ~20k/day of `indices.exists` costs needs the Elastic Cloud console, which this session could not reach.
+      The change was archived with it open because the Redis breach it existed to remove is gone and verified;
+      this is a separate quota on a separate provider. **Tracked as H3 in `docs/PENDING-2026-07-28.md`** — if
+      it registers meaningfully the answer is a follow-up change, not an edit here (design "Open Questions").

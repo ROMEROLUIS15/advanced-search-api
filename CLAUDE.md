@@ -13,14 +13,15 @@ The system is **implemented and deployed**, live at <https://advanced-search-api
 Docker runtime built from `render.yaml`). **The API is private**: every endpoint except `/health` requires an
 `X-API-Key` header (`/metrics` takes its own bearer token instead).
 
-Code comments cite design decisions by ID (`design D4`); the rationale is spread across **five** archived
+Code comments cite design decisions by ID (`design D4`); the rationale is spread across **six** archived
 changes under `openspec/changes/archive/`, not one — `2026-07-22-advanced-search-system` holds **D1–D13** (the
 core system), `2026-07-23-add-request-rate-limiting` **D14–D19**, `2026-07-27-add-service-observability`
-**D21–D29**, `2026-07-27-add-api-client-authentication` **D30–D34**, and
-`2026-07-28-ship-metrics-and-logs-to-grafana` **D35–D38** (telemetry shipping). The one exception is **D20**
-(ES `requestTimeout`/`maxRetries`), which has no `design.md` entry — its rationale is in README "Trade-offs"
-only. Each change's delta specs were synced into `openspec/specs/` on archiving, **ten capabilities** in
-total, and those scenarios are the acceptance criteria.
+**D21–D29**, `2026-07-27-add-api-client-authentication` **D30–D34**,
+`2026-07-28-ship-metrics-and-logs-to-grafana` **D35–D38** (telemetry shipping), and
+`2026-07-28-split-health-liveness-and-readiness` **D39–D42** (the health endpoint split). The one exception
+is **D20** (ES `requestTimeout`/`maxRetries`), which has no `design.md` entry — its rationale is in README
+"Trade-offs" only. Each change's delta specs were synced into `openspec/specs/` on archiving, **ten
+capabilities** in total, and those scenarios are the acceptance criteria.
 
 Post-ship reports live under `docs/`: the 2026-07-23 audit, the load-test run, the 2026-07-25 hardening report,
 the 2026-07-26 QA review, the 2026-07-27 observability report, the 2026-07-27 auth rollout — and
@@ -372,14 +373,14 @@ creates a change, `/opsx:apply <name>` (or the `openspec-apply-change` skill) wo
 and `/opsx:archive <name>` retires it — syncing delta specs into `openspec/specs/` on the way out. Precedence
 when artifacts disagree: **spec scenarios → design.md → tasks.md → proposal.md**.
 
-**Not all work goes through OpenSpec.** The five archives cover the feature work; post-ship maintenance — the
+**Not all work goes through OpenSpec.** The six archives cover the feature work; post-ship maintenance — the
 security workflows, the dependency policy, the 4xx logging / process safety net / OpenAPI hardening, the
 keep-alive cron — landed as direct conventional commits with a write-up under `docs/`, no change folder. A new
 capability gets a change; CI, dependency, ops and docs work does not.
 
-Always check `openspec list` first — it reports **no active changes** as of the 2026-07-28
-telemetry-shipping archive (five changes are now archived), and while it stays empty new work needs a new
-change rather than tasks appended to an existing one. Note the flags are not uniform:
+Always check `openspec list` first — it reports **no active changes** as of the 2026-07-28 health-split
+archive (six changes are now archived), and while it stays empty new work needs a new change rather than
+tasks appended to an existing one. Note the flags are not uniform:
 `openspec status --change <name> --json` takes `--change`, while validation does not — it is
 `openspec validate <name> --strict` for a change and `openspec validate --specs --strict` for the
 capability specs.
