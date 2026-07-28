@@ -14,7 +14,12 @@ const config: AppConfiguration = buildConfig(
 );
 
 interface MockClient {
-  indices: { existsAlias: jest.Mock; create: jest.Mock; refresh: jest.Mock };
+  indices: {
+    existsAlias: jest.Mock;
+    create: jest.Mock;
+    putAlias: jest.Mock;
+    refresh: jest.Mock;
+  };
   bulk: jest.Mock;
   count: jest.Mock;
 }
@@ -24,6 +29,7 @@ function createMockClient(): MockClient {
     indices: {
       existsAlias: jest.fn(),
       create: jest.fn().mockResolvedValue({}),
+      putAlias: jest.fn().mockResolvedValue({}),
       refresh: jest.fn().mockResolvedValue({}),
     },
     bulk: jest.fn(),
@@ -90,13 +96,29 @@ describe('ProductIndexAdapter', () => {
       expect(client.indices.create).not.toHaveBeenCalled();
     });
 
-    it('swallows a resource_already_exists error from a concurrent create', async () => {
+    it('accepts a concurrent create after confirming that it installed the alias', async () => {
       // Arrange
-      client.indices.existsAlias.mockResolvedValue(false);
+      client.indices.existsAlias.mockResolvedValueOnce(false).mockResolvedValueOnce(true);
       client.indices.create.mockRejectedValue(alreadyExistsError());
 
       // Act & Assert
       await expect(adapter.ensureIndex()).resolves.toBeUndefined();
+      expect(client.indices.putAlias).not.toHaveBeenCalled();
+    });
+
+    it('repairs an existing physical index that was left without its alias', async () => {
+      // Arrange
+      client.indices.existsAlias.mockResolvedValue(false);
+      client.indices.create.mockRejectedValue(alreadyExistsError());
+
+      // Act
+      await adapter.ensureIndex();
+
+      // Assert
+      expect(client.indices.putAlias).toHaveBeenCalledWith({
+        index: 'products_v1',
+        name: 'products',
+      });
     });
 
     it('rethrows unexpected errors', async () => {

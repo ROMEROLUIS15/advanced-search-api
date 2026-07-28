@@ -43,9 +43,17 @@ export class ProductIndexAdapter implements ProductIndexPort {
         aliases: { [this.alias]: {} },
       });
     } catch (error) {
-      // A concurrent boot may have created it first — that is a success, not a failure.
       if (!isAlreadyExistsError(error)) {
         throw error;
+      }
+      // A concurrent creator succeeds only if it also installed the alias. If a
+      // physical index was left behind without one, repair that state instead of
+      // returning a false success.
+      if (!(await this.client.indices.existsAlias({ name: this.alias }))) {
+        await this.client.indices.putAlias({
+          index: this.physicalIndex,
+          name: this.alias,
+        });
       }
     }
   }
