@@ -37,7 +37,7 @@ npm run start:dev            # ts-node-dev watch mode on :3000 (needs ES + Redis
 npm run build                # nest build + tsc-alias (rewrites @-aliases in dist/)
 npm start                    # node dist/main.js
 npm run seed                 # provision index + alias, bulk-load src/seed/dataset/products.seed.json (idempotent)
-npm run seed:prod            # same seed from dist/ — the only form that works in Docker/Render (no ts-node there)
+npm run seed:prod            # same seed from dist/ (no ts-node outside dev) — on a runner, NOT inside the image
 npm run lint                 # eslint --fix over {src,test}
 npm run lint:ci              # same rules WITHOUT --fix — what CI runs (see below)
 npm test                     # unit specs (src/**/*.spec.ts) — mocked ports, NO infrastructure needed
@@ -93,9 +93,10 @@ sink **received a batch** whose labels are the expected ones. The HTTP assertion
 bash, so they are linted and type-checked like the rest; point them anywhere with `SMOKE_BASE_URL` and
 `SMOKE_API_KEY`.
 
-**Security scanning** rides alongside CI in four layers (all free, public-repo): `codeql.yml` — SAST over the
+**Security scanning** rides alongside CI in five layers (all free, public-repo): `codeql.yml` — SAST over the
 TS; `dependabot.yml` — SCA (npm + github-actions + docker); `security.yml` — `secrets` (gitleaks over full
-history, blocking) and `dast` (OWASP ZAP against the API booted on the runner as Render does — `build` +
+history, blocking), **`image`** (Trivy over the built runtime image + a CycloneDX SBOM artifact) and `dast`
+(OWASP ZAP against the API booted on the runner as Render does — `build` +
 `seed:prod` + `node dist/main.js`, never `start:dev`). **api-scan, not baseline**: the passive baseline spider
 follows HTML links, so on a JSON API it only ever reached `/` (3 URLs); `zap-api-scan.py` imports the OpenAPI at
 `/docs-json` and hits every endpoint with its params (SQLi/XSS/command-injection/SSTI/Log4Shell exercised
@@ -104,6 +105,18 @@ against `q` & co.). `RATE_LIMIT_ENABLED=false` so ZAP doesn't scan its own 429s;
 **blocking** (no `-I`) — a WARN or FAIL fails the job, measured 0/0 over 128 URLs. On Linux runners the ZAP
 container uses `--network host` + `localhost`; on Docker Desktop (local)
 it's `host.docker.internal` instead.
+
+The **`image`** job is the only one that looks at what actually ships — CodeQL reads the source and Dependabot
+reads `package.json`, neither of which sees the base image layers or the pruned `node_modules`. It is blocking
+on HIGH/CRITICAL **with a fix available**; `ignore-unfixed` is what keeps that honest, since failing on a CVE
+with no upstream fix only teaches people to ignore a red job. Two things it forced, both worth knowing:
+**it is also the only job that builds the `Dockerfile`** (`quality`/`production-shape` build with npm,
+`integration` only composes ES and Redis), so a broken base now fails in CI instead of at the Render deploy;
+and **npm is deleted from the runtime image** because its *bundled* dependencies (tar, undici,
+brace-expansion under `/usr/local/lib/node_modules/npm`) carried all five findings on an otherwise clean
+image, with nothing in `/app` and no fixed npm in `node:26-alpine` yet. The service runs `node dist/main.js`
+and never npm, so this removes the code rather than suppressing the finding — **but inside the container the
+seed is `node dist/seed/seed.command.js`, not `npm run seed:prod`**.
 
 A fifth workflow, `keep-alive.yml`, is **not** CI — and since 2026-07-28 it is **not the keep-alive either,
 only a backstop**. Measured over its full run history: GitHub honours its `*/10` schedule roughly once an
@@ -133,10 +146,9 @@ programmatic compiler API `nest build`/`ts-jest`/`typescript-eslint` need (retur
 images in `security.yml` by `version@digest`, and the `Dockerfile` base by `node:26-alpine@sha256:…`
 (26.5.0-alpine3.24 as of 2026-07-29). Dependabot's `github-actions` and `docker` ecosystems understand the
 tag-plus-digest form and bump both halves together, so the pins do not rot — **except** the two scanner
-images, which live in `run:` steps where Dependabot cannot see them and are refreshed by hand. Worth knowing
-before touching the Dockerfile: **no CI job builds it.** `integration` only composes ES and Redis, and
-`production-shape` and DAST build with npm, so a broken Dockerfile surfaces at the Render deploy and nowhere
-earlier — build it locally (`docker build .`) when you change it.
+images, which live in `run:` steps where Dependabot cannot see them and are refreshed by hand. The pin is
+safe to keep only because the `image` job would fail on a fixable HIGH in that base: a digest never picks up
+patches on its own, so the gate is what forces the bump.
 
 `test:e2e` / `test:integration` run `--runInBand` deliberately: every e2e suite talks to the *same* external
 index and Redis, and in parallel workers the run ends with "a worker process has failed to exit gracefully".
@@ -224,8 +236,11 @@ metadata, so it registers a controller and nothing else. `app.module.ts` only as
   reason instead of throwing — a bad row is warned and skipped, and the process ends with `exitCode = 1` rather
   than aborting the batch. The dataset reaches `dist/` through `nest-cli.json` `assets: ["seed/dataset/*.json"]`
   (not tsc): a fixture added outside that glob compiles fine and then fails only at runtime in the container.
-  The runtime image is `npm ci --omit=dev`, so ts-node does not exist there — Docker/Render seed with
-  `npm run seed:prod` (`node dist/seed/seed.command.js`), never `npm run seed`.
+  The runtime image installs with `npm ci --omit=dev`, so ts-node does not exist there — and **npm itself is
+  deleted afterwards** (see the `image` job), so inside a container the seed is
+  **`node dist/seed/seed.command.js`**, never `npm run seed:prod` and never `npm run seed`. `docker-compose.yml`
+  already invokes it that way. The `seed:prod` script still exists for runs from a checkout, which is what both
+  CI jobs do.
 - **One Elasticsearch round-trip per `/search`.** `search-query.builder.ts` assembles hits + aggregations +
   suggest into a single request body; the adapter issues exactly one `client.search`. Never split it.
 - **Faceting is the highest-risk logic (D4).** Filters go in **`post_filter`** so they constrain the *hits*
@@ -329,7 +344,8 @@ metadata, so it registers a controller and nothing else. `app.module.ts` only as
   non-critical probe there spends a command per poll on a verdict it cannot change — that was ~605 k Upstash
   commands a month against a 500 k tier. `GET /health/live` calls nothing. Deploy consequence: against an
   unseeded Elasticsearch readiness never turns healthy and Render fails the deploy — the seed
-  (`npm run seed:prod`) must be guaranteed before boot, and today it is manual. Adding an endpoint under
+  (`node dist/seed/seed.command.js` in the container) must be guaranteed before boot, and today it is manual.
+  Adding an endpoint under
   `/health/` is free of exemption work: `matchesPath` matches sub-paths, so the API-key guard, the rate
   limiter, the trace sampler and the request logger all cover it the day it exists.
 - **Observability is three independent pieces (D21–D25), and two of them are load-bearing at import time.**

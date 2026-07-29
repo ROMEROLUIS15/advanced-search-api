@@ -451,8 +451,10 @@ auto-deploying from `main`); the steps below are what it took, and reproduce it 
    free service cannot both exist — going over the quota gets services suspended; on a paid instance type that
    never idles, delete both the monitor and the workflow. Scheduled workflows are also **auto-disabled after
    60 days without repo activity** — re-enable the backstop from the Actions tab if it goes quiet.
-4. **Seed once** against the managed cluster via a one-off job/shell: `npm run seed:prod`
-   (`node dist/seed/seed.command.js`). Idempotent by document id. **Order matters on the very first
+4. **Seed once** against the managed cluster from a one-off job/shell in the container:
+   **`node dist/seed/seed.command.js`**. Not `npm run seed:prod` — npm is removed from the runtime image
+   (its bundled dependencies were the only HIGH/CRITICAL findings the image scan reported), so the script
+   name only works from a checkout, which is how CI runs it. Idempotent by document id. **Order matters on the very first
    deploy**: readiness requires the seeded index to exist, so until this step has run `GET /health/ready`
    answers `503` and Render will fail the deploy rather than route traffic to it. That is the intended mode —
    an unseeded deployment must never serve errors — but the seed is a manual step today, so run it (against

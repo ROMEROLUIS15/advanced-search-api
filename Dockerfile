@@ -25,7 +25,17 @@ ENV NODE_ENV=production
 WORKDIR /app
 
 COPY package*.json ./
-RUN npm ci --omit=dev && npm cache clean --force
+# npm is deleted once it has done its job. It is not a scanner workaround: the
+# five HIGH/CRITICAL CVEs Trivy reports on this base image are all inside npm's
+# own bundled dependencies (tar, undici, brace-expansion under
+# /usr/local/lib/node_modules/npm), none of them in /app, and the node:26-alpine
+# image ships no fixed npm yet. The service runs `node dist/main.js` and never
+# npm, so removing it stops shipping the vulnerable code instead of suppressing
+# the finding — and a package manager inside a production image is surface in its
+# own right. Consequence for operators: inside the container the seed is
+# `node dist/seed/seed.command.js`, NOT `npm run seed:prod` (see README).
+RUN npm ci --omit=dev && npm cache clean --force \
+  && rm -rf /usr/local/lib/node_modules/npm /usr/local/bin/npm /usr/local/bin/npx
 COPY --from=builder /app/dist ./dist
 
 USER node

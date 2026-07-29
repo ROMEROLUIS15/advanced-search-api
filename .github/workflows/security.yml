@@ -1,9 +1,13 @@
 name: Security
 
-# Two of the four security layers that need CI runtime:
+# Three of the security layers that need CI runtime:
 #   - secrets: gitleaks over the full git history (the SAST/SCA layers are
 #     codeql.yml and dependabot.yml).
 #   - dast:    OWASP ZAP baseline against the running API.
+#   - image:   Trivy over the built runtime image, plus its SBOM. CodeQL reads the
+#              source and Dependabot reads package.json; neither looks at what is
+#              actually shipped — the Alpine packages, the pruned node_modules, the
+#              base image layers. This job is the only one that does.
 on:
   push:
     branches: [main]
@@ -134,6 +138,53 @@ jobs:
       - name: Stop the API
         if: always()
         run: '[ -f api.pid ] && kill "$(cat api.pid)" 2>/dev/null || true'
+
+  image:
+    name: Image scan + SBOM (Trivy)
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+
+      # Also the only job in the whole pipeline that builds the Dockerfile.
+      # `quality` and `production-shape` build with npm and `integration` only
+      # composes Elasticsearch and Redis, so before this job a broken Dockerfile
+      # surfaced at the Render deploy and nowhere earlier.
+      - name: Build the runtime image
+        run: docker build -t advanced-search-api:ci .
+
+      # Blocking, like the ZAP scan: a HIGH or CRITICAL with a fix available is a
+      # base image or dependency that must move, and the digest pin in the
+      # Dockerfile means it will not move on its own.
+      # `ignore-unfixed` is what keeps that gate honest rather than noisy — an
+      # unfixed CVE has no action attached, so failing on it would only teach
+      # people to ignore a red job.
+      - name: Scan the image
+        uses: aquasecurity/trivy-action@ed142fd0673e97e23eac54620cfb913e5ce36c25 # v0.36.0
+        with:
+          image-ref: advanced-search-api:ci
+          severity: HIGH,CRITICAL
+          ignore-unfixed: true
+          exit-code: '1'
+          format: table
+
+      # Separate invocation on purpose: this one must produce an inventory even
+      # when the scan above failed, so `if: always()` and no exit code.
+      - name: Generate the SBOM
+        if: always()
+        uses: aquasecurity/trivy-action@ed142fd0673e97e23eac54620cfb913e5ce36c25 # v0.36.0
+        with:
+          image-ref: advanced-search-api:ci
+          scan-type: image
+          format: cyclonedx
+          output: sbom.cdx.json
+
+      - name: Upload the SBOM
+        if: always()
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
+        with:
+          name: sbom-cyclonedx
+          path: sbom.cdx.json
+          if-no-files-found: warn
 
       - name: Container logs (on failure)
         if: failure()
