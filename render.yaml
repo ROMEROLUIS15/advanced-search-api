@@ -29,6 +29,15 @@ services:
     # takes ~3 minutes, so a deploy now lands minutes after the push instead
     # of seconds. That is the trade being bought.
     autoDeployTrigger: checksPass
+    # Measured exception, 2026-07-29 — the gate does NOT cover a push that edits
+    # this file. Such a push produces TWO deploys: one immediately with
+    # `trigger: blueprint_sync` (Render applying the blueprint, no checks waited
+    # for) and the gated `trigger: new_commit` one minutes later, which is the
+    # release that ends up live. Both were observed for commit 06a0360, 3 minutes
+    # apart. So a red commit can reach production for a few minutes whenever
+    # render.yaml changes — same shape as the already-recorded caveat that the
+    # gate never governs the push introducing it. Treat blueprint edits as
+    # ungated and verify them locally first.
     # Render waits for this to return 200 before routing traffic, and reports 503
     # while Elasticsearch is unreachable or its configured index is missing — so
     # a deploy against an unseeded cluster fails instead of serving errors.
