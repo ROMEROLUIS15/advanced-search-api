@@ -240,7 +240,11 @@ metadata, so it registers a controller and nothing else. `app.module.ts` only as
   deleted afterwards** (see the `image` job), so inside a container the seed is
   **`node dist/seed/seed.command.js`**, never `npm run seed:prod` and never `npm run seed`. `docker-compose.yml`
   already invokes it that way. The `seed:prod` script still exists for runs from a checkout, which is what both
-  CI jobs do.
+  CI jobs do. **In the image it is no longer a manual step at all**: `scripts/docker-entrypoint.sh` is the
+  `CMD` and runs the seed, then `exec`s the API so node stays tini's direct child. Render's `preDeployCommand`
+  would be the purpose-built hook and is **paid-instance only**, which is why the guarantee lives in the
+  entrypoint; `SEED_ON_BOOT=false` opts out. Read env there in shell, not through `APP_CONFIG` — the script
+  runs before any Node process exists, so D12 is untouched.
 - **One Elasticsearch round-trip per `/search`.** `search-query.builder.ts` assembles hits + aggregations +
   suggest into a single request body; the adapter issues exactly one `client.search`. Never split it.
 - **Faceting is the highest-risk logic (D4).** Filters go in **`post_filter`** so they constrain the *hits*
@@ -343,8 +347,10 @@ metadata, so it registers a controller and nothing else. `app.module.ts` only as
   flag rather than by name, because Render polls it every **~4.3 s** (measured, not configurable) and a
   non-critical probe there spends a command per poll on a verdict it cannot change — that was ~605 k Upstash
   commands a month against a 500 k tier. `GET /health/live` calls nothing. Deploy consequence: against an
-  unseeded Elasticsearch readiness never turns healthy and Render fails the deploy — the seed
-  (`node dist/seed/seed.command.js` in the container) must be guaranteed before boot, and today it is manual.
+  unseeded Elasticsearch readiness never turns healthy and Render fails the deploy — which is why the
+  container's entrypoint (`scripts/docker-entrypoint.sh`) runs the seed **before** starting the API, so that
+  guarantee is structural rather than a step someone remembers. A failed seed there is not fatal on purpose:
+  readiness is the gate, and refusing to boot would take the service down for one bad dataset row.
   Adding an endpoint under
   `/health/` is free of exemption work: `matchesPath` matches sub-paths, so the API-key guard, the rate
   limiter, the trace sampler and the request logger all cover it the day it exists.

@@ -451,14 +451,18 @@ auto-deploying from `main`); the steps below are what it took, and reproduce it 
    free service cannot both exist — going over the quota gets services suspended; on a paid instance type that
    never idles, delete both the monitor and the workflow. Scheduled workflows are also **auto-disabled after
    60 days without repo activity** — re-enable the backstop from the Actions tab if it goes quiet.
-4. **Seed once** against the managed cluster from a one-off job/shell in the container:
-   **`node dist/seed/seed.command.js`**. Not `npm run seed:prod` — npm is removed from the runtime image
-   (its bundled dependencies were the only HIGH/CRITICAL findings the image scan reported), so the script
-   name only works from a checkout, which is how CI runs it. Idempotent by document id. **Order matters on the very first
-   deploy**: readiness requires the seeded index to exist, so until this step has run `GET /health/ready`
-   answers `503` and Render will fail the deploy rather than route traffic to it. That is the intended mode —
-   an unseeded deployment must never serve errors — but the seed is a manual step today, so run it (against
-   the managed cluster, from any shell with the prod env) and then let Render retry.
+4. **The seed runs itself.** The container's entrypoint seeds — and migrates, when the index definition
+   changed — before starting the API, so a deployment cannot reach a cluster the seed has not run against.
+   It is idempotent: an unchanged definition costs one `getMapping` and nothing else, so restarts and cold
+   starts are not reindexes. `SEED_ON_BOOT=false` skips it.
+   A **failed** seed is deliberately not fatal — a failed migration leaves the alias on the previous version
+   and a single invalid dataset row also exits non-zero, neither of which means the service cannot serve.
+   Readiness stays the real gate: if the index genuinely is not there, `GET /health/ready` answers `503` and
+   Render fails the deploy rather than routing traffic to it, which is the intended mode.
+   To run it by hand anyway (a one-off job/shell in the container): **`node dist/seed/seed.command.js`**.
+   Not `npm run seed:prod` — npm is removed from the runtime image (its bundled dependencies were the only
+   HIGH/CRITICAL findings the image scan reported), so the script name only works from a checkout, which is
+   how CI runs it.
 5. **Re-run the seed after any mapping or dataset change** — it is also the migration command. It compares a
    fingerprint of the index definition against the one recorded on the live index and, when they differ,
    builds `products_v<n+1>`, loads the dataset into it, and moves the alias in a single atomic operation.

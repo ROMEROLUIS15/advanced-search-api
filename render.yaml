@@ -46,6 +46,15 @@ services:
       # Pinned so the port matches the Dockerfile's EXPOSE/HEALTHCHECK.
       - key: PORT
         value: 3000
+      # The container seeds — and migrates, when the index definition changed —
+      # before starting the API. Declared here rather than left to the
+      # entrypoint's default so the blueprint says what the service does.
+      # Render's `preDeployCommand` would be the purpose-built hook, but it is
+      # available on paid instance types only and this service is on the free
+      # one, so the entrypoint is where the guarantee lives. Set to 'false' to
+      # boot without touching the index.
+      - key: SEED_ON_BOOT
+        value: true
       - key: ELASTICSEARCH_INDEX
         value: products
       # Three proxy hops in front of the app on Render: the platform's internal
