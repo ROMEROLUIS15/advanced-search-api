@@ -6,7 +6,9 @@ import type { estypes } from '@elastic/elasticsearch';
  * dedicated autocomplete/suggestion sub-fields. `name`/`category`/`subcategories`
  * `copy_to` the `suggest_text` corpus feeding the term/phrase suggesters.
  *
- * 1 shard / 0 replicas keeps trial clusters green and scoring deterministic (D1).
+ * Shard and replica counts are deliberately absent (D1): Elastic Cloud Serverless
+ * rejects `number_of_shards`/`number_of_replicas` outright, and the same definition
+ * has to provision a local single-node cluster and the deployed Serverless project.
  */
 export function productIndexDefinition(): {
   settings: estypes.IndicesIndexSettings;
