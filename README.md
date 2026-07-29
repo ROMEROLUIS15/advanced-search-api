@@ -457,10 +457,29 @@ auto-deploying from `main`); the steps below are what it took, and reproduce it 
    answers `503` and Render will fail the deploy rather than route traffic to it. That is the intended mode —
    an unseeded deployment must never serve errors — but the seed is a manual step today, so run it (against
    the managed cluster, from any shell with the prod env) and then let Render retry.
-5. **Verify**: `GET /health` is green and `GET /search?q=drill` returns hits online.
+5. **Re-run the seed after any mapping or dataset change** — it is also the migration command. It compares a
+   fingerprint of the index definition against the one recorded on the live index and, when they differ,
+   builds `products_v<n+1>`, loads the dataset into it, and moves the alias in a single atomic operation.
+   Reads never see a missing alias, so this is safe while the service is serving. Its log line says which
+   version is now served and which is retained. Two consequences worth knowing before running it:
+   **a product deleted from the dataset disappears** (the new index gets exactly what the JSON holds), and
+   **cached results stay servable for up to `CACHE_TTL_SEARCH` (300 s)** after the flip, because cache keys
+   are scoped by alias and the alias does not change.
+6. **Verify**: `GET /health` is green and `GET /search?q=drill` returns hits online.
 
-Rollback: config is externalized, so reverting to a previous image needs no code change; for mapping changes,
-build a new versioned index and flip the `products` alias.
+Rollback: config is externalized, so reverting to a previous image needs no code change. For the *data*, the
+seed retains exactly one previous version, so a rollback is an alias move rather than a reindex — seconds,
+and no dataset required:
+
+```bash
+curl -X POST "$ELASTICSEARCH_NODE/_aliases" \
+  -H "Authorization: ApiKey $ELASTICSEARCH_API_KEY" -H 'Content-Type: application/json' \
+  -d '{"actions":[{"remove":{"index":"products_v2","alias":"products"}},
+                  {"add":{"index":"products_v1","alias":"products"}}]}'
+```
+
+Both actions must travel in **one** request: applied separately there is a window with no `products` alias,
+and readiness — which Render polls every ~4.2 s as the deploy gate — reports the service down inside it.
 
 ## Postman
 

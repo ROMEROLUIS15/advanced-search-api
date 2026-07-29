@@ -186,8 +186,11 @@ choice so the next reader does not mistake it for an oversight.
 
 ## Open Questions
 
-- Does Serverless preserve `mappings._meta` verbatim across `indices.create`? Expected yes, must be seen
-  before the trigger depends on it (first task of the implementation).
+- ~~Does Serverless preserve `mappings._meta` verbatim across `indices.create`?~~ **Answered 2026-07-29**
+  by the probe in tasks 1.1/1.2: yes, and `getMapping({ index: <alias> })` returns it keyed by the physical
+  index name, so one call feeds both D43 and D44. The remove+add flip, the delete of a retired index and
+  the `resource_already_exists_exception` (status **400**, not 409 — key on the type, as
+  `isAlreadyExistsError` already does) behave identically on Serverless 9.6.0 and on the local 8.17.0.
 - Should `publishIndex()` prune eagerly at flip time or at the *start* of the next migration? Flip-time
   pruning is simpler to reason about; start-of-next-run pruning keeps two versions available slightly
   longer for a rollback. Deferred to implementation, where the integration test makes the difference

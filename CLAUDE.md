@@ -13,15 +13,17 @@ The system is **implemented and deployed**, live at <https://advanced-search-api
 Docker runtime built from `render.yaml`). **The API is private**: every endpoint except `/health` requires an
 `X-API-Key` header (`/metrics` takes its own bearer token instead).
 
-Code comments cite design decisions by ID (`design D4`); the rationale is spread across **six** archived
+Code comments cite design decisions by ID (`design D4`); the rationale is spread across **seven** archived
 changes under `openspec/changes/archive/`, not one — `2026-07-22-advanced-search-system` holds **D1–D13** (the
 core system), `2026-07-23-add-request-rate-limiting` **D14–D19**, `2026-07-27-add-service-observability`
 **D21–D29**, `2026-07-27-add-api-client-authentication` **D30–D34**,
-`2026-07-28-ship-metrics-and-logs-to-grafana` **D35–D38** (telemetry shipping), and
-`2026-07-28-split-health-liveness-and-readiness` **D39–D42** (the health endpoint split). The one exception
-is **D20** (ES `requestTimeout`/`maxRetries`), which has no `design.md` entry — its rationale is in README
-"Trade-offs" only. Each change's delta specs were synced into `openspec/specs/` on archiving, **ten
-capabilities** in total, and those scenarios are the acceptance criteria.
+`2026-07-28-ship-metrics-and-logs-to-grafana` **D35–D38** (telemetry shipping),
+`2026-07-28-split-health-liveness-and-readiness` **D39–D42** (the health endpoint split), and
+`2026-07-29-add-versioned-index-migration` **D43–D49** (fingerprint-triggered reindex behind an atomic alias
+flip). The one exception is **D20** (ES `requestTimeout`/`maxRetries`), which has no `design.md` entry — its
+rationale is in README "Trade-offs" only. Each change's delta specs were synced into `openspec/specs/` on
+archiving, **ten capabilities** in total (the last change modified `product-indexing` rather than adding one),
+and those scenarios are the acceptance criteria.
 
 Post-ship reports live under `docs/`: the 2026-07-23 audit, the load-test run, the 2026-07-25 hardening report,
 the 2026-07-26 QA review, the 2026-07-27 observability report, the 2026-07-27 auth rollout — and
@@ -58,8 +60,9 @@ Single e2e: `npx jest --config ./test/jest-e2e.json test/search.e2e-spec.ts`.
 Single integration: `npx jest --config ./test/jest-integration.json test/elasticsearch.integration-spec.ts`.
 
 `npm run lint:ci && npm run test:cov && npm run build` is the `quality` CI job reproduced locally — run it
-before calling work done. Green baseline as of 2026-07-28: **71 suites / 485 tests**, plus 9 e2e suites
-(50 tests), 5 integration tests, and 12 `test:smoke` cases that need a production-shape server running.
+before calling work done. Green baseline as of 2026-07-29: **73 suites / 522 tests**, plus 9 e2e suites
+(50 tests), **2 integration suites / 10 tests** (`elasticsearch` and `index-migration`), and 12 `test:smoke`
+cases that need a production-shape server running.
 
 `test:cov` **is** the gate: `coverageThreshold` sits just under the measured baseline (98 % statements, 92 %
 branches, 97 % functions) and CI's `quality` job runs `test:cov` instead of `npm test` — same suite, one more
@@ -234,9 +237,23 @@ metadata, so it registers a controller and nothing else. `app.module.ts` only as
   (D26/D27): concurrent misses for one key **share a single `load()`**, the stored TTL carries **±10 % jitter**,
   and a hit is **parsed against a zod schema** (`cached-payload.schema.ts`) — so a cache hit is a validated
   *copy*, not the object that was stored, and a payload of the wrong shape is treated as a miss.
-- **Index behind an alias (D1)**: physical `products_v1` read/written through the `products` alias;
-  `ensureIndex()` is idempotent. The mapping intentionally sets **no** `number_of_shards`/`number_of_replicas`
-  (Elastic Cloud Serverless rejects them).
+- **Index behind an alias (D1), and the alias now actually moves (D43–D49).** Physical `products_v<n>` is
+  read/written through the `products` alias. The mapping intentionally sets **no**
+  `number_of_shards`/`number_of_replicas` (Elastic Cloud Serverless rejects them). `ensureIndex()` is
+  idempotent but **no longer a blind early return**: it hashes the definition (`index-definition.fingerprint.ts`,
+  `_meta` excluded because the digest is written *into* `_meta`) and compares it with the digest recorded on
+  the live index — read with **one** `getMapping({ index: alias })`, whose response is keyed by the physical
+  name, so that single call yields both the fingerprint and the current version. Equal ⇒ nothing happens.
+  Different, **or absent** ⇒ `<alias>_v<n+1>` is created *without* the alias, `bulkIndex`/`refresh` retarget to
+  it, and `publishIndex()` moves the alias in **one** `updateAliases` action list. That single call is
+  load-bearing: `/health/ready` is the deploy gate and Render polls it every ~4.2 s, so a two-call
+  remove-then-add would pass every unit test and still fail a deploy — `test/index-migration.integration-spec.ts`
+  polls the alias *during* the flip precisely to catch that. `SeedCatalogUseCase` publishes **only when zero
+  documents failed** (D46), so the failure mode is a stale catalogue, never a partial one. One previous version
+  is retained (rollback = the same call reversed, see README); older ones are deleted, and an index whose name
+  does not parse is left alone rather than deleted. Retired products disappear because the fresh index gets
+  exactly the dataset (D48) — not by delete-by-query. Cache scopes digest the *alias*, which a migration does
+  not change, so entries stay servable for up to `CACHE_TTL_SEARCH` (300 s) afterwards: deliberate (D49).
 - **ES client resilience (D20)**: the client factory sets an explicit `requestTimeout` (4 s) and `maxRetries`
   (2) from `ELASTICSEARCH_REQUEST_TIMEOUT_MS`/`ELASTICSEARCH_MAX_RETRIES`, overriding the SDK's 30 s / 3
   defaults — a tight timeout is the main lever keeping a *slow* ES from draining the pool, and fewer retries
