@@ -102,4 +102,4 @@
 - [x] 7.4 Run the local gate — `npm run lint:ci && npm run test:cov && npm run build` — plus
       `test:integration` and `test:e2e` against the seeded stack, and record the new suite/test baseline in
       `CLAUDE.md`.
-- [ ] 7.5 `openspec validate add-versioned-index-migration --strict`, then archive.
+- [x] 7.5 `openspec validate add-versioned-index-migration --strict`, then archive.

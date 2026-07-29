@@ -412,13 +412,14 @@ creates a change, `/opsx:apply <name>` (or the `openspec-apply-change` skill) wo
 and `/opsx:archive <name>` retires it — syncing delta specs into `openspec/specs/` on the way out. Precedence
 when artifacts disagree: **spec scenarios → design.md → tasks.md → proposal.md**.
 
-**Not all work goes through OpenSpec.** The six archives cover the feature work; post-ship maintenance — the
+**Not all work goes through OpenSpec.** The seven archives cover the feature work; post-ship maintenance — the
 security workflows, the dependency policy, the 4xx logging / process safety net / OpenAPI hardening, the
-keep-alive cron — landed as direct conventional commits with a write-up under `docs/`, no change folder. A new
-capability gets a change; CI, dependency, ops and docs work does not.
+keep-alive cron, the supply-chain pinning — landed as direct conventional commits with a write-up under
+`docs/`, no change folder. A new capability **or a behaviour change against a synced spec** gets a change; CI,
+dependency, ops and docs work does not.
 
-Always check `openspec list` first — it reports **no active changes** as of the 2026-07-28 health-split
-archive (six changes are now archived), and while it stays empty new work needs a new change rather than
+Always check `openspec list` first — it reports **no active changes** as of the 2026-07-29 versioned-index
+archive (seven changes are now archived), and while it stays empty new work needs a new change rather than
 tasks appended to an existing one. Note the flags are not uniform:
 `openspec status --change <name> --json` takes `--change`, while validation does not — it is
 `openspec validate <name> --strict` for a change and `openspec validate --specs --strict` for the
