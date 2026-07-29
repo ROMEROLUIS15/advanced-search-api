@@ -131,7 +131,11 @@ programmatic compiler API `nest build`/`ts-jest`/`typescript-eslint` need (retur
 
 `test:e2e` / `test:integration` run `--runInBand` deliberately: every e2e suite talks to the *same* external
 index and Redis, and in parallel workers the run ends with "a worker process has failed to exit gracefully".
-Serially all suites pass and Jest exits on its own, so neither script needs `--forceExit`.
+Serially all suites pass, which is why neither script carries `--forceExit`. **Jest does not exit on its own
+either way** — corrected 2026-07-29, this file used to claim it did: `test:e2e` ends with "Jest did not exit
+one second after the test run has completed" and then lingers. The verdict is unaffected (**exit code 0**,
+50/50), and it reproduces on a clean checkout, so it is nobody's recent regression — but read the exit code
+rather than waiting for the process, and do not treat the message as a symptom of whatever you just changed.
 
 Stack up: `docker compose up -d elasticsearch redis` (deps only, then run the API locally), or
 `docker compose up -d --build` (adds the API) plus `docker compose --profile seed run --rm seed` for a one-shot seed.
