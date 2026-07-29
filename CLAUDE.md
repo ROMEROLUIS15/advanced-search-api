@@ -129,6 +129,15 @@ programmatic compiler API `nest build`/`ts-jest`/`typescript-eslint` need (retur
 `baseUrl` + `moduleResolution=node10`, whose migration touches resolution entangled with
 `tsc-alias`/`tsconfig-paths`. zod 4, eslint 10 and the node 26 base image are current.
 
+**Everything the build pulls is pinned to an immutable reference**: actions by commit SHA, the two scanner
+images in `security.yml` by `version@digest`, and the `Dockerfile` base by `node:26-alpine@sha256:…`
+(26.5.0-alpine3.24 as of 2026-07-29). Dependabot's `github-actions` and `docker` ecosystems understand the
+tag-plus-digest form and bump both halves together, so the pins do not rot — **except** the two scanner
+images, which live in `run:` steps where Dependabot cannot see them and are refreshed by hand. Worth knowing
+before touching the Dockerfile: **no CI job builds it.** `integration` only composes ES and Redis, and
+`production-shape` and DAST build with npm, so a broken Dockerfile surfaces at the Render deploy and nowhere
+earlier — build it locally (`docker build .`) when you change it.
+
 `test:e2e` / `test:integration` run `--runInBand` deliberately: every e2e suite talks to the *same* external
 index and Redis, and in parallel workers the run ends with "a worker process has failed to exit gracefully".
 Serially all suites pass, which is why neither script carries `--forceExit`. **Jest does not exit on its own
