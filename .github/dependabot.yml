@@ -4,6 +4,13 @@
 #   - npm            -> the application and its transitive dependencies
 #   - github-actions -> keep the pinned action versions in the workflows current
 #   - docker         -> keep the Dockerfile runtime base image (node:*-alpine) patched
+#
+# Actions are pinned by commit SHA with the version in a trailing comment; this
+# ecosystem understands that form and bumps both together, so pinning costs no
+# staleness. The blind spot is the two scanner images in security.yml: Dependabot
+# reads the Dockerfile and, inside workflows, only `container:`/`services:` — never
+# an image named in a `run:` step. Those digests are refreshed by hand, and the
+# command to do it sits next to each one.
 version: 2
 updates:
   - package-ecosystem: npm
