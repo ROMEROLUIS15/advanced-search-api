@@ -93,10 +93,25 @@ services:
       - key: CORS_ORIGINS
         sync: false
       # ── API client authentication (design D30–D34) ────────────
-      # Defaults to true in code, stated here so it is visible in the
-      # blueprint. Enabling it without API_KEYS fails startup by design.
+      # The code defaults this to true, and true is the right default anywhere
+      # the catalogue belongs to somebody: an unset variable must never mean
+      # "unprotected" (D31). Enabling it without API_KEYS fails startup by
+      # design.
+      #
+      # This deployment is the deliberate exception. It is a public showcase
+      # serving the seeded demo catalogue — there is nothing here that is
+      # anyone's to protect, and the reason it is deployed at all is so that a
+      # stranger can open /docs and exercise the API without being handed a key
+      # first. The guard is untouched and still covers every client endpoint;
+      # only this instance opts out of it.
+      #
+      # Stated here rather than only on the service so the blueprint keeps
+      # describing the service (D4). A dashboard-only override would look fine
+      # until the next edit to this file triggered a blueprint sync, which would
+      # silently restore `true` and take /docs back to 401 with the URL already
+      # published.
       - key: API_AUTH_ENABLED
-        value: true
+        value: false
       # Comma-separated keys, prompted on apply and stored on the service.
       # Several are valid at once so one can be rotated without downtime.
       - key: API_KEYS
