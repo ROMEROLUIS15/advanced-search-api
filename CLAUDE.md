@@ -129,9 +129,16 @@ instead (the mistake made on day one) every check answers **401**, so the monito
 outage and emails about it, while still keeping the instance awake — a 401 is inbound traffic like any
 other, which is what makes the misconfiguration survivable and therefore easy to leave in place. The quota decision stands: free-tier Render bills 750 instance-hours a month *across the
 workspace* and staying awake costs ~730, so the monitor's cadence and a second free service cannot coexist —
-over quota, Render suspends services. The workflow stays as an hourly-ish independent probe (`permissions:
-contents: read`, fails on non-200); GitHub auto-disables schedules after 60 days of repo inactivity, so
-check the Actions tab if the backstop goes quiet.
+over quota, Render suspends services. **Since 2026-08-20 the workflow has no `schedule:` at all**, only
+`workflow_dispatch` (`permissions: contents: read`, fails on non-200): the deployment stopped answering on
+2026-08-08 20:39 UTC and stayed down, so the cron's only remaining output was ~30 failure emails a day about
+one already-known fact. The measured symptom is worth keeping, because it names the layer: Render's edge
+completes the TLS handshake and accepts the request, then sends **0 bytes** until the client times out, on
+`/`, `/health`, `/health/live` and `/health/ready` alike — and `/health/live` calls nothing, so this is not a
+dependency outage rendering as 503, there is no instance serving. That is Render-side (suspension, or a
+deploy that never satisfied the `healthCheckPath: /health/ready` gate), so it is fixed in the Render and
+Elastic Cloud consoles, never here. Run the workflow by hand from the Actions tab to test whether it is back;
+the `schedule:` block to restore is commented in the file.
 
 **Dependency policy** (SCA-driven): `npm audit` is kept at **0** (dev + prod) via two targeted `overrides` in
 `package.json` — `js-yaml` → `5.2.2` (its DoS advisory reached prod through `@nestjs/swagger`) and

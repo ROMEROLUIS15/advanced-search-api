@@ -1,31 +1,41 @@
 name: Keep alive
 on:
-  schedule:
-    # THIS WORKFLOW IS A BACKSTOP, NOT THE KEEP-ALIVE. Measured 2026-07-28 over
-    # the full run history: GitHub honours this */10 schedule roughly once an
-    # hour, with gaps up to 8h48 — the ticks are never created (zero queued or
-    # cancelled runs), so no concurrency or workflow setting can fix it. A
-    # schedule this frequent is simply not something GitHub delivers reliably.
-    #
-    # What actually keeps Render's free instance awake since 2026-07-28 is an
-    # external UptimeRobot monitor hitting /health every 5 minutes — well
-    # inside the ~15-minute spin-down window — which also alerts by email on a
-    # non-200, taking over the uptime-alarm role this job can no longer claim
-    # (its runs stayed green while the instance napped ten times a day: the
-    # curl below simply rides out the ~20-25s cold start it exists to prevent).
-    #
-    # Kept at */10 anyway: whatever GitHub does deliver acts as an independent
-    # hourly-ish probe from a second network, and it costs nothing. If it looks
-    # dead for a day, remember GitHub auto-disables schedules after 60 days of
-    # repo inactivity — check the Actions tab before the cron syntax.
-    #
-    # The quota arithmetic still decides things: Render's free tier bills
-    # **750 instance-hours per month across the whole workspace**, and staying
-    # awake 24/7 — now actually delivered by the 5-minute monitor — costs ~730
-    # of them. That fits, with ~20 h of margin, and only while this is the ONLY
-    # free service in the workspace: a second one would put the workspace over
-    # quota, and Render suspends services when that happens.
-    - cron: '*/10 * * * *'
+  # THE SCHEDULE IS RETIRED (2026-08-20). This job no longer runs on its own;
+  # it stays as a manual probe you can fire from the Actions tab to check
+  # whether the deployment answers again.
+  #
+  # Why it was retired, measured rather than assumed: the deployment stopped
+  # answering on 2026-08-08 20:39 UTC and stayed dead, so every scheduled run
+  # since then failed — 358 of them, ~30 notification emails a day about a
+  # single fact already known. Render's edge still completes the TLS handshake
+  # and accepts the request, then returns 0 bytes for the full 90 s timeout, on
+  # `/`, `/health`, `/health/live` and `/health/ready` alike. `/health/live`
+  # calls nothing (no Elasticsearch, no Redis), so its silence is the tell: this
+  # is not a dependency outage surfacing as a 503 — no instance is serving at
+  # all. Either Render suspended the service or a deploy never satisfied the
+  # `healthCheckPath: /health/ready` gate and the router waits on an instance
+  # that never turns healthy. Fixing that needs the Render and Elastic Cloud
+  # consoles, not this workflow.
+  #
+  # What the schedule was already worth before that, measured 2026-07-28 over
+  # the full run history: GitHub honours a `*/10` cron roughly once an hour,
+  # with gaps up to 8h48, and the missed ticks are never created (zero queued or
+  # cancelled runs), so no concurrency or workflow setting could fix it. What
+  # actually kept the free instance awake was an external UptimeRobot monitor on
+  # `/health` every 5 minutes — well inside the ~15-minute spin-down window —
+  # which also owned the uptime-alarm role this job could not claim (its runs
+  # stayed green while the instance napped ten times a day: the curl below rides
+  # out the very cold start it existed to prevent).
+  #
+  # To bring the schedule back once the deployment is healthy again, restore:
+  #     schedule:
+  #       - cron: '*/10 * * * *'
+  # and remember GitHub auto-disables schedules after 60 days of repo
+  # inactivity. The quota arithmetic still decides things: Render's free tier
+  # bills **750 instance-hours per month across the whole workspace**, and
+  # staying awake 24/7 costs ~730 of them — that fits only while this is the
+  # ONLY free service in the workspace, since Render suspends services when a
+  # workspace goes over quota.
   workflow_dispatch:
 
 concurrency:

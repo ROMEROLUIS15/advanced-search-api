@@ -17,11 +17,17 @@ autocomplete, and "did you mean" suggestions — all read-only over a single see
 [`/autocomplete?q=cord`](https://advanced-search-api-chet.onrender.com/autocomplete?q=cord) or
 [`/suggest?q=driil`](https://advanced-search-api-chet.onrender.com/suggest?q=driil), or browse the whole
 contract interactively in the **[Swagger UI at `/docs`](https://advanced-search-api-chet.onrender.com/docs)**.
-It runs on Render's free instance type, which spins down when idle; a scheduled keep-alive
-([`.github/workflows/keep-alive.yml`](.github/workflows/keep-alive.yml)) pings `/health` every 10 minutes
-**round the clock** so it stays warm and answers in ~0.5 s at any hour. That costs ~730 of the 750
-instance-hours the free tier grants the whole workspace per month, which fits only while this is the single
-free service in it. If the workflow is disabled, the first request after a pause pays a ~20 s cold start.
+> **Status (2026-08-20): the deployment is not answering.** Since 2026-08-08 20:39 UTC every request to it
+> completes the TLS handshake and then returns nothing until the client gives up — including `/health/live`,
+> which calls no dependency, so this is not an Elasticsearch or Redis outage surfacing as a 503: no instance
+> is serving at all. Reviving it needs the Render and Elastic Cloud consoles, not a repo change. Everything
+> below describes the service as built and as it ran until that date.
+
+It runs on Render's free instance type, which spins down when idle, so an external uptime monitor hits
+`/health` every 5 minutes to keep it warm and answering in ~0.5 s at any hour — see
+[Deploy](#deploy-elastic-cloud-serverless--upstash--render). Staying awake round the clock costs ~730 of the
+750 instance-hours the free tier grants the whole workspace per month, which fits only while this is the
+single free service in it. Unmonitored, the first request after a pause pays a ~20 s cold start.
 
 ## Capabilities
 
@@ -444,9 +450,11 @@ auto-deploying from `main`); the steps below are what it took, and reproduce it 
    after ~15 minutes idle, so an **external uptime monitor** (UptimeRobot, free tier) hits `/health` every
    5 minutes to keep it warm and emails on a non-200. Point it at `/health` specifically: every other route
    requires `X-API-Key`, so a monitor aimed at the root reports a permanent 401 outage. A GitHub cron was tried first and measured wanting:
-   GitHub delivers a `*/10` schedule roughly once an hour, with multi-hour gaps —
-   [`.github/workflows/keep-alive.yml`](.github/workflows/keep-alive.yml) stays only as an hourly-ish backstop
-   probe (its comments carry the measurement). Two constraints shape the cadence: staying awake 24/7 spends
+   GitHub delivers a `*/10` schedule roughly once an hour, with multi-hour gaps, so it never kept the
+   instance awake — and once the deployment stopped answering on 2026-08-08 it only mailed ~30 failing runs a
+   day about it. [`.github/workflows/keep-alive.yml`](.github/workflows/keep-alive.yml) is therefore retired
+   to **manual dispatch**: run it from the Actions tab to check whether the deployment is back, and restore
+   the `schedule:` block its comments carry if you ever want the cron again. Two constraints shape the cadence: staying awake 24/7 spends
    ~730 of the 750 instance-hours the free tier allows *per workspace* each month, so the monitor and a second
    free service cannot both exist — going over the quota gets services suspended; on a paid instance type that
    never idles, delete both the monitor and the workflow. Scheduled workflows are also **auto-disabled after
