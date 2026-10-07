@@ -5,10 +5,11 @@
 # is Dependabot's docker ecosystem, which understands `tag@digest` and bumps both
 # together (see .github/dependabot.yml). Without that automation this pin would
 # rot, which is the failure mode worth knowing before copying the pattern.
-# Resolved 2026-07-29: node:26-alpine == 26.5.0-alpine3.24.
+# Resolved 2026-10-07: node:26-alpine == 26.10.0-alpine3.24 (bumped from
+# 26.5.0-alpine3.24, whose libcrypto3 3.5.7 carried a fixable HIGH).
 
 # ---- Build stage ----
-FROM node:26-alpine@sha256:e88a35be04478413b7c71c455cd9865de9b9360e1f43456be5951032d7ac1a66 AS builder
+FROM node:26-alpine@sha256:0b36e8c136b94cd4fcf02188228e76c31ad5872eef3fec8cbd2eee500cfd9e80 AS builder
 WORKDIR /app
 
 COPY package*.json ./
@@ -19,7 +20,7 @@ COPY src ./src
 RUN npm run build
 
 # ---- Runtime stage ----
-FROM node:26-alpine@sha256:e88a35be04478413b7c71c455cd9865de9b9360e1f43456be5951032d7ac1a66 AS runtime
+FROM node:26-alpine@sha256:0b36e8c136b94cd4fcf02188228e76c31ad5872eef3fec8cbd2eee500cfd9e80 AS runtime
 RUN apk add --no-cache tini
 ENV NODE_ENV=production
 WORKDIR /app
