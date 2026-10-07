@@ -140,9 +140,11 @@ deploy that never satisfied the `healthCheckPath: /health/ready` gate), so it is
 Elastic Cloud consoles, never here. Run the workflow by hand from the Actions tab to test whether it is back;
 the `schedule:` block to restore is commented in the file.
 
-**Dependency policy** (SCA-driven): `npm audit` is kept at **0** (dev + prod) via two targeted `overrides` in
-`package.json` — `js-yaml` → `5.2.2` (its DoS advisory reached prod through `@nestjs/swagger`) and
-`brace-expansion` → `5.0.8` (a DoS advisory transitive through the jest/eslint tooling). Two majors are pinned
+**Dependency policy** (SCA-driven): `npm audit` is kept at **0** (dev + prod) via three targeted `overrides` in
+`package.json` — `js-yaml` → `5.2.2` (its DoS advisory reached prod through `@nestjs/swagger`),
+`brace-expansion` → `5.0.8` (a DoS advisory transitive through the jest/eslint tooling) and `multer` → `2.4.0`
+(a HIGH that Trivy flagged in the image plus a later DoS advisory; `@nestjs/platform-express` 11 pins `2.2.0`
+exactly, and the release that moves past it is the Nest 12 major). Two majors are pinned
 on purpose, not neglect, and ignored/kept accordingly: **`@elastic/elasticsearch` stays on 8.x** to match the
 8.17 server (ignored in `dependabot.yml`), and **TypeScript stays on 5.x** — TS 7.0 ships without the
 programmatic compiler API `nest build`/`ts-jest`/`typescript-eslint` need (returns in 7.1), and TS 6 deprecates
@@ -151,7 +153,7 @@ programmatic compiler API `nest build`/`ts-jest`/`typescript-eslint` need (retur
 
 **Everything the build pulls is pinned to an immutable reference**: actions by commit SHA, the two scanner
 images in `security.yml` by `version@digest`, and the `Dockerfile` base by `node:26-alpine@sha256:…`
-(26.5.0-alpine3.24 as of 2026-07-29). Dependabot's `github-actions` and `docker` ecosystems understand the
+(26.10.0-alpine3.24 as of 2026-10-07). Dependabot's `github-actions` and `docker` ecosystems understand the
 tag-plus-digest form and bump both halves together, so the pins do not rot — **except** the two scanner
 images, which live in `run:` steps where Dependabot cannot see them and are refreshed by hand. The pin is
 safe to keep only because the `image` job would fail on a fixable HIGH in that base: a digest never picks up
