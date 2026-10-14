@@ -32,7 +32,7 @@
     "@elastic/elasticsearch": "^8.17.0",
     "@nestjs/common": "^11.0.1",
     "@nestjs/config": "^4.0.0",
-    "@nestjs/core": "^11.0.1",
+    "@nestjs/core": "^12.1.2",
     "@nestjs/platform-express": "^11.0.1",
     "@nestjs/swagger": "^11.4.6",
     "@nestjs/terminus": "^11.0.0",
